@@ -20,7 +20,7 @@ struct RootTabView: View {
 
             FaceRecognitionView()
                 .tabItem {
-                    Label("Face Recognition", systemImage: "person.crop.rectangle")
+                    Label("Faces", systemImage: "person.crop.rectangle")
                 }
 
             SettingsView()

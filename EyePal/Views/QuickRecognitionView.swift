@@ -61,14 +61,8 @@ struct QuickRecognitionView: View {
                         }
 
                         HStack(spacing: 12) {
-                            quickPresetButton(
-                                title: customButtonTitle,
-                                systemImage: "slider.horizontal.3"
-                            ) {
-                                viewModel.takeCustomPresetPhoto()
-                            }
-
-                            ForEach(QuickQueryPreset.builtIn) { preset in
+                            ForEach(RecognitionButtonSlot.allCases) { slot in
+                                let preset = settingsStore.quickPreset(for: slot)
                                 quickPresetButton(
                                     title: preset.title,
                                     systemImage: preset.systemImageName
@@ -108,11 +102,6 @@ struct QuickRecognitionView: View {
         .onDisappear {
             viewModel.stop()
         }
-    }
-
-    private var customButtonTitle: String {
-        let trimmed = settingsStore.quickCustomQueryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? QuickCustomQueryPreset.defaultTitle : trimmed
     }
 
     @ViewBuilder

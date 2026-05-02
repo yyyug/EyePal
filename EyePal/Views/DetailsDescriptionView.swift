@@ -2,6 +2,7 @@ import SwiftUI
 import WebKit
 
 struct DetailsDescriptionView: View {
+    @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var viewModel = DetailsDescriptionViewModel()
 
@@ -50,6 +51,18 @@ struct DetailsDescriptionView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(viewModel.isProcessing)
+                        }
+
+                        HStack(spacing: 12) {
+                            ForEach(RecognitionButtonSlot.allCases) { slot in
+                                let preset = settingsStore.detailsPreset(for: slot)
+                                detailsPresetButton(
+                                    title: preset.title,
+                                    systemImage: preset.systemImageName
+                                ) {
+                                    viewModel.capturePresetPhoto(preset)
+                                }
+                            }
                         }
 
                         if !viewModel.descriptionText.isEmpty {
@@ -126,6 +139,28 @@ struct DetailsDescriptionView: View {
             }
         }
     }
+
+    @ViewBuilder
+    private func detailsPresetButton(
+        title: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 14)
+        }
+        .buttonStyle(.bordered)
+        .disabled(viewModel.isProcessing)
+    }
 }
 
 private struct OpenAILoginSheet: View {
@@ -201,5 +236,6 @@ private struct OpenAILoginWebView: UIViewRepresentable {
 
 #Preview {
     DetailsDescriptionView()
+    .environmentObject(SettingsStore())
         .environmentObject(OpenAISubscriptionStore())
 }

@@ -21,8 +21,9 @@ struct SettingsView: View {
                 }
 
                 Section("Features") {
-                    NavigationLink("Details Description") {
+                    NavigationLink("Details Recognition") {
                         DetailsDescriptionSettingsView()
+                            .environmentObject(settingsStore)
                             .environmentObject(openAIStore)
                     }
 
@@ -31,7 +32,7 @@ struct SettingsView: View {
                             .environmentObject(settingsStore)
                     }
 
-                    NavigationLink("Face Recognition") {
+                    NavigationLink("Faces") {
                         FaceRecognitionSettingsView()
                             .environmentObject(settingsStore)
                     }
@@ -49,10 +50,33 @@ struct SettingsView: View {
 }
 
 private struct DetailsDescriptionSettingsView: View {
+    @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
 
     var body: some View {
         Form {
+            Section("Details Buttons") {
+                ForEach(RecognitionButtonSlot.allCases) { slot in
+                    NavigationLink {
+                        RecognitionButtonSettingsEditor(
+                            title: slot.displayName,
+                            selectedKind: detailsPresetKindBinding(for: slot),
+                            customTitle: detailsCustomTitleBinding(for: slot),
+                            customPrompt: detailsCustomPromptBinding(for: slot)
+                        )
+                    } label: {
+                        LabeledContent(slot.displayName) {
+                            Text(settingsStore.detailsPreset(for: slot).title)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Text("Each button can use Product, Dish, Short Text, or your own Custom prompt.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             if openAIStore.isSignedIn {
                 Section {
                     Button("Sign Out", role: .destructive) {
@@ -66,7 +90,51 @@ private struct DetailsDescriptionSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Details Description")
+        .navigationTitle("Details Recognition")
+    }
+
+    private func detailsPresetKindBinding(for slot: RecognitionButtonSlot) -> Binding<RecognitionPresetKind> {
+        Binding(
+            get: { settingsStore.detailsPresetKind(for: slot) },
+            set: { newValue in
+                switch slot {
+                case .first:
+                    settingsStore.detailsButton1PresetKind = newValue.rawValue
+                case .second:
+                    settingsStore.detailsButton2PresetKind = newValue.rawValue
+                case .third:
+                    settingsStore.detailsButton3PresetKind = newValue.rawValue
+                case .fourth:
+                    settingsStore.detailsButton4PresetKind = newValue.rawValue
+                }
+            }
+        )
+    }
+
+    private func detailsCustomTitleBinding(for slot: RecognitionButtonSlot) -> Binding<String> {
+        switch slot {
+        case .first:
+            return $settingsStore.detailsButton1CustomTitle
+        case .second:
+            return $settingsStore.detailsButton2CustomTitle
+        case .third:
+            return $settingsStore.detailsButton3CustomTitle
+        case .fourth:
+            return $settingsStore.detailsButton4CustomTitle
+        }
+    }
+
+    private func detailsCustomPromptBinding(for slot: RecognitionButtonSlot) -> Binding<String> {
+        switch slot {
+        case .first:
+            return $settingsStore.detailsButton1CustomPrompt
+        case .second:
+            return $settingsStore.detailsButton2CustomPrompt
+        case .third:
+            return $settingsStore.detailsButton3CustomPrompt
+        case .fourth:
+            return $settingsStore.detailsButton4CustomPrompt
+        }
     }
 }
 
@@ -123,20 +191,24 @@ private struct QuickRecognitionSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Custom Button") {
-                TextField("Button Name", text: $settingsStore.quickCustomQueryTitle)
-                    .textInputAutocapitalization(.words)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Prompt")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    TextEditor(text: $settingsStore.quickCustomQueryPrompt)
-                        .frame(minHeight: 120)
+            Section("Quick Buttons") {
+                ForEach(RecognitionButtonSlot.allCases) { slot in
+                    NavigationLink {
+                        RecognitionButtonSettingsEditor(
+                            title: slot.displayName,
+                            selectedKind: quickPresetKindBinding(for: slot),
+                            customTitle: quickCustomTitleBinding(for: slot),
+                            customPrompt: quickCustomPromptBinding(for: slot)
+                        )
+                    } label: {
+                        LabeledContent(slot.displayName) {
+                            Text(settingsStore.quickPreset(for: slot).title)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
-                Text("This button appears to the left of Product and uses the prompt you save here.")
+                Text("Set each button to Product, Dish, Short Text, or a Custom prompt.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -229,6 +301,94 @@ private struct QuickRecognitionSettingsView: View {
         }
     }
     #endif
+
+    private func quickPresetKindBinding(for slot: RecognitionButtonSlot) -> Binding<RecognitionPresetKind> {
+        Binding(
+            get: { settingsStore.quickPresetKind(for: slot) },
+            set: { newValue in
+                switch slot {
+                case .first:
+                    settingsStore.quickButton1PresetKind = newValue.rawValue
+                case .second:
+                    settingsStore.quickButton2PresetKind = newValue.rawValue
+                case .third:
+                    settingsStore.quickButton3PresetKind = newValue.rawValue
+                case .fourth:
+                    settingsStore.quickButton4PresetKind = newValue.rawValue
+                }
+            }
+        )
+    }
+
+    private func quickCustomTitleBinding(for slot: RecognitionButtonSlot) -> Binding<String> {
+        switch slot {
+        case .first:
+            return $settingsStore.quickButton1CustomTitle
+        case .second:
+            return $settingsStore.quickButton2CustomTitle
+        case .third:
+            return $settingsStore.quickButton3CustomTitle
+        case .fourth:
+            return $settingsStore.quickButton4CustomTitle
+        }
+    }
+
+    private func quickCustomPromptBinding(for slot: RecognitionButtonSlot) -> Binding<String> {
+        switch slot {
+        case .first:
+            return $settingsStore.quickButton1CustomPrompt
+        case .second:
+            return $settingsStore.quickButton2CustomPrompt
+        case .third:
+            return $settingsStore.quickButton3CustomPrompt
+        case .fourth:
+            return $settingsStore.quickButton4CustomPrompt
+        }
+    }
+}
+
+private struct RecognitionButtonSettingsEditor: View {
+    let title: String
+    @Binding var selectedKind: RecognitionPresetKind
+    @Binding var customTitle: String
+    @Binding var customPrompt: String
+
+    var body: some View {
+        Form {
+            Section("Behavior") {
+                Picker("Use", selection: $selectedKind) {
+                    ForEach(RecognitionPresetKind.allCases) { kind in
+                        Text(kind.displayName).tag(kind)
+                    }
+                }
+
+                Text("Choose what this button does in the camera tab.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if selectedKind == .custom {
+                Section("Custom") {
+                    TextField("Button Name", text: $customTitle)
+                        .textInputAutocapitalization(.words)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Prompt")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        TextEditor(text: $customPrompt)
+                            .frame(minHeight: 120)
+                    }
+
+                    Text("This custom name and prompt are used when this button is set to Custom.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle(title)
+    }
 }
 
 private struct FaceRecognitionSettingsView: View {
