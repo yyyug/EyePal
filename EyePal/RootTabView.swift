@@ -8,11 +8,6 @@ struct RootTabView: View {
                     Label("Quick", systemImage: "camera.viewfinder")
                 }
 
-            MapsView()
-                .tabItem {
-                    Label("Maps", systemImage: "map")
-                }
-
             DetailsDescriptionView()
                 .tabItem {
                     Label("Details", systemImage: "sparkles.rectangle.stack")
@@ -21,6 +16,11 @@ struct RootTabView: View {
             ReadTextView()
                 .tabItem {
                     Label("Read Text", systemImage: "text.viewfinder")
+                }
+
+            MapsView()
+                .tabItem {
+                    Label("Maps", systemImage: "map")
                 }
 
             FaceRecognitionView()

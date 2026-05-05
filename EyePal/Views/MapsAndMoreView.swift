@@ -12,6 +12,7 @@ struct MapsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    soundscapeHomeCard
                     queryCard
                     focusedIntersectionCard
                     routePlacesCard
@@ -37,6 +38,60 @@ struct MapsView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+    }
+
+    private var soundscapeHomeCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 8) {
+                Button("My Location") {
+                    viewModel.calloutMyLocation()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Around Me") {
+                    viewModel.calloutAroundMe()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Ahead of Me") {
+                    viewModel.calloutAheadOfMe()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Nearby Markers") {
+                    viewModel.calloutNearbyMarkers()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Along Street Guide") {
+                    viewModel.calloutAlongStreetGuide()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.focusedIntersection == nil)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Current Road")
+                    .font(.headline)
+                Text(viewModel.currentRoadText)
+                    .font(.subheadline.weight(.semibold))
+                Text(viewModel.statusText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if let focused = viewModel.focusedIntersection {
+                    Divider()
+                    Text(viewModel.intersectionHeading(for: focused))
+                        .font(.subheadline.weight(.semibold))
+                    Text(viewModel.intersectionDetails(for: focused))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var queryCard: some View {
@@ -197,49 +252,26 @@ struct MapsView: View {
 }
 
 struct MoreView: View {
-    @EnvironmentObject private var settingsStore: SettingsStore
-    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var floorStore = FloorRecordStore()
-    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Maps") {
-                    NavigationLink("Floor Detection") {
-                        FloorDetectionListView()
-                            .environmentObject(floorStore)
-                    }
-
-                    Button("Settings") {
-                        showingSettings = true
-                    }
-                }
-
-                Section("About") {
-                    Text("Maps includes address-to-exit focus, current-location nearest-intersection focus, and spatial sound cues for route places.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .navigationTitle("More")
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-                .environmentObject(settingsStore)
-                .environmentObject(openAIStore)
+            FloorDetectionListView()
+                .environmentObject(floorStore)
+                .navigationTitle("More")
         }
     }
 }
 
 private struct FloorDetectionListView: View {
     @EnvironmentObject private var floorStore: FloorRecordStore
+    @State private var selectedRecord: FloorRecord?
 
     var body: some View {
         List {
             ForEach(floorStore.records) { record in
-                NavigationLink {
-                    FloorMonitorView(record: record)
+                Button {
+                    selectedRecord = record
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(record.name), \(record.floorLabel)")
@@ -248,7 +280,11 @@ private struct FloorDetectionListView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel("\(record.name), \(record.floorLabel)")
+                .accessibilityAction(named: Text("Default")) {
+                    selectedRecord = record
+                }
                 .accessibilityAction(named: Text("Delete")) {
                     floorStore.delete(record)
                 }
@@ -265,6 +301,9 @@ private struct FloorDetectionListView: View {
             }
         }
         .navigationTitle("Floor Detection")
+        .navigationDestination(item: $selectedRecord) { record in
+            FloorMonitorView(record: record)
+        }
         .toolbar {
             NavigationLink {
                 FloorRecordEditorView()
@@ -282,6 +321,9 @@ private struct FloorRecordEditorView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var name = ""
     @State private var floorLabel = ""
+    @State private var addSecondFloor = false
+    @State private var secondFloorLabel = ""
+    @State private var firstAltitudeSnapshot: Double?
     @FocusState private var focusedField: EditorField?
 
     private enum EditorField {
@@ -308,16 +350,53 @@ private struct FloorRecordEditorView: View {
                     .focused($focusedField, equals: .floor)
             }
 
+            if addSecondFloor {
+                Section("Add Another Floor") {
+                    TextField("Another Floor", text: $secondFloorLabel)
+                        .keyboardType(.numberPad)
+
+                    LabeledContent("Latest Altitude") {
+                        Text(altitudeMonitor.altitudeDisplayText)
+                    }
+                }
+            }
+
             Section {
+                Button("加入樓層") {
+                    firstAltitudeSnapshot = altitudeMonitor.currentAltitudeMeters
+                    addSecondFloor = true
+                }
+                .disabled(
+                    addSecondFloor ||
+                    name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    floorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    altitudeMonitor.currentAltitudeMeters == nil
+                )
+
                 Button("Finish") {
-                    floorStore.addRecord(
-                        name: name,
-                        floorLabel: floorLabel,
-                        altitudeMeters: altitudeMonitor.currentAltitudeMeters
-                    )
+                    if addSecondFloor {
+                        floorStore.addRecords(
+                            name: name,
+                            firstFloorLabel: floorLabel,
+                            firstAltitudeMeters: firstAltitudeSnapshot,
+                            secondFloorLabel: secondFloorLabel,
+                            secondAltitudeMeters: altitudeMonitor.currentAltitudeMeters
+                        )
+                    } else {
+                        floorStore.addRecord(
+                            name: name,
+                            floorLabel: floorLabel,
+                            altitudeMeters: altitudeMonitor.currentAltitudeMeters
+                        )
+                    }
                     dismiss()
                 }
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || floorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || altitudeMonitor.currentAltitudeMeters == nil)
+                .disabled(
+                    name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    floorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    altitudeMonitor.currentAltitudeMeters == nil ||
+                    (addSecondFloor && secondFloorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                )
             }
         }
         .navigationTitle("Floor Detection")
@@ -341,20 +420,10 @@ private struct FloorMonitorView: View {
 
     var body: some View {
         Form {
-            Section("Target") {
+            Section {
                 Text("\(record.name), \(record.floorLabel)")
-                Text(String(format: "Target altitude %.2f m", record.altitudeMeters))
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Live") {
-                LabeledContent("Altitude") {
+                LabeledContent("Current Altitude") {
                     Text(altitudeMonitor.altitudeDisplayText)
-                }
-
-                if let currentAltitude = altitudeMonitor.currentAltitudeMeters {
-                    Text(String(format: "Difference %.2f m", abs(currentAltitude - record.altitudeMeters)))
-                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -477,6 +546,17 @@ private final class FloorRecordStore: ObservableObject {
         save()
     }
 
+    func addRecords(
+        name: String,
+        firstFloorLabel: String,
+        firstAltitudeMeters: Double?,
+        secondFloorLabel: String,
+        secondAltitudeMeters: Double?,
+    ) {
+        addRecord(name: name, floorLabel: firstFloorLabel, altitudeMeters: firstAltitudeMeters)
+        addRecord(name: name, floorLabel: secondFloorLabel, altitudeMeters: secondAltitudeMeters)
+    }
+
     func delete(_ record: FloorRecord) {
         records.removeAll { $0.id == record.id }
         save()
@@ -516,6 +596,10 @@ private final class MapsViewModel: ObservableObject {
     @Published var isLocating = false
     @Published var errorMessage: String?
 
+    var currentRoadText: String {
+        focusedIntersection?.currentRoad ?? intersections.first?.currentRoad ?? "Not loaded"
+    }
+
     var focusedIntersection: MapIntersection? {
         intersections.indices.contains(focusedIndex) ? intersections[focusedIndex] : nil
     }
@@ -545,6 +629,7 @@ private final class MapsViewModel: ObservableObject {
             statusText = "Getting current location..."
             do {
                 let location = try await locationProvider.requestCurrentLocation()
+                try? await apiClient.scanNearbyTiles(lat: location.coordinate.latitude, lon: location.coordinate.longitude)
                 let reverse = try await apiClient.reverseRoad(lat: location.coordinate.latitude, lon: location.coordinate.longitude)
                 query = reverse.displayName
                 try await loadRoad(
@@ -600,6 +685,49 @@ private final class MapsViewModel: ObservableObject {
         }
     }
 
+    func calloutMyLocation() {
+        loadFromCurrentLocation()
+    }
+
+    func calloutAroundMe() {
+        guard let current = focusedIntersection else {
+            announce(text: "Around Me unavailable. Search a road first.")
+            return
+        }
+        announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)).")
+    }
+
+    func calloutAheadOfMe() {
+        guard intersections.indices.contains(focusedIndex) else {
+            announce(text: "Ahead of Me unavailable. Search a road first.")
+            return
+        }
+        let nextIndex = focusedIndex + 1
+        guard intersections.indices.contains(nextIndex) else {
+            announce(text: "Ahead of Me: last intersection.")
+            return
+        }
+        let next = intersections[nextIndex]
+        announce(text: "Ahead of Me: \(intersectionHeading(for: next)).")
+    }
+
+    func calloutNearbyMarkers() {
+        guard !routePlaces.isEmpty else {
+            announce(text: "Nearby Markers unavailable on this segment.")
+            return
+        }
+        let spokenPlaces = routePlaces.prefix(4).map(routePlaceSummary).joined(separator: ". ")
+        announce(text: "Nearby Markers. \(spokenPlaces)")
+    }
+
+    func calloutAlongStreetGuide() {
+        guard let current = focusedIntersection else {
+            announce(text: "Along Street Guide unavailable. Search a road first.")
+            return
+        }
+        announce(text: "Along Street Guide. \(intersectionHeading(for: current)).")
+    }
+
     func intersectionHeading(for intersection: MapIntersection) -> String {
         let primary = intersection.addressLabel?.isEmpty == false ? (intersection.addressLabel ?? intersection.currentRoad) : intersection.currentRoad
         return "\(primary) - \(intersection.crossRoad)"
@@ -648,6 +776,9 @@ private final class MapsViewModel: ObservableObject {
         preferredBearing: CLLocationDirection?,
         statusPrefix: String
     ) async throws {
+        if let focusCoordinate {
+            try? await apiClient.scanNearbyTiles(lat: focusCoordinate.latitude, lon: focusCoordinate.longitude)
+        }
         let response = try await apiClient.fetchIntersections(roadName: roadName, countryCode: countryCode)
         intersections = response.intersections
         focusedIndex = findFocusedIntersectionIndex(intersections: response.intersections, focusCoordinate: focusCoordinate, preferredBearing: preferredBearing)
@@ -1019,6 +1150,15 @@ private final class AlaViaAPIClient {
                 sortMeters: row["sortMeters"] as? Int ?? row["distanceMeters"] as? Int ?? 0
             )
         }
+    }
+
+    func scanNearbyTiles(lat: Double, lon: Double) async throws {
+        _ = try await post(path: "/api/osm/scan-nearby", body: [
+            "lat": lat,
+            "lon": lon,
+            "radiusMeters": 1000,
+            "zoom": 16,
+        ])
     }
 
     private func post(path: String, body: [String: Any]) async throws -> [String: Any] {

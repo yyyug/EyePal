@@ -36,10 +36,34 @@ struct SettingsView: View {
                         FaceRecognitionSettingsView()
                             .environmentObject(settingsStore)
                     }
+
+                    NavigationLink("Maps") {
+                        MapsSettingsView()
+                    }
                 }
             }
             .navigationTitle("Settings")
         }
+    }
+}
+
+private struct MapsSettingsView: View {
+    var body: some View {
+        Form {
+            Section("Soundscape Menu") {
+                Text("Recreation Activities")
+                Text("Manage Devices")
+                Text("Help")
+                Text("Status")
+            }
+
+            Section {
+                Text("Maps callout controls are available on the Maps tab: My Location, Around Me, Ahead of Me, Nearby Markers, and Along Street Guide.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Maps")
     }
 }
 
