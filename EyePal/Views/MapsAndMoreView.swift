@@ -252,13 +252,28 @@ struct MapsView: View {
 }
 
 struct MoreView: View {
+    @EnvironmentObject private var settingsStore: SettingsStore
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var floorStore = FloorRecordStore()
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
             FloorDetectionListView()
                 .environmentObject(floorStore)
                 .navigationTitle("More")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Settings") {
+                            showingSettings = true
+                        }
+                    }
+                }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(settingsStore)
+                .environmentObject(openAIStore)
         }
     }
 }
