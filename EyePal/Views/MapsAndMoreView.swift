@@ -513,7 +513,7 @@ private enum RouteSide {
     }
 }
 
-private struct FloorRecord: Identifiable, Codable, Equatable {
+private struct FloorRecord: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     let name: String
     let floorLabel: String
@@ -979,7 +979,7 @@ private final class CurrentLocationProvider: NSObject, CLLocationManagerDelegate
 }
 
 @MainActor
-private final class AltitudeMonitor: NSObject, ObservableObject, CLLocationManagerDelegate {
+private final class AltitudeMonitor: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
     @Published private(set) var currentAltitudeMeters: Double?
     @Published private(set) var altitudeDisplayText = "Unavailable"
 
@@ -1002,14 +1002,18 @@ private final class AltitudeMonitor: NSObject, ObservableObject, CLLocationManag
         manager.stopUpdatingLocation()
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let altitude = locations.last?.altitude, altitude.isFinite else { return }
-        currentAltitudeMeters = altitude
-        altitudeDisplayText = String(format: "%.2f m", altitude)
+        Task { @MainActor in
+            currentAltitudeMeters = altitude
+            altitudeDisplayText = String(format: "%.2f m", altitude)
+        }
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        altitudeDisplayText = error.localizedDescription
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            altitudeDisplayText = error.localizedDescription
+        }
     }
 }
 
