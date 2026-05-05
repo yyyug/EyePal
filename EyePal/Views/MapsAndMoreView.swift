@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 import CoreLocation
 import AVFoundation
 
@@ -6,6 +6,7 @@ private let alaViaBaseURL = URL(string: "https://via.inclu.si")!
 
 struct MapsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var viewModel = MapsViewModel()
 
     var body: some View {
@@ -13,14 +14,14 @@ struct MapsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     soundscapeHomeCard
-                    queryCard
-                    focusedIntersectionCard
-                    routePlacesCard
-                    intersectionsCard
                 }
                 .padding()
             }
             .navigationTitle("Maps")
+            .navigationDestination(for: AlongStreetRoute.self) { _ in
+                AlongStreetGuideView(viewModel: viewModel)
+                    .environmentObject(openAIStore)
+            }
         }
         .onAppear {
             viewModel.bind(settingsStore: settingsStore)
@@ -63,11 +64,11 @@ struct MapsView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("Along Street Guide") {
-                    viewModel.calloutAlongStreetGuide()
+                NavigationLink(value: AlongStreetRoute()) {
+                    Text("Along Street Guide")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(viewModel.focusedIntersection == nil)
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -93,27 +94,64 @@ struct MapsView: View {
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
+}
+
+private struct AlongStreetRoute: Hashable {}
+
+private struct AlongStreetGuideView: View {
+    @ObservedObject var viewModel: MapsViewModel
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @State private var showingCountryPicker = false
+    @State private var showingDetail = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                queryCard
+                intersectionsCard
+                routePlacesCard
+            }
+            .padding()
+        }
+        .navigationTitle("Along Street Guide")
+        .navigationDestination(isPresented: $showingDetail) {
+            IntersectionDetailView(viewModel: viewModel)
+                .environmentObject(openAIStore)
+        }
+    }
 
     private var queryCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Search a road or house number, then EyePal will focus the nearest exit or intersection.")
+            Text("Search a road or house number, then EyePal will focus the nearest intersection.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Picker("Country", selection: $viewModel.countryCode) {
-                ForEach(MapsViewModel.supportedCountryCodes, id: \.self) { code in
-                    Text(code).tag(code)
+            HStack {
+                Text("Country")
+                Spacer()
+                Button {
+                    showingCountryPicker = true
+                } label: {
+                    HStack(spacing: 4) {
+                        if viewModel.countryCode.isEmpty {
+                            Text("Not set")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(Locale.current.localizedString(forRegionCode: viewModel.countryCode) ?? viewModel.countryCode)
+                        }
+                        Image(systemName: "chevron.up.chevron.down")
+                            .imageScale(.small)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .buttonStyle(.plain)
             }
-            .pickerStyle(.segmented)
 
             TextField("Street name or full address", text: $viewModel.query)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.words)
                 .submitLabel(.search)
-                .onSubmit {
-                    viewModel.searchByQuery()
-                }
+                .onSubmit { viewModel.searchByQuery() }
 
             HStack(spacing: 12) {
                 Button {
@@ -128,7 +166,7 @@ struct MapsView: View {
                 Button {
                     viewModel.loadFromCurrentLocation()
                 } label: {
-                    Label(viewModel.isLocating ? "Locating..." : "Use Current Location", systemImage: "location")
+                    Label(viewModel.isLocating ? "Locating..." : "Use Location", systemImage: "location")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -138,54 +176,45 @@ struct MapsView: View {
             Text(viewModel.statusText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(viewModel.statusText)
         }
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .sheet(isPresented: $showingCountryPicker) {
+            CountryPickerSheet(selectedCode: $viewModel.countryCode)
+        }
     }
 
-    private var focusedIntersectionCard: some View {
+    private var intersectionsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Focused Intersection")
+            Text("Intersection List")
                 .font(.headline)
 
-            if let focused = viewModel.focusedIntersection {
-                Text(viewModel.intersectionHeading(for: focused))
-                    .font(.title3.weight(.semibold))
-                if let addressLabel = focused.addressLabel, !addressLabel.isEmpty {
-                    Text(addressLabel)
-                        .font(.subheadline)
-                }
-                Text(viewModel.intersectionDetails(for: focused))
-                    .font(.subheadline)
+            if viewModel.intersections.isEmpty {
+                Text("Search a road or use current location first.")
                     .foregroundStyle(.secondary)
-
-                HStack(spacing: 12) {
-                    Button("Back") {
-                        viewModel.moveBackward()
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Forward") {
-                        viewModel.moveForward()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-
-                HStack(spacing: 12) {
-                    Button("Turn Left") {
-                        viewModel.turnLeft()
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Turn Right") {
-                        viewModel.turnRight()
-                    }
-                    .buttonStyle(.bordered)
-                }
             } else {
-                Text("No focused intersection yet.")
-                    .foregroundStyle(.secondary)
+                LazyVStack(spacing: 10) {
+                    ForEach(Array(viewModel.intersections.enumerated()), id: \.element.id) { index, intersection in
+                        Button {
+                            viewModel.select(index: index)
+                            showingDetail = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(viewModel.intersectionHeading(for: intersection))
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(viewModel.intersectionDetails(for: intersection))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding()
+                            .background(index == viewModel.focusedIndex ? Color.accentColor.opacity(0.14) : Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
         .padding()
@@ -213,44 +242,223 @@ struct MapsView: View {
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
+}
 
-    private var intersectionsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Intersection List")
-                .font(.headline)
+private struct CountryPickerSheet: View {
+    @Binding var selectedCode: String
+    @State private var searchText = ""
+    @Environment(\.dismiss) private var dismiss
 
-            if viewModel.intersections.isEmpty {
-                Text("Search a road or use current location first.")
-                    .foregroundStyle(.secondary)
-            } else {
-                LazyVStack(spacing: 10) {
-                    ForEach(Array(viewModel.intersections.enumerated()), id: \.element.id) { index, intersection in
-                        Button {
-                            viewModel.select(index: index)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(viewModel.intersectionHeading(for: intersection))
-                                    .font(.subheadline.weight(.semibold))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text(viewModel.intersectionDetails(for: intersection))
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .padding()
-                            .background(index == viewModel.focusedIndex ? Color.accentColor.opacity(0.14) : Color(.secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    private static let allCountries: [(code: String, name: String)] = {
+        Locale.isoRegionCodes
+            .compactMap { code -> (code: String, name: String)? in
+                guard let name = Locale.current.localizedString(forRegionCode: code), !name.isEmpty else { return nil }
+                return (code: code, name: name)
+            }
+            .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }()
+
+    private var filtered: [(code: String, name: String)] {
+        if searchText.isEmpty { return Self.allCountries }
+        return Self.allCountries.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.code.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Button {
+                    selectedCode = ""
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text("Not set")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if selectedCode.isEmpty {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.accentColor)
                         }
-                        .buttonStyle(.plain)
                     }
+                }
+                .buttonStyle(.plain)
+
+                ForEach(filtered, id: \.code) { country in
+                    Button {
+                        selectedCode = country.code
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text(country.name)
+                            Spacer()
+                            Text(country.code)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if selectedCode == country.code {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.accentColor)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .searchable(text: $searchText, prompt: "Search country")
+            .navigationTitle("Select Country")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
             }
         }
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
+private struct IntersectionDetailView: View {
+    @ObservedObject var viewModel: MapsViewModel
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+
+    private var paidEnabled: Bool { openAIStore.isSignedIn }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if let intersection = viewModel.focusedIntersection {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(viewModel.intersectionHeading(for: intersection))
+                            .font(.title3.weight(.bold))
+                        if let addr = intersection.addressLabel, !addr.isEmpty {
+                            Text("Address: \(addr)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(viewModel.intersectionDetails(for: intersection))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 16) {
+                            Label(intersection.leftRoad ?? "-", systemImage: "arrow.turn.up.left")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Label(intersection.rightRoad ?? "-", systemImage: "arrow.turn.up.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                } else {
+                    Text("No intersection selected.")
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("OSM Places")
+                        .font(.headline)
+                    if viewModel.routePlaces.isEmpty {
+                        Text("No OSM places on this segment.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(viewModel.routePlaces) { place in
+                            Text(viewModel.routePlaceSummary(place))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 2)
+                        }
+                    }
+                }
+                .padding()
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+                VStack(spacing: 10) {
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.describeStreetview()
+                        } label: {
+                            Label(viewModel.isDescribingStreetview ? "Loading..." : "Street View", systemImage: "photo.on.rectangle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(!paidEnabled || viewModel.isDescribingStreetview)
+                        .opacity(paidEnabled ? 1 : 0.42)
+
+                        Button {
+                            viewModel.advance30m()
+                        } label: {
+                            Label("Advance 30m", systemImage: "arrow.up.circle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(!paidEnabled || viewModel.isDescribingStreetview)
+                        .opacity(paidEnabled ? 1 : 0.42)
+                    }
+                    if !paidEnabled {
+                        Text("Sign in to ChatGPT to enable Street View description and Advance 30m.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if !viewModel.streetviewDescription.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Street View Description")
+                            .font(.headline)
+                        Text(viewModel.streetviewDescription)
+                            .font(.body)
+                    }
+                    .padding()
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+
+                VStack(spacing: 12) {
+                    HStack(spacing: 16) {
+                        Button {
+                            viewModel.moveBackward()
+                        } label: {
+                            Label("Back", systemImage: "arrow.backward")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            viewModel.moveForward()
+                        } label: {
+                            Label("Forward", systemImage: "arrow.forward")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    HStack(spacing: 16) {
+                        Button {
+                            viewModel.turnLeft()
+                        } label: {
+                            Label("Turn Left", systemImage: "arrow.turn.up.left")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            viewModel.turnRight()
+                        } label: {
+                            Label("Turn Right", systemImage: "arrow.turn.up.right")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                Text(viewModel.statusText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+        }
+        .navigationTitle("Intersection Details")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
 struct MoreView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
@@ -610,6 +818,8 @@ private final class MapsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isLocating = false
     @Published var errorMessage: String?
+    @Published var streetviewDescription = ""
+    @Published var isDescribingStreetview = false
 
     var currentRoadText: String {
         focusedIntersection?.currentRoad ?? intersections.first?.currentRoad ?? "Not loaded"
@@ -700,6 +910,43 @@ private final class MapsViewModel: ObservableObject {
         }
     }
 
+    func describeStreetview() {
+        guard let row = focusedIntersection else {
+            statusText = "No intersection selected for street view."
+            return
+        }
+        Task {
+            isDescribingStreetview = true
+            statusText = "Getting street view description..."
+            do {
+                let description = try await apiClient.describeStreetview(lat: row.lat, lon: row.lon, heading: row.heading)
+                streetviewDescription = description
+                statusText = "Street view description updated."
+                announce(text: description)
+            } catch {
+                statusText = "Street view failed: \(error.localizedDescription)"
+            }
+            isDescribingStreetview = false
+        }
+    }
+
+    func advance30m() {
+        guard let row = focusedIntersection else { return }
+        let shifted = destinationPoint(lat: row.lat, lon: row.lon, bearing: row.heading, distanceMeters: 30.0)
+        Task {
+            isDescribingStreetview = true
+            statusText = "Getting advance 30m description..."
+            do {
+                let description = try await apiClient.describeStreetview(lat: shifted.lat, lon: shifted.lon, heading: row.heading)
+                streetviewDescription = description
+                statusText = "Advance 30m description updated."
+                announce(text: description)
+            } catch {
+                statusText = "Advance 30m failed: \(error.localizedDescription)"
+            }
+            isDescribingStreetview = false
+        }
+    }
     func calloutMyLocation() {
         loadFromCurrentLocation()
     }
@@ -903,6 +1150,16 @@ private final class MapsViewModel: ObservableObject {
         return (dx, dy)
     }
 
+    private func destinationPoint(lat: Double, lon: Double, bearing: Double, distanceMeters: Double) -> (lat: Double, lon: Double) {
+        let R = 6_371_000.0
+        let bearingRad = bearing * .pi / 180
+        let latRad = lat * .pi / 180
+        let lonRad = lon * .pi / 180
+        let angDist = distanceMeters / R
+        let newLatRad = asin(sin(latRad) * cos(angDist) + cos(latRad) * sin(angDist) * cos(bearingRad))
+        let newLonRad = lonRad + atan2(sin(bearingRad) * sin(angDist) * cos(latRad), cos(angDist) - sin(latRad) * sin(newLatRad))
+        return (lat: newLatRad * 180 / .pi, lon: newLonRad * 180 / .pi)
+    }
     private func angleDistance(_ a: Double, _ b: Double) -> Double {
         abs((((a - b).truncatingRemainder(dividingBy: 360)) + 540).truncatingRemainder(dividingBy: 360) - 180)
     }
@@ -1056,7 +1313,9 @@ private final class SpatialAudioCuePlayer {
         player.position = side.point
         player.scheduleBuffer(buffer, at: nil, options: .interrupts) { [weak self, weak player] in
             guard let self, let player else { return }
-            self.engine.detach(player)
+            DispatchQueue.main.async {
+                self.engine.detach(player)
+            }
         }
         player.play()
     }
@@ -1099,10 +1358,9 @@ private final class AlaViaAPIClient {
     }
 
     func autobbox(query: String, countryCode: String) async throws -> AlaViaGeocodeResult {
-        let json = try await post(path: "/api/geocode/autobbox", body: [
-            "query": query,
-            "countryCode": countryCode,
-        ])
+        var autobboxBody: [String: Any] = ["query": query]
+        if !countryCode.isEmpty { autobboxBody["countryCode"] = countryCode }
+        let json = try await post(path: "/api/geocode/autobbox", body: autobboxBody)
         let lat = json["lat"] as? Double
         let lon = json["lon"] as? Double
         return AlaViaGeocodeResult(
@@ -1124,10 +1382,9 @@ private final class AlaViaAPIClient {
     }
 
     func fetchIntersections(roadName: String, countryCode: String) async throws -> IntersectionResponse {
-        let json = try await post(path: "/api/overpass/segment", body: [
-            "roadName": roadName,
-            "countryCode": countryCode,
-        ])
+        var segmentBody: [String: Any] = ["roadName": roadName]
+        if !countryCode.isEmpty { segmentBody["countryCode"] = countryCode }
+        let json = try await post(path: "/api/overpass/segment", body: segmentBody)
         let rows = json["intersections"] as? [[String: Any]] ?? []
         return IntersectionResponse(
             roadName: json["roadName"] as? String ?? roadName,
@@ -1180,6 +1437,14 @@ private final class AlaViaAPIClient {
         ])
     }
 
+    func describeStreetview(lat: Double, lon: Double, heading: Double) async throws -> String {
+        let json = try await post(path: "/api/overpass/streetview", body: [
+            "lat": lat,
+            "lon": lon,
+            "heading": heading,
+        ])
+        return json["description"] as? String ?? json["text"] as? String ?? "No description available."
+    }
     private func post(path: String, body: [String: Any]) async throws -> [String: Any] {
         var request = URLRequest(url: alaViaBaseURL.appending(path: path))
         request.httpMethod = "POST"
