@@ -18,14 +18,19 @@ struct RootTabView: View {
                     Label("Read Text", systemImage: "text.viewfinder")
                 }
 
-            FaceRecognitionView()
+            MapsView()
                 .tabItem {
-                    Label("Face Recognition", systemImage: "person.crop.rectangle")
+                    Label("Maps", systemImage: "map")
                 }
 
-            SettingsView()
+            FaceRecognitionView()
                 .tabItem {
-                    Label("Settings", systemImage: "gearshape")
+                    Label("Faces", systemImage: "person.crop.rectangle")
+                }
+
+            MoreView()
+                .tabItem {
+                    Label("More", systemImage: "ellipsis.circle")
                 }
         }
     }

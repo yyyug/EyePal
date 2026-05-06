@@ -1,5 +1,53 @@
 import Foundation
 
+enum RecognitionButtonSlot: Int, CaseIterable, Identifiable {
+    case first = 1
+    case second = 2
+    case third = 3
+    case fourth = 4
+
+    var id: Int { rawValue }
+
+    var displayName: String {
+        "Button \(rawValue)"
+    }
+
+    var defaultPresetKind: RecognitionPresetKind {
+        switch self {
+        case .first:
+            return .custom
+        case .second:
+            return .product
+        case .third:
+            return .dish
+        case .fourth:
+            return .shortText
+        }
+    }
+}
+
+enum RecognitionPresetKind: String, CaseIterable, Identifiable {
+    case product
+    case dish
+    case shortText
+    case custom
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .product:
+            return "Product"
+        case .dish:
+            return "Dish"
+        case .shortText:
+            return "Short Text"
+        case .custom:
+            return "Custom"
+        }
+    }
+}
+
 enum QuickCaptionLength: String, CaseIterable, Identifiable {
     case short
     case normal
@@ -81,11 +129,76 @@ struct QuickQueryPreset: Identifiable, Equatable {
             systemImageName: "text.magnifyingglass"
         )
     ]
+
+    static func builtInPreset(for kind: RecognitionPresetKind) -> QuickQueryPreset {
+        switch kind {
+        case .product:
+            return QuickQueryPreset(
+                title: "Product",
+                prompt: "Describe the main product in this image with 1 or 2 sentences, including its brand, name and primary function",
+                systemImageName: "shippingbox.fill"
+            )
+        case .dish:
+            return QuickQueryPreset(
+                title: "Dish",
+                prompt: "Describe the layout of the food on the plate or tray. Use clock positions or spatial terms",
+                systemImageName: "fork.knife.circle.fill"
+            )
+        case .shortText:
+            return QuickQueryPreset(
+                title: "Short Text",
+                prompt: "Describe the alphanumeric text visible in the image",
+                systemImageName: "text.magnifyingglass"
+            )
+        case .custom:
+            return QuickQueryPreset(
+                title: QuickCustomQueryPreset.defaultTitle,
+                prompt: QuickCustomQueryPreset.defaultPrompt,
+                systemImageName: "slider.horizontal.3"
+            )
+        }
+    }
 }
 
 enum QuickCustomQueryPreset {
     static let defaultTitle = "Custom"
     static let defaultPrompt = "Tell me how many men and women there and describe them; if not found, say No people found"
+}
+
+enum DetailsCustomQueryPreset {
+    static let defaultTitle = "Custom"
+    static let defaultPrompt = "Describe this image for a blind user. Focus on people, objects, visible text, layout, hazards, and orientation cues. Be concise but specific. Do not use markdown or double asterisks."
+}
+
+enum DetailsQueryPreset {
+    static func builtInPreset(for kind: RecognitionPresetKind) -> QuickQueryPreset {
+        switch kind {
+        case .product:
+            return QuickQueryPreset(
+                title: "Product",
+                prompt: "Describe the main product in this image with 1 or 2 sentences, including its brand, name, packaging details, and primary function.",
+                systemImageName: "shippingbox.fill"
+            )
+        case .dish:
+            return QuickQueryPreset(
+                title: "Dish",
+                prompt: "Describe the dish layout in detail for a blind user, including portions, relative positions, and likely ingredients.",
+                systemImageName: "fork.knife.circle.fill"
+            )
+        case .shortText:
+            return QuickQueryPreset(
+                title: "Short Text",
+                prompt: "Read the visible short text and numbers exactly, and mention where they appear in the scene.",
+                systemImageName: "text.magnifyingglass"
+            )
+        case .custom:
+            return QuickQueryPreset(
+                title: DetailsCustomQueryPreset.defaultTitle,
+                prompt: DetailsCustomQueryPreset.defaultPrompt,
+                systemImageName: "slider.horizontal.3"
+            )
+        }
+    }
 }
 
 enum QuickTranslationSupport {
