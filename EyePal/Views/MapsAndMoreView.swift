@@ -279,7 +279,7 @@ private struct CountryPickerSheet: View {
                         Spacer()
                         if selectedCode.isEmpty {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(.accentColor)
+                                .foregroundStyle(Color.accentColor)
                         }
                     }
                 }
@@ -298,7 +298,7 @@ private struct CountryPickerSheet: View {
                                 .foregroundStyle(.secondary)
                             if selectedCode == country.code {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.accentColor)
+                                    .foregroundStyle(Color.accentColor)
                             }
                         }
                     }
