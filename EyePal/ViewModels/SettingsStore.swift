@@ -6,6 +6,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("speechCooldown") var speechCooldown = 2.5
     @AppStorage("faceMatchThreshold") var faceMatchThreshold = 0.87
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true
+    @AppStorage("featureOrderData") private var featureOrderData = Data()
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
     @AppStorage("quickContinuousCaptureInterval") var quickContinuousCaptureInterval = QuickContinuousCaptureInterval.defaultInterval.rawValue
@@ -43,6 +44,52 @@ final class SettingsStore: ObservableObject {
     @AppStorage("detailsButton4PresetKind") var detailsButton4PresetKind = RecognitionButtonSlot.fourth.defaultPresetKind.rawValue
     @AppStorage("detailsButton4CustomTitle") var detailsButton4CustomTitle = DetailsCustomQueryPreset.defaultTitle
     @AppStorage("detailsButton4CustomPrompt") var detailsButton4CustomPrompt = DetailsCustomQueryPreset.defaultPrompt
+
+    var orderedFeatures: [AppFeature] {
+        get {
+            guard
+                let decoded = try? JSONDecoder().decode([String].self, from: featureOrderData),
+                !decoded.isEmpty
+            else {
+                return AppFeature.defaultOrder
+            }
+
+            return AppFeature.normalizedOrder(from: decoded)
+        }
+        set {
+            let normalized = AppFeature.normalizedOrder(from: newValue.map(\.rawValue))
+            if let encoded = try? JSONEncoder().encode(normalized.map(\.rawValue)) {
+                featureOrderData = encoded
+            }
+            objectWillChange.send()
+        }
+    }
+
+    var tabFeatures: [AppFeature] {
+        Array(orderedFeatures.prefix(AppFeature.maxTabFeatureCount))
+    }
+
+    var moreFeatures: [AppFeature] {
+        Array(orderedFeatures.dropFirst(AppFeature.maxTabFeatureCount))
+    }
+
+    func moveFeature(from source: IndexSet, to destination: Int) {
+        var features = orderedFeatures
+        features.move(fromOffsets: source, toOffset: destination)
+        orderedFeatures = features
+    }
+
+    func moveFeature(_ feature: AppFeature, by offset: Int) {
+        let features = orderedFeatures
+        guard let currentIndex = features.firstIndex(of: feature) else { return }
+
+        let targetIndex = currentIndex + offset
+        guard features.indices.contains(targetIndex) else { return }
+
+        var updated = features
+        updated.swapAt(currentIndex, targetIndex)
+        orderedFeatures = updated
+    }
 
     func quickPreset(for slot: RecognitionButtonSlot) -> QuickQueryPreset {
         let kind = quickPresetKind(for: slot)
