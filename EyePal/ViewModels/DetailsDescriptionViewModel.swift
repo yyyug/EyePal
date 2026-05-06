@@ -4,6 +4,7 @@ import UIKit
 @MainActor
 final class DetailsDescriptionViewModel: ObservableObject {
     private static let helperInstruction = "Take a photo to describe the scene."
+    private static let defaultDescriptionPrompt = "Describe this image for a blind user. Focus on people, objects, visible text, layout, hazards, and orientation cues. Be concise but specific. Do not use markdown or double asterisks."
 
     @Published var statusText = helperInstruction
     @Published var descriptionText = ""
@@ -34,6 +35,14 @@ final class DetailsDescriptionViewModel: ObservableObject {
     }
 
     func capturePhoto() {
+        capturePhoto(usingPrompt: Self.defaultDescriptionPrompt)
+    }
+
+    func capturePresetPhoto(_ preset: QuickQueryPreset) {
+        capturePhoto(usingPrompt: preset.prompt)
+    }
+
+    private func capturePhoto(usingPrompt prompt: String) {
         guard !isProcessing else { return }
         guard let openAIStore else {
             errorMessage = OpenAISubscriptionError.notSignedIn.localizedDescription
@@ -60,7 +69,7 @@ final class DetailsDescriptionViewModel: ObservableObject {
                 conversation = [
                     DetailsDescriptionTurn(
                         role: .user,
-                        text: "Describe this image for a blind user. Focus on people, objects, visible text, layout, hazards, and orientation cues. Be concise but specific. Do not use markdown or double asterisks."
+                        text: prompt
                     )
                 ]
 

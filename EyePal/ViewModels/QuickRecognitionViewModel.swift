@@ -11,7 +11,7 @@ final class QuickRecognitionViewModel: ObservableObject {
         case query(QuickQueryPreset)
     }
 
-    @Published var statusText = "Point the camera and use Quick Recognition."
+    @Published var statusText = "Take a photo to quickly describe things"
     @Published var responseText = ""
     @Published var isProcessing = false
     @Published var isContinuousCapture = false
@@ -32,7 +32,7 @@ final class QuickRecognitionViewModel: ObservableObject {
     }
 
     func start() {
-        statusText = "Starting camera for Quick Recognition."
+        statusText = "Take a photo to quickly describe things"
         camera.start()
     }
 
@@ -47,18 +47,6 @@ final class QuickRecognitionViewModel: ObservableObject {
     }
 
     func takePresetPhoto(_ preset: QuickQueryPreset) {
-        capture(.query(preset))
-    }
-
-    func takeCustomPresetPhoto() {
-        let title = settingsStore?.quickCustomQueryTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prompt = settingsStore?.quickCustomQueryPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let preset = QuickQueryPreset(
-            title: (title?.isEmpty == false ? title! : QuickCustomQueryPreset.defaultTitle),
-            prompt: (prompt?.isEmpty == false ? prompt! : QuickCustomQueryPreset.defaultPrompt),
-            systemImageName: "slider.horizontal.3"
-        )
         capture(.query(preset))
     }
 
