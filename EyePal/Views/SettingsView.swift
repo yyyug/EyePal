@@ -10,6 +10,17 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Navigation") {
+                    NavigationLink("Feature Order") {
+                        FeatureOrderSettingsView()
+                            .environmentObject(settingsStore)
+                    }
+
+                    Text("The first four items appear as tabs. Any remaining features stay in More in the same order.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Speech") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Announcement cooldown")
@@ -44,6 +55,49 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+}
+
+private struct FeatureOrderSettingsView: View {
+    @EnvironmentObject private var settingsStore: SettingsStore
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(settingsStore.orderedFeatures) { feature in
+                    HStack {
+                        Image(systemName: feature.systemImageName)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(feature.displayName)
+                            Text(settingsStore.tabFeatures.contains(feature) ? "Tab" : "More")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityHint("Drag to reorder. You can also use the Move Up and Move Down actions.")
+                    .accessibilityAction(named: Text("Move Up")) {
+                        settingsStore.moveFeature(feature, by: -1)
+                    }
+                    .accessibilityAction(named: Text("Move Down")) {
+                        settingsStore.moveFeature(feature, by: 1)
+                    }
+                }
+                .onMove(perform: settingsStore.moveFeature)
+            } footer: {
+                Text("Reorder features to control tab placement. The top four items become tabs.")
+            }
+        }
+        .environment(\.editMode, .constant(.active))
+        .navigationTitle("Feature Order")
     }
 }
 

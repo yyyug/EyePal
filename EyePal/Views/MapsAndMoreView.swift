@@ -463,25 +463,66 @@ struct MoreView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var floorStore = FloorRecordStore()
-    @State private var showingSettings = false
+
+    private enum MoreDestination: Hashable {
+        case floorDetection
+        case settings
+        case feature(AppFeature)
+    }
 
     var body: some View {
         NavigationStack {
-            FloorDetectionListView()
-                .environmentObject(floorStore)
-                .navigationTitle("More")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Settings") {
-                            showingSettings = true
+            List {
+                Section {
+                    NavigationLink(value: MoreDestination.floorDetection) {
+                        Label("Floor Detection", systemImage: "building.2")
+                    }
+
+                    NavigationLink(value: MoreDestination.settings) {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
+
+                if !settingsStore.moreFeatures.isEmpty {
+                    Section("More Features") {
+                        ForEach(settingsStore.moreFeatures) { feature in
+                            NavigationLink(value: MoreDestination.feature(feature)) {
+                                Label(feature.displayName, systemImage: feature.systemImageName)
+                            }
                         }
                     }
                 }
+            }
+                .navigationTitle("More")
+                .navigationDestination(for: MoreDestination.self) { destination in
+                    switch destination {
+                    case .floorDetection:
+                        FloorDetectionListView()
+                            .environmentObject(floorStore)
+                    case .settings:
+                        SettingsView()
+                            .environmentObject(settingsStore)
+                            .environmentObject(openAIStore)
+                    case .feature(let feature):
+                        moreFeatureView(for: feature)
+                    }
+                }
         }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-                .environmentObject(settingsStore)
-                .environmentObject(openAIStore)
+    }
+
+    @ViewBuilder
+    private func moreFeatureView(for feature: AppFeature) -> some View {
+        switch feature {
+        case .quickRecognition:
+            QuickRecognitionView()
+        case .detailsRecognition:
+            DetailsDescriptionView()
+        case .readText:
+            ReadTextView()
+        case .maps:
+            MapsView()
+        case .faces:
+            FaceRecognitionView()
         }
     }
 }
@@ -489,6 +530,7 @@ struct MoreView: View {
 private struct FloorDetectionListView: View {
     @EnvironmentObject private var floorStore: FloorRecordStore
     @State private var selectedRecord: FloorRecord?
+    @State private var editingRecord: FloorRecord?
 
     var body: some View {
         List {
@@ -505,13 +547,22 @@ private struct FloorDetectionListView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(record.name), \(record.floorLabel)")
-                .accessibilityAction(named: Text("Default")) {
+                .accessibilityAction(named: Text("Edit")) {
+                    editingRecord = record
+                }
+                .accessibilityAction(named: Text("Open")) {
                     selectedRecord = record
                 }
                 .accessibilityAction(named: Text("Delete")) {
                     floorStore.delete(record)
                 }
                 .swipeActions {
+                    Button {
+                        editingRecord = record
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+
                     Button(role: .destructive) {
                         floorStore.delete(record)
                     } label: {
@@ -527,6 +578,10 @@ private struct FloorDetectionListView: View {
         .navigationDestination(item: $selectedRecord) { record in
             FloorMonitorView(record: record)
         }
+        .sheet(item: $editingRecord) { record in
+            FloorRecordNameEditorView(record: record)
+                .environmentObject(floorStore)
+        }
         .toolbar {
             NavigationLink {
                 FloorRecordEditorView()
@@ -535,6 +590,63 @@ private struct FloorDetectionListView: View {
                 Label("Add", systemImage: "plus")
             }
         }
+    }
+}
+
+private struct FloorRecordNameEditorView: View {
+    let record: FloorRecord
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var floorStore: FloorRecordStore
+    @State private var name: String
+    @FocusState private var isNameFocused: Bool
+
+    init(record: FloorRecord) {
+        self.record = record
+        _name = State(initialValue: record.name)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Edit Name") {
+                    TextField("Name", text: $name)
+                        .focused($isNameFocused)
+                        .submitLabel(.done)
+                        .onSubmit(save)
+                }
+            }
+            .navigationTitle("Edit Record")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                    }
+                    .disabled(trimmedName.isEmpty)
+                }
+            }
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                isNameFocused = true
+            }
+        }
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func save() {
+        guard !trimmedName.isEmpty else { return }
+        floorStore.updateName(for: record, name: trimmedName)
+        dismiss()
     }
 }
 
@@ -782,6 +894,19 @@ private final class FloorRecordStore: ObservableObject {
 
     func delete(_ record: FloorRecord) {
         records.removeAll { $0.id == record.id }
+        save()
+    }
+
+    func updateName(for record: FloorRecord, name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, let index = records.firstIndex(where: { $0.id == record.id }) else { return }
+
+        records[index] = FloorRecord(
+            id: record.id,
+            name: trimmedName,
+            floorLabel: record.floorLabel,
+            altitudeMeters: record.altitudeMeters
+        )
         save()
     }
 
