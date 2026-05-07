@@ -32,7 +32,6 @@ final class HeadphoneMotionProvider: NSObject, UserHeadingProvider {
     // MARK: - Properties
     private let manager = CMHeadphoneMotionManager()
     private let motionQueue = OperationQueue()
-    private var displayLink: CADisplayLink?
     private var lastYaw: Double = 0.0
     
     weak var delegate: UserHeadingProviderDelegate?
