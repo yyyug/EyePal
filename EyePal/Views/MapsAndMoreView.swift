@@ -2031,7 +2031,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
             announce(text: "Guided route point reached: \(nextWaypoint.title)")
 
             if safeIndex >= route.waypoints.count - 1 {
-                HRTFAudioEngine.shared.playSFX(.guidedRouteStopped)
+                HRTFAudioEngine.shared.playSFX(.calloutEnd)
                 announce(text: "Guided route completed: \(route.name)")
                 activeGuidedRoute = nil
                 activeGuidedWaypointIndex = 0
