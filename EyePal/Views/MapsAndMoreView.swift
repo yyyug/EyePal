@@ -1968,6 +1968,7 @@ private final class AltitudeMonitor: NSObject, ObservableObject, @preconcurrency
     }
 }
 
+@MainActor
 private final class SpatialAudioCuePlayer {
     func play(side: RouteSide) {
         switch side {
