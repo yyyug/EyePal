@@ -102,13 +102,39 @@ private struct FeatureOrderSettingsView: View {
 }
 
 private struct MapsSettingsView: View {
+    @State private var maxDistance: Double = 100.0
+    @State private var reverbBlend: Double = 0.15
+    @State private var enableHeadTracking: Bool = true
+    
     var body: some View {
         Form {
-            Section("Soundscape Menu") {
-                Text("Recreation Activities")
-                Text("Manage Devices")
-                Text("Help")
-                Text("Status")
+            Section("Maps Audio") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Maximum Distance")
+                        Spacer()
+                        Text("\(Int(maxDistance)) m")
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $maxDistance, in: 10...200, step: 10)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Reverb Blend")
+                        Spacer()
+                        Text(String(format: "%.2f", reverbBlend))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $reverbBlend, in: 0...0.5, step: 0.05)
+                }
+                
+                Toggle("Head Tracking", isOn: $enableHeadTracking)
+                    .help("Use AirPods motion sensors for immersive audio")
+                
+                Text("High-quality HRTF spatial audio with 3D rendering.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             Section {
@@ -120,6 +146,7 @@ private struct MapsSettingsView: View {
         .navigationTitle("Maps")
     }
 }
+
 
 #Preview {
     SettingsView()
