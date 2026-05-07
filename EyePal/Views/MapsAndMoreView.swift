@@ -10,6 +10,7 @@ struct MapsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var viewModel = MapsViewModel()
+    @State private var showStreetPreview = false
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,9 @@ struct MapsView: View {
             .navigationDestination(for: AlongStreetRoute.self) { _ in
                 AlongStreetGuideView(viewModel: viewModel)
                     .environmentObject(openAIStore)
+            }
+            .navigationDestination(isPresented: $showStreetPreview) {
+                StreetPreviewView()
             }
         }
         .onAppear {
@@ -86,6 +90,13 @@ struct MapsView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button("Street Preview") {
+                    showStreetPreview = true
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Street Preview")
+                .accessibilityHint("Audio-based virtual localization experience")
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -615,7 +626,6 @@ struct MoreView: View {
     private enum MoreDestination: Hashable {
         case floorDetection
         case settings
-        case streetPreview
         case feature(AppFeature)
     }
 
@@ -627,22 +637,14 @@ struct MoreView: View {
                         Label("Floor Detection", systemImage: "building.2")
                     }
 
+                    ForEach(settingsStore.moreFeatures) { feature in
+                        NavigationLink(value: MoreDestination.feature(feature)) {
+                            Label(feature.displayName, systemImage: feature.systemImageName)
+                        }
+                    }
+
                     NavigationLink(value: MoreDestination.settings) {
                         Label("Settings", systemImage: "gearshape")
-                    }
-                    
-                    NavigationLink(value: MoreDestination.streetPreview) {
-                        Label("Street Preview", systemImage: "ear.and.waveform")
-                    }
-                }
-
-                if !settingsStore.moreFeatures.isEmpty {
-                    Section("More Features") {
-                        ForEach(settingsStore.moreFeatures) { feature in
-                            NavigationLink(value: MoreDestination.feature(feature)) {
-                                Label(feature.displayName, systemImage: feature.systemImageName)
-                            }
-                        }
                     }
                 }
             }
@@ -656,8 +658,6 @@ struct MoreView: View {
                         SettingsView()
                             .environmentObject(settingsStore)
                             .environmentObject(openAIStore)
-                    case .streetPreview:
-                        StreetPreviewView()
                     case .feature(let feature):
                         moreFeatureView(for: feature)
                     }

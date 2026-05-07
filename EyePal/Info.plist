@@ -28,6 +28,8 @@
     <string>EyePal uses location in the background to provide continuous spatial awareness, guided routes, markers, and beacon alerts.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>EyePal speaks recognized text and names for accessibility.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>EyePal uses motion data from your device to track heading and orientation for accurate spatial audio and navigation.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>audio</string>
