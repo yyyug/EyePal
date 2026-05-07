@@ -16,6 +16,11 @@ final class HRTFAudioEngine: NSObject {
     private var userLocation: CLLocation?
     private var maxDistance: Float = 100.0
     private var reverbBlend: Float = 0.15
+    private var beaconVolume: Float = 0.75
+    private var otherVolume: Float = 0.75
+    private var mixAudioWithOthers = true
+    private var beaconStyle: MapsBeaconStyle = .current
+    private var beaconMelodiesEnabled = false
     
     // MARK: - Audio Engine Configuration
     private let mainMixer: AVAudioMixerNode
@@ -34,14 +39,23 @@ final class HRTFAudioEngine: NSObject {
     
     // MARK: - Audio Session Setup for Background Playback
     private func configureAudioSession() {
+        configureAudioSession(mixWithOthers: mixAudioWithOthers)
+    }
+
+    private func configureAudioSession(mixWithOthers: Bool) {
         let session = AVAudioSession.sharedInstance()
         
         do {
             // Playback mode allows background execution
+            var options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .duckOthers]
+            if mixWithOthers {
+                options.insert(.mixWithOthers)
+            }
+
             try session.setCategory(
                 .playback,
                 mode: .spokenAudio,
-                options: [.mixWithOthers, .defaultToSpeaker, .duckOthers]
+                options: options
             )
             
             try session.setActive(true, options: .notifyOthersOnDeactivation)
@@ -119,6 +133,24 @@ final class HRTFAudioEngine: NSObject {
             environment.reverbBlend = self.reverbBlend
         }
     }
+
+    func applyMapsRuntimeSettings(
+        beaconStyle: String,
+        beaconMelodiesEnabled: Bool,
+        beaconVolume: Double,
+        otherVolume: Double,
+        mixAudioWithOthers: Bool
+    ) {
+        self.beaconStyle = MapsBeaconStyle(rawValue: beaconStyle) ?? .current
+        self.beaconMelodiesEnabled = beaconMelodiesEnabled
+        self.beaconVolume = Float(max(0, min(1, beaconVolume)))
+        self.otherVolume = Float(max(0, min(1, otherVolume)))
+
+        if self.mixAudioWithOthers != mixAudioWithOthers {
+            self.mixAudioWithOthers = mixAudioWithOthers
+            configureAudioSession(mixWithOthers: mixAudioWithOthers)
+        }
+    }
     
     // MARK: - Listener Orientation Update
     func updateListenerHeading(_ heading: Double) {
@@ -138,6 +170,7 @@ final class HRTFAudioEngine: NSObject {
         frequency: Double,
         position: AVAudio3DPoint,
         duration: TimeInterval = 0.2,
+        gainScale: Float = 1.0,
         atLocation: CLLocation? = nil
     ) {
         let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)
@@ -155,7 +188,7 @@ final class HRTFAudioEngine: NSObject {
         player.position = position
         
         // Generate audio buffer
-        if let buffer = generateToneBuffer(frequency: frequency, format: format, duration: duration) {
+        if let buffer = generateToneBuffer(frequency: frequency, format: format, duration: duration, gainScale: gainScale) {
             player.scheduleBuffer(buffer, at: nil, options: .interrupts)
         }
 
@@ -165,18 +198,30 @@ final class HRTFAudioEngine: NSObject {
     // MARK: - Directional Audio Cues (for Soundscape compatibility)
     func playDirectionalCue(direction: SpatialDirection, frequency: Double? = nil) {
         let freq = frequency ?? direction.frequency
-        play3DSound(frequency: freq, position: direction.point, duration: 0.16)
+        play3DSound(frequency: freq, position: direction.point, duration: 0.16, gainScale: otherVolume)
+    }
+
+    func playBeaconDirectionalCue(direction: SpatialDirection, distanceMeters: Double) {
+        let freq = beaconStyle.baseFrequency(for: distanceMeters)
+        play3DSound(
+            frequency: freq,
+            position: direction.point,
+            duration: beaconStyle.pulseDuration,
+            gainScale: beaconVolume
+        )
     }
 
     func playSFX(_ sfx: SoundscapeSFX) {
-        let steps = sfx.pattern
+        let steps = sfx.pattern(style: beaconStyle, beaconMelodiesEnabled: beaconMelodiesEnabled)
         for (index, step) in steps.enumerated() {
             let delay = DispatchTime.now() + (Double(index) * 0.11)
             DispatchQueue.main.asyncAfter(deadline: delay) { [weak self] in
-                self?.play3DSound(
+                guard let self else { return }
+                self.play3DSound(
                     frequency: step.frequency,
                     position: step.direction.point,
-                    duration: step.duration
+                    duration: step.duration,
+                    gainScale: step.isBeacon ? self.beaconVolume : self.otherVolume
                 )
             }
         }
@@ -186,7 +231,8 @@ final class HRTFAudioEngine: NSObject {
     private func generateToneBuffer(
         frequency: Double,
         format: AVAudioFormat,
-        duration: TimeInterval
+        duration: TimeInterval,
+        gainScale: Float
     ) -> AVAudioPCMBuffer? {
         let frameCount = AVAudioFrameCount(format.sampleRate * duration)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
@@ -205,7 +251,7 @@ final class HRTFAudioEngine: NSObject {
             let fundamental = sin(2 * .pi * frequency * progress) * 0.18
             let harmonic2 = sin(4 * .pi * frequency * progress) * 0.055
             let harmonic3 = sin(6 * .pi * frequency * progress) * 0.018
-            channel[frame] = Float((fundamental + harmonic2 + harmonic3) * envelope)
+            channel[frame] = Float((fundamental + harmonic2 + harmonic3) * envelope * Double(gainScale))
         }
         
         return buffer
@@ -234,23 +280,74 @@ enum SoundscapeSFX {
     /// Descending 2-tone chime played after callout sequence ends
     case calloutEnd
 
-    var pattern: [(frequency: Double, direction: SpatialDirection, duration: TimeInterval)] {
+    var pattern(style: MapsBeaconStyle, beaconMelodiesEnabled: Bool) -> [(frequency: Double, direction: SpatialDirection, duration: TimeInterval, isBeacon: Bool)] {
         switch self {
         case .markerCreated:
-            return [(820, .center, 0.14), (1046, .right, 0.14)]
+            return [(820, .center, 0.14, false), (1046, .right, 0.14, false)]
         case .markerReached:
-            return [(523, .left, 0.14), (784, .center, 0.14), (1046, .right, 0.14)]
+            return [(523, .left, 0.14, false), (784, .center, 0.14, false), (1046, .right, 0.14, false)]
         case .beaconArmed:
-            return [(440, .behind, 0.16), (659, .center, 0.12)]
+            if beaconMelodiesEnabled {
+                return [(style.baseFrequency(for: 120), .behind, 0.16, true), (style.baseFrequency(for: 60), .center, 0.12, true)]
+            }
+            return [(style.baseFrequency(for: 80), .center, 0.12, true)]
         case .beaconNearby:
-            return [(880, .ahead, 0.10), (880, .ahead, 0.10)]
+            return [(style.baseFrequency(for: 20), .ahead, 0.10, true), (style.baseFrequency(for: 12), .ahead, 0.10, true)]
         case .guidedRouteStarted:
-            return [(523, .left, 0.12), (784, .center, 0.12), (1046, .right, 0.12)]
+            return [(523, .left, 0.12, false), (784, .center, 0.12, false), (1046, .right, 0.12, false)]
         case .calloutStart:
             // Ascending left→right chime — like Soundscape's sense_location.wav
-            return [(392, .left, 0.10), (523, .center, 0.10), (659, .right, 0.14)]
+            return [(392, .left, 0.10, false), (523, .center, 0.10, false), (659, .right, 0.14, false)]
         case .calloutEnd:
-            return [(659, .center, 0.10), (392, .center, 0.10)]
+            return [(659, .center, 0.10, false), (392, .center, 0.10, false)]
+        }
+    }
+}
+
+enum MapsBeaconStyle: String, CaseIterable {
+    case current
+    case original
+    case ping
+    case drop
+    case signal
+    case shimmer
+
+    var displayName: String {
+        switch self {
+        case .current: return "Current"
+        case .original: return "Original"
+        case .ping: return "Ping"
+        case .drop: return "Drop"
+        case .signal: return "Signal"
+        case .shimmer: return "Shimmer"
+        }
+    }
+
+    var pulseDuration: TimeInterval {
+        switch self {
+        case .drop: return 0.20
+        case .signal: return 0.10
+        default: return 0.14
+        }
+    }
+
+    func baseFrequency(for distanceMeters: Double) -> Double {
+        let normalized = max(0, min(1, distanceMeters / 250.0))
+        let proximityBoost = (1.0 - normalized) * 180
+
+        switch self {
+        case .current:
+            return 660 + proximityBoost
+        case .original:
+            return 540 + proximityBoost * 0.8
+        case .ping:
+            return 880 + proximityBoost * 0.5
+        case .drop:
+            return 480 + proximityBoost * 0.6
+        case .signal:
+            return 760 + proximityBoost
+        case .shimmer:
+            return 920 + proximityBoost * 0.5
         }
     }
 }
