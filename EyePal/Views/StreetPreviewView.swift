@@ -376,7 +376,7 @@ private final class StreetPreviewViewModel: ObservableObject {
         if item.pointOfInterestCategory == .school { return "school" }
         if item.pointOfInterestCategory == .atm { return "atm" }
         if item.pointOfInterestCategory == .fireStation { return "fire station" }
-        if item.pointOfInterestCategory == .storefront { return "store" }
+        if item.pointOfInterestCategory == .shoppingMall { return "store" }
         if item.pointOfInterestCategory == .restaurant { return "restaurant" }
         if item.pointOfInterestCategory == .cafe { return "cafe" }
         if item.pointOfInterestCategory == .park { return "park" }
