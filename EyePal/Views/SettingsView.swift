@@ -102,9 +102,7 @@ private struct FeatureOrderSettingsView: View {
 }
 
 private struct MapsSettingsView: View {
-    @State private var maxDistance: Double = 100.0
-    @State private var reverbBlend: Double = 0.15
-    @State private var enableHeadTracking: Bool = true
+    @EnvironmentObject private var settingsStore: SettingsStore
     
     var body: some View {
         Form {
@@ -113,24 +111,38 @@ private struct MapsSettingsView: View {
                     HStack {
                         Text("Maximum Distance")
                         Spacer()
-                        Text("\(Int(maxDistance)) m")
+                        Text("\(Int(settingsStore.mapsMaxDistanceMeters)) m")
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $maxDistance, in: 10...200, step: 10)
+                    Slider(value: $settingsStore.mapsMaxDistanceMeters, in: 10...200, step: 10)
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Reverb Blend")
                         Spacer()
-                        Text(String(format: "%.2f", reverbBlend))
+                        Text(String(format: "%.2f", settingsStore.mapsReverbBlend))
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $reverbBlend, in: 0...0.5, step: 0.05)
+                    Slider(value: $settingsStore.mapsReverbBlend, in: 0...0.5, step: 0.05)
                 }
                 
-                Toggle("Head Tracking", isOn: $enableHeadTracking)
+                Toggle("Head Tracking", isOn: $settingsStore.mapsHeadTrackingEnabled)
                     .help("Use AirPods motion sensors for immersive audio")
+
+                Toggle("Auto Callouts", isOn: $settingsStore.mapsAutoCalloutsEnabled)
+                Toggle("Background Audio", isOn: $settingsStore.mapsBackgroundAudioEnabled)
+                Toggle("Beacon Alerts", isOn: $settingsStore.mapsBeaconAlertsEnabled)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Auto Callout Interval")
+                        Spacer()
+                        Text("\(Int(settingsStore.mapsAutoCalloutIntervalSeconds))s")
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $settingsStore.mapsAutoCalloutIntervalSeconds, in: 8...60, step: 1)
+                }
                 
                 Text("High-quality HRTF spatial audio with 3D rendering.")
                     .font(.footnote)
@@ -144,6 +156,22 @@ private struct MapsSettingsView: View {
             }
         }
         .navigationTitle("Maps")
+        .onChange(of: settingsStore.mapsMaxDistanceMeters) { _ in
+            applyMapsAudioSettings()
+        }
+        .onChange(of: settingsStore.mapsReverbBlend) { _ in
+            applyMapsAudioSettings()
+        }
+        .onAppear {
+            applyMapsAudioSettings()
+        }
+    }
+
+    private func applyMapsAudioSettings() {
+        HRTFAudioEngine.shared.applyMapsAudioSettings(
+            maxDistanceMeters: settingsStore.mapsMaxDistanceMeters,
+            reverbBlend: settingsStore.mapsReverbBlend
+        )
     }
 }
 
