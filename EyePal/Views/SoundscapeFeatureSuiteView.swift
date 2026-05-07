@@ -1547,3 +1547,5 @@ private final class SuiteCurrentLocationProvider: NSObject, CLLocationManagerDel
         continuation?.resume(throwing: error)
         continuation = nil
     }
+
+}
