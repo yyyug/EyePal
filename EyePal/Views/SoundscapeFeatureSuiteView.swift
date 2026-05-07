@@ -379,25 +379,27 @@ private struct StreetPreviewPlaceSwitcherView: View {
     @ObservedObject var viewModel: SoundscapeSuiteViewModel
 
     var body: some View {
-        List(viewModel.searchResults) { place in
-            Button {
-                viewModel.selectedPlace = place
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(place.title)
-                        Text(place.subtitleText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if viewModel.selectedPlace?.id == place.id {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.accent)
+        List {
+            ForEach(viewModel.searchResults, id: \.id) { place in
+                Button {
+                    viewModel.selectedPlace = place
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(place.title)
+                            Text(place.subtitleText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if viewModel.selectedPlace?.id == place.id {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.accent)
+                        }
                     }
                 }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .navigationTitle("Preview Place Search")
     }
