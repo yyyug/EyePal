@@ -16,6 +16,7 @@ struct MapsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    mapsSearchCard
                     soundscapeHomeCard
                     markerCard
                     guidedRouteCard
@@ -25,6 +26,14 @@ struct MapsView: View {
                 .padding()
             }
             .navigationTitle("Maps")
+            .searchable(
+                text: $viewModel.query,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search road or address"
+            )
+            .onSubmit(of: .search) {
+                viewModel.searchByQuery()
+            }
             .navigationDestination(for: AlongStreetRoute.self) { _ in
                 AlongStreetGuideView(viewModel: viewModel)
                     .environmentObject(openAIStore)
@@ -35,6 +44,7 @@ struct MapsView: View {
         }
         .onAppear {
             viewModel.bind(settingsStore: settingsStore)
+            viewModel.startAutoLocationIfNeeded()
         }
         .onDisappear {
             viewModel.unbind()
@@ -54,6 +64,44 @@ struct MapsView: View {
         }
     }
 
+    private var mapsSearchCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Search")
+                .font(.headline)
+
+            TextField("Search road or address", text: $viewModel.query)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.words)
+                .submitLabel(.search)
+                .onSubmit { viewModel.searchByQuery() }
+                .accessibilityLabel("Maps search field")
+                .accessibilityHint("Double tap to type a road or address, then activate Search")
+                .accessibilitySortPriority(3)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.searchByQuery()
+                } label: {
+                    Label("Search", systemImage: "magnifyingglass")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
+
+                Button {
+                    viewModel.loadFromCurrentLocation()
+                } label: {
+                    Label(viewModel.isLocating ? "Locating..." : "Use My Location", systemImage: "location")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.isLocating)
+            }
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
     private var soundscapeHomeCard: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 8) {
@@ -64,19 +112,27 @@ struct MapsView: View {
                 .accessibilityLabel("My Location")
                 .accessibilityHint("Announces your current location and heading")
 
+                NavigationLink(value: AlongStreetRoute()) {
+                    Text("Search")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Search")
+                .accessibilityHint("Search a road or address")
+
                 Button("Around Me") {
                     viewModel.playAroundMeSpatialAudio()
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Around Me")
-                .accessibilityHint("Plays spatial audio cues of nearby places")
+                .accessibilityHint("Announces nearby roads and intersection details")
 
                 Button("Ahead of Me") {
                     viewModel.playAheadOfMeSpatialAudio()
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Ahead of Me")
-                .accessibilityHint("Plays spatial audio cues of places ahead")
+                .accessibilityHint("Announces the next intersection ahead")
 
                 Button("Nearby Markers") {
                     viewModel.calloutNearbyMarkers()
@@ -89,7 +145,7 @@ struct MapsView: View {
                     Text("Along Street Guide")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
 
                 Button("Street Preview") {
                     showStreetPreview = true
@@ -100,10 +156,15 @@ struct MapsView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Current Road")
-                    .font(.headline)
-                Text(viewModel.currentRoadText)
-                    .font(.subheadline.weight(.semibold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Current Road")
+                        .font(.headline)
+                    Text(viewModel.currentRoadText)
+                        .font(.subheadline.weight(.semibold))
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Current road, \(viewModel.currentRoadText)")
+
                 Text(viewModel.statusText)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -1247,6 +1308,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     private var cancellables: Set<AnyCancellable> = []
     private var beaconReachAnnounced = false
     private var speechCooldown: TimeInterval = 2.5
+    private var didAutoLocateOnMapsEnter = false
 
     func bind(settingsStore: SettingsStore) {
         self.settingsStore = settingsStore
@@ -1301,6 +1363,13 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         Task {
             await runSearch(query: rawQuery)
         }
+    }
+
+    func startAutoLocationIfNeeded() {
+        guard !didAutoLocateOnMapsEnter else { return }
+        didAutoLocateOnMapsEnter = true
+        announce(text: "Auto locating current position.")
+        loadFromCurrentLocation()
     }
 
     func loadFromCurrentLocation() {
@@ -1419,20 +1488,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
             announce(text: "Around Me unavailable. Search a road first.")
             return
         }
-        
-        HRTFAudioEngine.shared.updateListenerHeading(currentHeading)
 
-        // Play spatial audio cues for directions around current location
-        HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            HRTFAudioEngine.shared.playDirectionalCue(direction: .left, frequency: 620)
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            HRTFAudioEngine.shared.playDirectionalCue(direction: .right, frequency: 980)
-        }
-        
         announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)).")
     }
 
@@ -1462,12 +1518,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         }
         
         let next = intersections[nextIndex]
-        
-        HRTFAudioEngine.shared.updateListenerHeading(currentHeading)
 
-        // Play spatial audio cue directly ahead
-        HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead, frequency: 820)
-        
         announce(text: "Ahead of Me: \(intersectionHeading(for: next)).")
     }
 
