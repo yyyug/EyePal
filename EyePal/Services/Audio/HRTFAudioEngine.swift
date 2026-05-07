@@ -280,7 +280,7 @@ enum SoundscapeSFX {
     /// Descending 2-tone chime played after callout sequence ends
     case calloutEnd
 
-    var pattern(style: MapsBeaconStyle, beaconMelodiesEnabled: Bool) -> [(frequency: Double, direction: SpatialDirection, duration: TimeInterval, isBeacon: Bool)] {
+    func pattern(style: MapsBeaconStyle, beaconMelodiesEnabled: Bool) -> [(frequency: Double, direction: SpatialDirection, duration: TimeInterval, isBeacon: Bool)] {
         switch self {
         case .markerCreated:
             return [(820, .center, 0.14, false), (1046, .right, 0.14, false)]
