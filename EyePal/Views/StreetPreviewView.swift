@@ -175,21 +175,11 @@ struct StreetPreviewView: View {
     }
     
     private func startHeadingUpdates() {
-        headingProvider.delegate = self
         headingProvider.startUserHeadingUpdates()
     }
     
     private func stopHeadingUpdates() {
         headingProvider.stopUserHeadingUpdates()
-    }
-}
-
-// MARK: - Heading Provider Delegate
-extension StreetPreviewView: UserHeadingProviderDelegate {
-    func userHeadingProvider(_ provider: UserHeadingProvider, didUpdateUserHeading heading: HeadingValue?) {
-        if let heading = heading {
-            deviceHeading = heading.value
-        }
     }
 }
 
