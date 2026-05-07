@@ -145,9 +145,8 @@ final class HRTFAudioEngine: NSObject {
         
         guard environmentNode != nil else { return }
 
-        if !audioEngine.isRunning {
-            try? audioEngine.start()
-        }
+        // Skip rather than restart — restarting during VoiceOver can crash
+        guard audioEngine.isRunning else { return }
 
         guard let player = nextPlayer() else { return }
         player.stop()
@@ -199,9 +198,14 @@ final class HRTFAudioEngine: NSObject {
         
         for frame in 0 ..< Int(frameCount) {
             let progress = Double(frame) / format.sampleRate
-            // Smooth envelope to prevent clicks
-            let envelope = min(1.0, Double(frame) / 600.0) * min(1.0, Double(Int(frameCount) - frame) / 600.0)
-            channel[frame] = Float(sin(2 * .pi * frequency * progress) * 0.24 * envelope)
+            let rampUp = min(1.0, Double(frame) / 800.0)
+            let rampDown = min(1.0, Double(Int(frameCount) - frame) / 800.0)
+            let envelope = rampUp * rampDown
+            // Add harmonics for a richer, more musical tone
+            let fundamental = sin(2 * .pi * frequency * progress) * 0.18
+            let harmonic2 = sin(4 * .pi * frequency * progress) * 0.055
+            let harmonic3 = sin(6 * .pi * frequency * progress) * 0.018
+            channel[frame] = Float((fundamental + harmonic2 + harmonic3) * envelope)
         }
         
         return buffer
@@ -225,19 +229,28 @@ enum SoundscapeSFX {
     case beaconArmed
     case beaconNearby
     case guidedRouteStarted
+    /// Rising 3-tone chime played before location / callout announcements
+    case calloutStart
+    /// Descending 2-tone chime played after callout sequence ends
+    case calloutEnd
 
     var pattern: [(frequency: Double, direction: SpatialDirection, duration: TimeInterval)] {
         switch self {
         case .markerCreated:
-            return [(820, .center, 0.14), (980, .right, 0.14)]
+            return [(820, .center, 0.14), (1046, .right, 0.14)]
         case .markerReached:
-            return [(620, .left, 0.14), (820, .center, 0.14), (980, .right, 0.14)]
+            return [(523, .left, 0.14), (784, .center, 0.14), (1046, .right, 0.14)]
         case .beaconArmed:
-            return [(440, .behind, 0.16), (700, .center, 0.12)]
+            return [(440, .behind, 0.16), (659, .center, 0.12)]
         case .beaconNearby:
-            return [(980, .ahead, 0.1), (980, .ahead, 0.1)]
+            return [(880, .ahead, 0.10), (880, .ahead, 0.10)]
         case .guidedRouteStarted:
-            return [(620, .left, 0.12), (820, .center, 0.12), (980, .right, 0.12)]
+            return [(523, .left, 0.12), (784, .center, 0.12), (1046, .right, 0.12)]
+        case .calloutStart:
+            // Ascending left→right chime — like Soundscape's sense_location.wav
+            return [(392, .left, 0.10), (523, .center, 0.10), (659, .right, 0.14)]
+        case .calloutEnd:
+            return [(659, .center, 0.10), (392, .center, 0.10)]
         }
     }
 }
