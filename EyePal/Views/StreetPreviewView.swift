@@ -214,7 +214,7 @@ struct StreetPreviewView: View {
 }
 
 @MainActor
-private final class StreetPreviewHeadingBridge: NSObject, ObservableObject, UserHeadingProviderDelegate {
+private final class StreetPreviewHeadingBridge: NSObject, ObservableObject, @preconcurrency UserHeadingProviderDelegate {
     @Published var heading: HeadingValue?
 
     func userHeadingProvider(_ provider: UserHeadingProvider, didUpdateUserHeading heading: HeadingValue?) {

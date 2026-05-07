@@ -1284,7 +1284,7 @@ private final class FloorRecordStore: ObservableObject {
 }
 
 @MainActor
-private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate {
+private final class MapsViewModel: ObservableObject, @preconcurrency UserHeadingProviderDelegate {
     static let supportedCountryCodes = ["HK", "TW", "JP", "US"]
 
     @Published var query = ""
