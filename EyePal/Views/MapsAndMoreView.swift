@@ -26,14 +26,6 @@ struct MapsView: View {
                 .padding()
             }
             .navigationTitle("Maps")
-            .searchable(
-                text: $viewModel.query,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search road or address"
-            )
-            .onSubmit(of: .search) {
-                viewModel.searchByQuery()
-            }
             .navigationDestination(for: AlongStreetRoute.self) { _ in
                 AlongStreetGuideView(viewModel: viewModel)
                     .environmentObject(openAIStore)
@@ -84,15 +76,6 @@ struct MapsView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
-
-                Button {
-                    viewModel.loadFromCurrentLocation()
-                } label: {
-                    Label(viewModel.isLocating ? "Locating..." : "Use My Location", systemImage: "location")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isLocating)
             }
         }
         .padding()
@@ -2332,35 +2315,44 @@ private final class AlaViaAPIClient {
     /// Returns road name and intersections without requiring the caller to know
     /// the road name in advance. Saves one sequential API call vs reverseRoad + fetchIntersections.
     func fetchIntersectionsNear(lat: Double, lon: Double, countryCode: String) async throws -> (displayName: String, response: IntersectionResponse) {
-        let json = try await post(path: "/api/intersections/near", body: [
-            "lat": lat,
-            "lon": lon,
-            "countryCode": countryCode,
-        ])
-        let displayName = json["displayName"] as? String ?? json["resolvedRoadName"] as? String ?? "Current location"
-        let resolvedRoad = json["roadName"] as? String ?? json["resolvedRoadName"] as? String ?? ""
-        let rows = json["intersections"] as? [[String: Any]] ?? []
-        let response = IntersectionResponse(
-            roadName: resolvedRoad,
-            intersections: rows.enumerated().map { index, row in
-                MapIntersection(
-                    id: String(row["id"] as? Int ?? index),
-                    currentRoad: row["streetName"] as? String ?? resolvedRoad,
-                    crossRoad: firstCrossStreet(row) ?? (row["name"] as? String ?? "Unknown"),
-                    intersectionType: row["type"] as? String ?? "Unknown",
-                    directionToNext: row["directionToNext"] as? String,
-                    distanceToNext: row["distanceToNext"] as? Int ?? 0,
-                    addressLabel: row["addressLabel"] as? String,
-                    addressSource: row["addressSource"] as? String,
-                    lat: row["lat"] as? Double ?? 0,
-                    lon: row["lon"] as? Double ?? 0,
-                    heading: row["bearingToNext"] as? Double ?? row["heading"] as? Double ?? 0,
-                    leftRoad: ((row["leftTurn"] as? [String: Any])?["roadName"] as? String) ?? row["leftRoad"] as? String,
-                    rightRoad: ((row["rightTurn"] as? [String: Any])?["roadName"] as? String) ?? row["rightRoad"] as? String
-                )
-            }
-        )
-        return (displayName: displayName, response: response)
+        do {
+            let json = try await post(path: "/api/intersections/near", body: [
+                "lat": lat,
+                "lon": lon,
+                "countryCode": countryCode,
+            ])
+            let displayName = json["displayName"] as? String ?? json["resolvedRoadName"] as? String ?? "Current location"
+            let resolvedRoad = json["roadName"] as? String ?? json["resolvedRoadName"] as? String ?? ""
+            let rows = json["intersections"] as? [[String: Any]] ?? []
+            let response = IntersectionResponse(
+                roadName: resolvedRoad,
+                intersections: rows.enumerated().map { index, row in
+                    MapIntersection(
+                        id: String(row["id"] as? Int ?? index),
+                        currentRoad: row["streetName"] as? String ?? resolvedRoad,
+                        crossRoad: firstCrossStreet(row) ?? (row["name"] as? String ?? "Unknown"),
+                        intersectionType: row["type"] as? String ?? "Unknown",
+                        directionToNext: row["directionToNext"] as? String,
+                        distanceToNext: row["distanceToNext"] as? Int ?? 0,
+                        addressLabel: row["addressLabel"] as? String,
+                        addressSource: row["addressSource"] as? String,
+                        lat: row["lat"] as? Double ?? 0,
+                        lon: row["lon"] as? Double ?? 0,
+                        heading: row["bearingToNext"] as? Double ?? row["heading"] as? Double ?? 0,
+                        leftRoad: ((row["leftTurn"] as? [String: Any])?["roadName"] as? String) ?? row["leftRoad"] as? String,
+                        rightRoad: ((row["rightTurn"] as? [String: Any])?["roadName"] as? String) ?? row["rightRoad"] as? String
+                    )
+                }
+            )
+            return (displayName: displayName, response: response)
+        } catch {
+            // Compatibility fallback for older deployed backends that do not
+            // expose /api/intersections/near yet.
+            let reverse = try await reverseRoad(lat: lat, lon: lon)
+            let fallbackRoad = reverse.roadName.isEmpty ? reverse.displayName : reverse.roadName
+            let response = try await fetchIntersections(roadName: fallbackRoad, countryCode: countryCode)
+            return (displayName: reverse.displayName, response: response)
+        }
     }
 
     func describeStreetview(lat: Double, lon: Double, heading: Double) async throws -> String {
@@ -2381,10 +2373,21 @@ private final class AlaViaAPIClient {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw CurrentLocationProviderError(errorDescription: "Invalid network response.")
         }
-        let jsonObject = (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+
+        let jsonObject = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
         if !(200...299).contains(httpResponse.statusCode) {
-            throw CurrentLocationProviderError(errorDescription: jsonObject["error"] as? String ?? "Request failed with status \(httpResponse.statusCode).")
+            let textBody = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw CurrentLocationProviderError(
+                errorDescription: jsonObject["error"] as? String
+                    ?? (textBody?.isEmpty == false ? textBody : nil)
+                    ?? "Request failed with status \(httpResponse.statusCode)."
+            )
         }
+
+        guard !jsonObject.isEmpty else {
+            throw CurrentLocationProviderError(errorDescription: "Server returned an unexpected response format.")
+        }
+
         return jsonObject
     }
 
