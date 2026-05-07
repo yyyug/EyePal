@@ -81,6 +81,7 @@ final class HeadphoneMotionProvider: NSObject, UserHeadingProvider, ObservableOb
             
             DispatchQueue.main.async {
                 self.lastYaw = normalizedYaw
+                self.currentHeading = headingValue
                 self.delegate?.userHeadingProvider(self, didUpdateUserHeading: headingValue)
             }
         }
@@ -141,7 +142,9 @@ final class DeviceMotionProvider: NSObject, UserHeadingProvider, ObservableObjec
                 let heading = HeadingValue(self?.normalizeHeading(yawDegrees) ?? 0, nil)
                 
                 DispatchQueue.main.async {
-                    self?.delegate?.userHeadingProvider(self!, didUpdateUserHeading: heading)
+                    guard let self else { return }
+                    self.currentHeading = heading
+                    self.delegate?.userHeadingProvider(self, didUpdateUserHeading: heading)
                 }
             }
         }
@@ -165,6 +168,7 @@ final class DeviceMotionProvider: NSObject, UserHeadingProvider, ObservableObjec
 extension DeviceMotionProvider: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         let heading = HeadingValue(newHeading.trueHeading, newHeading.headingAccuracy)
+        currentHeading = heading
         delegate?.userHeadingProvider(self, didUpdateUserHeading: heading)
     }
 }

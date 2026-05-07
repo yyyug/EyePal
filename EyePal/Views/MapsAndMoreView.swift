@@ -2,6 +2,7 @@
 import CoreLocation
 import AVFoundation
 import MapKit
+import Combine
 
 private let alaViaBaseURL = URL(string: "https://via.inclu.si")!
 
@@ -15,6 +16,10 @@ struct MapsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     soundscapeHomeCard
+                    markerCard
+                    guidedRouteCard
+                    beaconCard
+                    autoCalloutCard
                 }
                 .padding()
             }
@@ -26,6 +31,9 @@ struct MapsView: View {
         }
         .onAppear {
             viewModel.bind(settingsStore: settingsStore)
+        }
+        .onDisappear {
+            viewModel.unbind()
         }
         .alert(
             "Maps Error",
@@ -99,6 +107,137 @@ struct MapsView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var markerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Markers")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.saveFocusedAsMarker()
+                } label: {
+                    Label("Save Marker", systemImage: "mappin.and.ellipse")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    viewModel.calloutNearbyMarkers()
+                } label: {
+                    Label("Read Markers", systemImage: "list.bullet")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if viewModel.savedMarkers.isEmpty {
+                Text("No saved markers.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(viewModel.savedMarkers.prefix(3)) { marker in
+                    HStack {
+                        Text(marker.title)
+                        Spacer()
+                        Button(role: .destructive) {
+                            viewModel.deleteMarker(marker)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                    }
+                    .font(.footnote)
+                }
+            }
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var guidedRouteCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Guided Routes")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.saveGuidedRouteFromCurrentIntersections()
+                } label: {
+                    Label("Save Route", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    viewModel.toggleFirstGuidedRoute()
+                } label: {
+                    Label(viewModel.activeGuidedRoute == nil ? "Start Route" : "Stop Route", systemImage: "figure.walk")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.guidedRoutes.isEmpty && viewModel.activeGuidedRoute == nil)
+            }
+
+            if let active = viewModel.activeGuidedRoute {
+                Text("Active: \(active.name)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No active guided route.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var beaconCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Audio Beacon")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.armBeaconFromFocusedIntersection()
+                } label: {
+                    Label("Arm Beacon", systemImage: "dot.radiowaves.left.and.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    viewModel.clearBeacon()
+                } label: {
+                    Label("Clear", systemImage: "xmark.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.activeBeacon == nil)
+            }
+
+            Text(viewModel.activeBeacon?.title ?? "No active beacon")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var autoCalloutCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle("Auto Callouts", isOn: Binding(
+                get: { viewModel.autoCalloutsEnabled },
+                set: { viewModel.setAutoCalloutsEnabled($0) }
+            ))
+
+            Text("Auto callouts run in the background cadence and announce nearby roads, places, markers, and beacon cues.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -871,6 +1010,126 @@ private struct FloorRecord: Identifiable, Codable, Equatable, Hashable {
     let altitudeMeters: Double
 }
 
+private struct SavedMarker: Identifiable, Codable, Equatable, Hashable {
+    let id: UUID
+    let title: String
+    let subtitle: String
+    let lat: Double
+    let lon: Double
+    let createdAt: Date
+}
+
+private struct GuidedWaypoint: Identifiable, Codable, Equatable, Hashable {
+    let id: UUID
+    let title: String
+    let lat: Double
+    let lon: Double
+}
+
+private struct GuidedRoute: Identifiable, Codable, Equatable, Hashable {
+    let id: UUID
+    let name: String
+    let description: String
+    let waypoints: [GuidedWaypoint]
+    let createdAt: Date
+}
+
+private struct BeaconTarget: Identifiable, Codable, Equatable, Hashable {
+    let id: UUID
+    let title: String
+    let lat: Double
+    let lon: Double
+    let triggerRadiusMeters: Double
+}
+
+@MainActor
+private final class MarkerStore: ObservableObject {
+    @Published private(set) var markers: [SavedMarker] = []
+    private let key = "maps.savedMarkers.v1"
+    private let defaults = UserDefaults.standard
+
+    init() {
+        load()
+    }
+
+    func add(title: String, subtitle: String, lat: Double, lon: Double) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        markers.insert(
+            SavedMarker(
+                id: UUID(),
+                title: trimmed,
+                subtitle: subtitle,
+                lat: lat,
+                lon: lon,
+                createdAt: Date()
+            ),
+            at: 0
+        )
+        save()
+    }
+
+    func delete(_ marker: SavedMarker) {
+        markers.removeAll { $0.id == marker.id }
+        save()
+    }
+
+    private func load() {
+        guard let data = defaults.data(forKey: key), let decoded = try? JSONDecoder().decode([SavedMarker].self, from: data) else {
+            markers = []
+            return
+        }
+        markers = decoded
+    }
+
+    private func save() {
+        if let data = try? JSONEncoder().encode(markers) {
+            defaults.set(data, forKey: key)
+        }
+    }
+}
+
+@MainActor
+private final class GuidedRouteStore: ObservableObject {
+    @Published private(set) var routes: [GuidedRoute] = []
+    private let key = "maps.guidedRoutes.v1"
+    private let defaults = UserDefaults.standard
+
+    init() {
+        load()
+    }
+
+    func add(name: String, description: String, waypoints: [GuidedWaypoint]) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !waypoints.isEmpty else { return }
+        routes.insert(
+            GuidedRoute(
+                id: UUID(),
+                name: trimmed,
+                description: description,
+                waypoints: waypoints,
+                createdAt: Date()
+            ),
+            at: 0
+        )
+        save()
+    }
+
+    private func load() {
+        guard let data = defaults.data(forKey: key), let decoded = try? JSONDecoder().decode([GuidedRoute].self, from: data) else {
+            routes = []
+            return
+        }
+        routes = decoded
+    }
+
+    private func save() {
+        if let data = try? JSONEncoder().encode(routes) {
+            defaults.set(data, forKey: key)
+        }
+    }
+}
+
 @MainActor
 private final class FloorRecordStore: ObservableObject {
     @Published private(set) var records: [FloorRecord] = []
@@ -947,7 +1206,7 @@ private final class FloorRecordStore: ObservableObject {
 }
 
 @MainActor
-private final class MapsViewModel: ObservableObject {
+private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate {
     static let supportedCountryCodes = ["HK", "TW", "JP", "US"]
 
     @Published var query = ""
@@ -961,6 +1220,11 @@ private final class MapsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var streetviewDescription = ""
     @Published var isDescribingStreetview = false
+    @Published var savedMarkers: [SavedMarker] = []
+    @Published var guidedRoutes: [GuidedRoute] = []
+    @Published var activeGuidedRoute: GuidedRoute?
+    @Published var activeBeacon: BeaconTarget?
+    @Published var autoCalloutsEnabled = true
 
     var currentRoadText: String {
         focusedIntersection?.currentRoad ?? intersections.first?.currentRoad ?? "Not loaded"
@@ -974,10 +1238,60 @@ private final class MapsViewModel: ObservableObject {
     private let announcementCenter = AccessibilityAnnouncementCenter()
     private let locationProvider = CurrentLocationProvider()
     private let spatialAudio = SpatialAudioCuePlayer()
+    private let markerStore = MarkerStore()
+    private let guidedRouteStore = GuidedRouteStore()
+    private var settingsStore: SettingsStore?
+    private var autoCalloutTask: Task<Void, Never>?
+    private var headingProvider: UserHeadingProvider?
+    private var currentHeading: Double = 0
+    private var cancellables: Set<AnyCancellable> = []
+    private var beaconReachAnnounced = false
     private var speechCooldown: TimeInterval = 2.5
 
     func bind(settingsStore: SettingsStore) {
+        self.settingsStore = settingsStore
         speechCooldown = settingsStore.speechCooldown
+        autoCalloutsEnabled = settingsStore.mapsAutoCalloutsEnabled
+
+        HRTFAudioEngine.shared.applyMapsAudioSettings(
+            maxDistanceMeters: settingsStore.mapsMaxDistanceMeters,
+            reverbBlend: settingsStore.mapsReverbBlend
+        )
+
+        markerStore.$markers
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.savedMarkers = $0 }
+            .store(in: &cancellables)
+
+        guidedRouteStore.$routes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.guidedRoutes = $0 }
+            .store(in: &cancellables)
+
+        savedMarkers = markerStore.markers
+        guidedRoutes = guidedRouteStore.routes
+
+        startHeadingTracking(enabled: settingsStore.mapsHeadTrackingEnabled)
+        restartAutoCalloutsIfNeeded()
+    }
+
+    func unbind() {
+        autoCalloutTask?.cancel()
+        autoCalloutTask = nil
+        stopHeadingTracking()
+        cancellables.removeAll()
+    }
+
+    func setAutoCalloutsEnabled(_ enabled: Bool) {
+        autoCalloutsEnabled = enabled
+        settingsStore?.mapsAutoCalloutsEnabled = enabled
+        restartAutoCalloutsIfNeeded()
+    }
+
+    func userHeadingProvider(_ provider: UserHeadingProvider, didUpdateUserHeading heading: HeadingValue?) {
+        guard let heading else { return }
+        currentHeading = heading.value
+        HRTFAudioEngine.shared.updateListenerHeading(currentHeading)
     }
 
     func searchByQuery() {
@@ -1106,6 +1420,8 @@ private final class MapsViewModel: ObservableObject {
             return
         }
         
+        HRTFAudioEngine.shared.updateListenerHeading(currentHeading)
+
         // Play spatial audio cues for directions around current location
         HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead)
         
@@ -1147,6 +1463,8 @@ private final class MapsViewModel: ObservableObject {
         
         let next = intersections[nextIndex]
         
+        HRTFAudioEngine.shared.updateListenerHeading(currentHeading)
+
         // Play spatial audio cue directly ahead
         HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead, frequency: 820)
         
@@ -1154,12 +1472,14 @@ private final class MapsViewModel: ObservableObject {
     }
 
     func calloutNearbyMarkers() {
-        guard !routePlaces.isEmpty else {
-            announce(text: "Nearby Markers unavailable on this segment.")
+        let saved = nearbySavedMarkersSummary(maxCount: 4)
+        let routeBased = routePlaces.prefix(max(0, 4 - saved.count)).map(routePlaceSummary)
+        let merged = (saved + routeBased).joined(separator: ". ")
+        guard !merged.isEmpty else {
+            announce(text: "Nearby Markers unavailable.")
             return
         }
-        let spokenPlaces = routePlaces.prefix(4).map(routePlaceSummary).joined(separator: ". ")
-        announce(text: "Nearby Markers. \(spokenPlaces)")
+        announce(text: "Nearby Markers. \(merged)")
     }
 
     func calloutAlongStreetGuide() {
@@ -1191,6 +1511,164 @@ private final class MapsViewModel: ObservableObject {
         }
         parts.append(place.side.spokenLabel)
         return parts.joined(separator: ", ")
+    }
+
+    func saveFocusedAsMarker() {
+        guard let current = focusedIntersection else {
+            announce(text: "Cannot save marker. Search a road first.")
+            return
+        }
+
+        let title = current.addressLabel?.isEmpty == false ? (current.addressLabel ?? current.currentRoad) : current.currentRoad
+        markerStore.add(
+            title: title,
+            subtitle: current.crossRoad,
+            lat: current.lat,
+            lon: current.lon
+        )
+        HRTFAudioEngine.shared.playSFX(.markerCreated)
+        announce(text: "Marker saved: \(title)")
+    }
+
+    func deleteMarker(_ marker: SavedMarker) {
+        markerStore.delete(marker)
+        announce(text: "Marker deleted: \(marker.title)")
+    }
+
+    func saveGuidedRouteFromCurrentIntersections() {
+        guard intersections.count >= 2 else {
+            announce(text: "Cannot save guided route. Load at least two intersections.")
+            return
+        }
+
+        let waypoints = intersections.prefix(8).map {
+            GuidedWaypoint(
+                id: UUID(),
+                title: "\($0.currentRoad) - \($0.crossRoad)",
+                lat: $0.lat,
+                lon: $0.lon
+            )
+        }
+        let routeName = intersections.first?.currentRoad ?? "Guided Route"
+        guidedRouteStore.add(
+            name: routeName,
+            description: "Saved from current road exploration",
+            waypoints: Array(waypoints)
+        )
+        HRTFAudioEngine.shared.playSFX(.guidedRouteStarted)
+        announce(text: "Guided route saved: \(routeName)")
+    }
+
+    func toggleFirstGuidedRoute() {
+        if activeGuidedRoute != nil {
+            let name = activeGuidedRoute?.name ?? "route"
+            activeGuidedRoute = nil
+            announce(text: "Stopped guided route: \(name)")
+            return
+        }
+
+        guard let first = guidedRoutes.first else {
+            announce(text: "No guided routes available.")
+            return
+        }
+        activeGuidedRoute = first
+        HRTFAudioEngine.shared.playSFX(.guidedRouteStarted)
+        announce(text: "Started guided route: \(first.name)")
+    }
+
+    func armBeaconFromFocusedIntersection() {
+        guard let current = focusedIntersection else {
+            announce(text: "Cannot arm beacon. Search a road first.")
+            return
+        }
+
+        activeBeacon = BeaconTarget(
+            id: UUID(),
+            title: "\(current.currentRoad) - \(current.crossRoad)",
+            lat: current.lat,
+            lon: current.lon,
+            triggerRadiusMeters: 30
+        )
+        beaconReachAnnounced = false
+        HRTFAudioEngine.shared.playSFX(.beaconArmed)
+        announce(text: "Beacon armed at \(activeBeacon?.title ?? "target").")
+    }
+
+    func clearBeacon() {
+        activeBeacon = nil
+        beaconReachAnnounced = false
+        announce(text: "Beacon cleared")
+    }
+
+    private func startHeadingTracking(enabled: Bool) {
+        stopHeadingTracking()
+        guard enabled else { return }
+
+        if #available(iOS 14.4, *), HeadphoneMotionProvider().isHeadphoneMotionAvailable {
+            let provider = HeadphoneMotionProvider()
+            provider.delegate = self
+            provider.startUserHeadingUpdates()
+            headingProvider = provider
+        } else {
+            let provider = DeviceMotionProvider()
+            provider.delegate = self
+            provider.startUserHeadingUpdates()
+            headingProvider = provider
+        }
+    }
+
+    private func stopHeadingTracking() {
+        headingProvider?.stopUserHeadingUpdates()
+        headingProvider = nil
+    }
+
+    private func restartAutoCalloutsIfNeeded() {
+        autoCalloutTask?.cancel()
+        autoCalloutTask = nil
+
+        guard autoCalloutsEnabled else { return }
+        let interval = max(8.0, settingsStore?.mapsAutoCalloutIntervalSeconds ?? 20.0)
+        autoCalloutTask = Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                self.calloutAroundMe()
+                self.calloutNearbyMarkers()
+                self.checkBeaconProximity()
+            }
+        }
+    }
+
+    private func checkBeaconProximity() {
+        guard let beacon = activeBeacon, let current = focusedIntersection else { return }
+        let currentLocation = CLLocation(latitude: current.lat, longitude: current.lon)
+        let beaconLocation = CLLocation(latitude: beacon.lat, longitude: beacon.lon)
+        let distance = currentLocation.distance(from: beaconLocation)
+
+        if distance <= beacon.triggerRadiusMeters {
+            if !beaconReachAnnounced {
+                beaconReachAnnounced = true
+                HRTFAudioEngine.shared.playSFX(.beaconNearby)
+                announce(text: "Beacon nearby. \(Int(distance)) meters to \(beacon.title).")
+            }
+        } else {
+            beaconReachAnnounced = false
+        }
+    }
+
+    private func nearbySavedMarkersSummary(maxCount: Int = 4) -> [String] {
+        guard let current = focusedIntersection else { return [] }
+        let currentLocation = CLLocation(latitude: current.lat, longitude: current.lon)
+        return savedMarkers
+            .map { marker -> (SavedMarker, Int) in
+                let markerLocation = CLLocation(latitude: marker.lat, longitude: marker.lon)
+                let distance = Int(currentLocation.distance(from: markerLocation).rounded())
+                return (marker, distance)
+            }
+            .sorted { $0.1 < $1.1 }
+            .prefix(maxCount)
+            .map { "\($0.1)m: \($0.0.title), \($0.0.subtitle)" }
     }
 
     private func runSearch(query rawQuery: String) async {
@@ -1265,9 +1743,13 @@ private final class MapsViewModel: ObservableObject {
                 ? intersectionHeading(for: current)
                 : "\(intersectionHeading(for: current)). \(spokenPlaces)."
             announce(text: message)
+            announceGuidedRouteProgressIfNeeded(current: current)
+            checkBeaconProximity()
         } catch {
             routePlaces = []
             announce(text: intersectionHeading(for: current))
+            announceGuidedRouteProgressIfNeeded(current: current)
+            checkBeaconProximity()
         }
     }
 
@@ -1279,6 +1761,23 @@ private final class MapsViewModel: ObservableObject {
         for place in places.prefix(3) {
             spatialAudio.play(side: place.side)
             try? await Task.sleep(nanoseconds: 180_000_000)
+        }
+    }
+
+    private func announceGuidedRouteProgressIfNeeded(current: MapIntersection) {
+        guard let route = activeGuidedRoute else { return }
+        let currentLocation = CLLocation(latitude: current.lat, longitude: current.lon)
+        let nearest = route.waypoints
+            .map { waypoint -> (GuidedWaypoint, Double) in
+                let target = CLLocation(latitude: waypoint.lat, longitude: waypoint.lon)
+                return (waypoint, currentLocation.distance(from: target))
+            }
+            .min { $0.1 < $1.1 }
+
+        guard let nearest else { return }
+        if nearest.1 <= 30 {
+            HRTFAudioEngine.shared.playSFX(.markerReached)
+            announce(text: "Guided route point reached: \(nearest.0.title)")
         }
     }
 
@@ -1470,59 +1969,15 @@ private final class AltitudeMonitor: NSObject, ObservableObject, @preconcurrency
 }
 
 private final class SpatialAudioCuePlayer {
-    private let engine = AVAudioEngine()
-    private let environment = AVAudioEnvironmentNode()
-
-    init() {
-        engine.attach(environment)
-        engine.connect(environment, to: engine.mainMixerNode, format: nil)
-        environment.listenerPosition = AVAudio3DPoint(x: 0, y: 0, z: 0)
-        environment.reverbBlend = 0.15
-        environment.distanceAttenuationParameters.referenceDistance = 1
-        configureAudioSession()
-        startEngineIfNeeded()
-    }
-
     func play(side: RouteSide) {
-        startEngineIfNeeded()
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)
-        guard let format, let buffer = makeToneBuffer(frequency: side.frequency, format: format) else { return }
-        let player = AVAudioPlayerNode()
-        engine.attach(player)
-        engine.connect(player, to: environment, format: format)
-        player.position = side.point
-        player.scheduleBuffer(buffer, at: nil, options: .interrupts) { [weak self, weak player] in
-            guard let self, let player else { return }
-            DispatchQueue.main.async {
-                self.engine.detach(player)
-            }
+        switch side {
+        case .left:
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .left)
+        case .right:
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .right)
+        case .center:
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .center)
         }
-        player.play()
-    }
-
-    private func configureAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.ambient, options: [.mixWithOthers])
-        try? session.setActive(true)
-    }
-
-    private func startEngineIfNeeded() {
-        if !engine.isRunning {
-            try? engine.start()
-        }
-    }
-
-    private func makeToneBuffer(frequency: Double, format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        let frameCount = AVAudioFrameCount(format.sampleRate * 0.16)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return nil }
-        buffer.frameLength = frameCount
-        let channel = buffer.floatChannelData![0]
-        for frame in 0 ..< Int(frameCount) {
-            let progress = Double(frame) / format.sampleRate
-            let envelope = min(1.0, Double(frame) / 600.0) * min(1.0, Double(Int(frameCount) - frame) / 600.0)
-            channel[frame] = Float(sin(2 * .pi * frequency * progress) * 0.24 * envelope)
-        }
-        return buffer
     }
 }
 

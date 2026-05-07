@@ -24,8 +24,15 @@
     <string>EyePal uses the camera to read text aloud and recognize familiar faces on-device.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>EyePal uses your location to focus the nearest intersection and monitor altitude for floor detection.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>EyePal uses location in the background to provide continuous spatial awareness, guided routes, markers, and beacon alerts.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>EyePal speaks recognized text and names for accessibility.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+        <string>location</string>
+    </array>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

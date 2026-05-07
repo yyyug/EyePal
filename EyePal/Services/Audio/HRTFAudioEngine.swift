@@ -13,6 +13,8 @@ final class HRTFAudioEngine: NSObject {
     private var activePlayers: [AudioPlayerNode] = []
     private var userHeading: Double = 0.0
     private var userLocation: CLLocation?
+    private var maxDistance: Float = 100.0
+    private var reverbBlend: Float = 0.15
     
     // MARK: - Audio Engine Configuration
     private let mainMixer: AVAudioMixerNode
@@ -74,17 +76,28 @@ final class HRTFAudioEngine: NSObject {
         // Configure HRTF parameters
         environment.renderingAlgorithm = .HRTFHQ
         environment.distanceAttenuationParameters.referenceDistance = 1.0
-        environment.distanceAttenuationParameters.maximumDistance = 100.0
+        environment.distanceAttenuationParameters.maximumDistance = maxDistance
         environment.distanceAttenuationParameters.rolloffFactor = 1.0
         
         // Enable reverb for spatial context
         environment.reverbParameters.enable = true
         environment.reverbParameters.loadFactoryReverbPreset(.cathedral)
-        environment.reverbParameters.level = 0.15
-        environment.reverbBlend = 0.15
+        environment.reverbParameters.level = reverbBlend
+        environment.reverbBlend = reverbBlend
         
         environmentNodes.append(environment)
         return environment
+    }
+
+    func applyMapsAudioSettings(maxDistanceMeters: Double, reverbBlend: Double) {
+        maxDistance = Float(max(10, min(200, maxDistanceMeters)))
+        self.reverbBlend = Float(max(0, min(0.5, reverbBlend)))
+
+        for environment in environmentNodes {
+            environment.distanceAttenuationParameters.maximumDistance = maxDistance
+            environment.reverbParameters.level = self.reverbBlend
+            environment.reverbBlend = self.reverbBlend
+        }
     }
     
     // MARK: - Listener Orientation Update
@@ -137,6 +150,20 @@ final class HRTFAudioEngine: NSObject {
         let freq = frequency ?? direction.frequency
         play3DSound(frequency: freq, position: direction.point, duration: 0.16)
     }
+
+    func playSFX(_ sfx: SoundscapeSFX) {
+        let steps = sfx.pattern
+        for (index, step) in steps.enumerated() {
+            let delay = DispatchTime.now() + (Double(index) * 0.11)
+            DispatchQueue.main.asyncAfter(deadline: delay) { [weak self] in
+                self?.play3DSound(
+                    frequency: step.frequency,
+                    position: step.direction.point,
+                    duration: step.duration
+                )
+            }
+        }
+    }
     
     // MARK: - Tone Buffer Generation
     private func generateToneBuffer(
@@ -173,6 +200,29 @@ final class HRTFAudioEngine: NSObject {
     
     deinit {
         try? audioEngine.stop()
+    }
+}
+
+enum SoundscapeSFX {
+    case markerCreated
+    case markerReached
+    case beaconArmed
+    case beaconNearby
+    case guidedRouteStarted
+
+    var pattern: [(frequency: Double, direction: SpatialDirection, duration: TimeInterval)] {
+        switch self {
+        case .markerCreated:
+            return [(820, .center, 0.14), (980, .right, 0.14)]
+        case .markerReached:
+            return [(620, .left, 0.14), (820, .center, 0.14), (980, .right, 0.14)]
+        case .beaconArmed:
+            return [(440, .behind, 0.16), (700, .center, 0.12)]
+        case .beaconNearby:
+            return [(980, .ahead, 0.1), (980, .ahead, 0.1)]
+        case .guidedRouteStarted:
+            return [(620, .left, 0.12), (820, .center, 0.12), (980, .right, 0.12)]
+        }
     }
 }
 

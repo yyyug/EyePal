@@ -12,6 +12,13 @@ final class SettingsStore: ObservableObject {
     @AppStorage("quickContinuousCaptureInterval") var quickContinuousCaptureInterval = QuickContinuousCaptureInterval.defaultInterval.rawValue
     @AppStorage("quickCaptionTranslationEnabled") var quickCaptionTranslationEnabled = false
     @AppStorage("quickCaptionTranslationTargetLanguage") var quickCaptionTranslationTargetLanguage = ""
+    @AppStorage("mapsMaxDistanceMeters") var mapsMaxDistanceMeters = 100.0
+    @AppStorage("mapsReverbBlend") var mapsReverbBlend = 0.15
+    @AppStorage("mapsHeadTrackingEnabled") var mapsHeadTrackingEnabled = true
+    @AppStorage("mapsAutoCalloutsEnabled") var mapsAutoCalloutsEnabled = true
+    @AppStorage("mapsAutoCalloutIntervalSeconds") var mapsAutoCalloutIntervalSeconds = 20.0
+    @AppStorage("mapsBackgroundAudioEnabled") var mapsBackgroundAudioEnabled = true
+    @AppStorage("mapsBeaconAlertsEnabled") var mapsBeaconAlertsEnabled = true
 
     @AppStorage("quickButton1PresetKind") var quickButton1PresetKind = RecognitionButtonSlot.first.defaultPresetKind.rawValue
     @AppStorage("quickButton1CustomTitle") var quickButton1CustomTitle = QuickCustomQueryPreset.defaultTitle

@@ -8,7 +8,9 @@ struct StreetPreviewView: View {
     @State private var searchText: String = ""
     @State private var deviceHeading: Double = 0.0
     @State private var isPlaying: Bool = false
-    @StateObject private var headingProvider = DeviceMotionProvider()
+    @StateObject private var deviceHeadingProvider = DeviceMotionProvider()
+    @StateObject private var headingBridge = StreetPreviewHeadingBridge()
+    @State private var headphoneHeadingProvider: HeadphoneMotionProvider?
     
     var body: some View {
         NavigationStack {
@@ -119,6 +121,9 @@ struct StreetPreviewView: View {
         .onDisappear {
             stopHeadingUpdates()
         }
+        .onReceive(headingBridge.$heading.compactMap { $0 }) { heading in
+            deviceHeading = heading.value
+        }
     }
     
     // MARK: - Methods
@@ -146,7 +151,7 @@ struct StreetPreviewView: View {
     }
     
     private func playAudioCue() {
-        guard let location = selectedLocation else { return }
+        guard selectedLocation != nil else { return }
         
         isPlaying = true
         
@@ -175,11 +180,32 @@ struct StreetPreviewView: View {
     }
     
     private func startHeadingUpdates() {
-        headingProvider.startUserHeadingUpdates()
+        if #available(iOS 14.4, *) {
+            let headphoneProvider = HeadphoneMotionProvider()
+            if headphoneProvider.isHeadphoneMotionAvailable {
+                headphoneProvider.delegate = headingBridge
+                headphoneProvider.startUserHeadingUpdates()
+                headphoneHeadingProvider = headphoneProvider
+                return
+            }
+        }
+        deviceHeadingProvider.delegate = headingBridge
+        deviceHeadingProvider.startUserHeadingUpdates()
     }
     
     private func stopHeadingUpdates() {
-        headingProvider.stopUserHeadingUpdates()
+        headphoneHeadingProvider?.stopUserHeadingUpdates()
+        headphoneHeadingProvider = nil
+        deviceHeadingProvider.stopUserHeadingUpdates()
+    }
+}
+
+@MainActor
+private final class StreetPreviewHeadingBridge: NSObject, ObservableObject, UserHeadingProviderDelegate {
+    @Published var heading: HeadingValue?
+
+    func userHeadingProvider(_ provider: UserHeadingProvider, didUpdateUserHeading heading: HeadingValue?) {
+        self.heading = heading
     }
 }
 
