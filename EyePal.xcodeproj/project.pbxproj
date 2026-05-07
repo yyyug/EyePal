@@ -40,6 +40,7 @@
         A10000010000000000000025 /* HRTFAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000025 /* HRTFAudioEngine.swift */; };
         A10000010000000000000026 /* HeadphoneMotionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000026 /* HeadphoneMotionProvider.swift */; };
         A10000010000000000000027 /* StreetPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000027 /* StreetPreviewView.swift */; };
+        A10000010000000000000028 /* SoundscapeFeatureSuiteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000028 /* SoundscapeFeatureSuiteView.swift */; };
 
 /* Begin PBXFileReference section */
         A10001000000000000000001 /* EyePal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EyePal.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -78,6 +79,7 @@
         A10001010000000000000025 /* HRTFAudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRTFAudioEngine.swift; sourceTree = "<group>"; };
         A10001010000000000000026 /* HeadphoneMotionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadphoneMotionProvider.swift; sourceTree = "<group>"; };
         A10001010000000000000027 /* StreetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreetPreviewView.swift; sourceTree = "<group>"; };
+        A10001010000000000000028 /* SoundscapeFeatureSuiteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundscapeFeatureSuiteView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,6 +174,7 @@
                 A10001010000000000000010 /* FaceRecognitionView.swift */,
                 A10001010000000000000011 /* SettingsView.swift */,
                 A10001010000000000000027 /* StreetPreviewView.swift */,
+                A10001010000000000000028 /* SoundscapeFeatureSuiteView.swift */,
             );
             path = Views;
             sourceTree = "<group>";
@@ -329,6 +332,7 @@
                 A10000010000000000000025 /* HRTFAudioEngine.swift in Sources */,
                 A10000010000000000000026 /* HeadphoneMotionProvider.swift in Sources */,
                 A10000010000000000000027 /* StreetPreviewView.swift in Sources */,
+                A10000010000000000000028 /* SoundscapeFeatureSuiteView.swift in Sources */,
                 A10000010000000000000008 /* TextRecognitionService.swift in Sources */,
             );
             runOnlyForDeploymentPostprocessing = 0;
