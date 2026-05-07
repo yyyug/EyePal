@@ -19,6 +19,24 @@ final class SettingsStore: ObservableObject {
     @AppStorage("mapsAutoCalloutIntervalSeconds") var mapsAutoCalloutIntervalSeconds = 20.0
     @AppStorage("mapsBackgroundAudioEnabled") var mapsBackgroundAudioEnabled = true
     @AppStorage("mapsBeaconAlertsEnabled") var mapsBeaconAlertsEnabled = true
+    @AppStorage("mapsMetricUnits") var mapsMetricUnits = Locale.current.usesMetricSystem
+    @AppStorage("mapsMixAudioWithOthers") var mapsMixAudioWithOthers = true
+    @AppStorage("mapsPreviewIncludeUnnamedRoads") var mapsPreviewIncludeUnnamedRoads = false
+
+    @AppStorage("mapsBeaconStyle") var mapsBeaconStyle = "current"
+    @AppStorage("mapsBeaconMelodiesEnabled") var mapsBeaconMelodiesEnabled = false
+    @AppStorage("mapsBeaconVolume") var mapsBeaconVolume = 0.75
+    @AppStorage("mapsVoiceVolume") var mapsVoiceVolume = 0.75
+    @AppStorage("mapsOtherVolume") var mapsOtherVolume = 0.75
+    @AppStorage("mapsBeaconAudioEnabled") var mapsBeaconAudioEnabled = true
+
+    @AppStorage("mapsPlaceSenseEnabled") var mapsPlaceSenseEnabled = true
+    @AppStorage("mapsLandmarkSenseEnabled") var mapsLandmarkSenseEnabled = true
+    @AppStorage("mapsInformationSenseEnabled") var mapsInformationSenseEnabled = true
+    @AppStorage("mapsMobilitySenseEnabled") var mapsMobilitySenseEnabled = true
+    @AppStorage("mapsSafetySenseEnabled") var mapsSafetySenseEnabled = true
+    @AppStorage("mapsIntersectionSenseEnabled") var mapsIntersectionSenseEnabled = true
+    @AppStorage("mapsDestinationSenseEnabled") var mapsDestinationSenseEnabled = true
 
     @AppStorage("quickButton1PresetKind") var quickButton1PresetKind = RecognitionButtonSlot.first.defaultPresetKind.rawValue
     @AppStorage("quickButton1CustomTitle") var quickButton1CustomTitle = QuickCustomQueryPreset.defaultTitle

@@ -1,4 +1,6 @@
 import SwiftUI
+import AVFoundation
+import CoreLocation
 #if canImport(Translation)
 import Translation
 #endif
@@ -8,53 +10,52 @@ struct SettingsView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Navigation") {
-                    NavigationLink("Feature Order") {
-                        FeatureOrderSettingsView()
-                            .environmentObject(settingsStore)
-                    }
+        Form {
+            Section("Navigation") {
+                NavigationLink("Feature Order") {
+                    FeatureOrderSettingsView()
+                        .environmentObject(settingsStore)
+                }
 
-                    Text("The first four items appear as tabs. Any remaining features stay in More in the same order.")
-                        .font(.footnote)
+                Text("The first four items appear as tabs. Any remaining features stay in More in the same order.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Speech") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Speech delay")
+                    Slider(value: $settingsStore.speechCooldown, in: 1...6, step: 0.5)
+                    Text("\(settingsStore.speechCooldown.formatted(.number.precision(.fractionLength(1)))) seconds")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
 
-                Section("Speech") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Announcement cooldown")
-                        Slider(value: $settingsStore.speechCooldown, in: 1...6, step: 0.5)
-                        Text("\(settingsStore.speechCooldown.formatted(.number.precision(.fractionLength(1)))) seconds")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            Section("Features") {
+                NavigationLink("Details Recognition") {
+                    DetailsDescriptionSettingsView()
+                        .environmentObject(settingsStore)
+                        .environmentObject(openAIStore)
                 }
 
-                Section("Features") {
-                    NavigationLink("Details Recognition") {
-                        DetailsDescriptionSettingsView()
-                            .environmentObject(settingsStore)
-                            .environmentObject(openAIStore)
-                    }
+                NavigationLink("Quick Recognition") {
+                    QuickRecognitionSettingsView()
+                        .environmentObject(settingsStore)
+                }
 
-                    NavigationLink("Quick Recognition") {
-                        QuickRecognitionSettingsView()
-                            .environmentObject(settingsStore)
-                    }
+                NavigationLink("Faces") {
+                    FaceRecognitionSettingsView()
+                        .environmentObject(settingsStore)
+                }
 
-                    NavigationLink("Faces") {
-                        FaceRecognitionSettingsView()
-                            .environmentObject(settingsStore)
-                    }
-
-                    NavigationLink("Maps") {
-                        MapsSettingsView()
-                    }
+                NavigationLink("Maps") {
+                    MapsSettingsView()
+                        .environmentObject(settingsStore)
                 }
             }
-            .navigationTitle("Settings")
         }
+        .navigationTitle("Settings")
     }
 }
 
@@ -103,10 +104,113 @@ private struct FeatureOrderSettingsView: View {
 
 private struct MapsSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+
+    private var poiCalloutsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                settingsStore.mapsPlaceSenseEnabled &&
+                settingsStore.mapsLandmarkSenseEnabled &&
+                settingsStore.mapsInformationSenseEnabled
+            },
+            set: { newValue in
+                settingsStore.mapsPlaceSenseEnabled = newValue
+                settingsStore.mapsLandmarkSenseEnabled = newValue
+                settingsStore.mapsInformationSenseEnabled = newValue
+            }
+        )
+    }
+
+    private var mobilityCalloutsBinding: Binding<Bool> {
+        Binding(
+            get: {
+                settingsStore.mapsMobilitySenseEnabled &&
+                settingsStore.mapsSafetySenseEnabled &&
+                settingsStore.mapsIntersectionSenseEnabled
+            },
+            set: { newValue in
+                settingsStore.mapsMobilitySenseEnabled = newValue
+                settingsStore.mapsSafetySenseEnabled = newValue
+                settingsStore.mapsIntersectionSenseEnabled = newValue
+            }
+        )
+    }
     
     var body: some View {
         Form {
-            Section("Maps Audio") {
+            Section("General") {
+                Toggle("Use Metric Units", isOn: $settingsStore.mapsMetricUnits)
+                Toggle("Mix Audio With Other Apps", isOn: $settingsStore.mapsMixAudioWithOthers)
+            }
+
+            Section("Audio Beacon") {
+                Picker("Beacon Style", selection: $settingsStore.mapsBeaconStyle) {
+                    ForEach(MapsBeaconStyle.allCases, id: \.rawValue) { style in
+                        Text(style.displayName).tag(style.rawValue)
+                    }
+                }
+
+                Toggle("Beacon Melodies", isOn: $settingsStore.mapsBeaconMelodiesEnabled)
+                Toggle("Beacon Audio Enabled", isOn: $settingsStore.mapsBeaconAudioEnabled)
+                Toggle("Beacon Alerts", isOn: $settingsStore.mapsBeaconAlertsEnabled)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Beacon Volume")
+                        Spacer()
+                        Text(String(format: "%.2f", settingsStore.mapsBeaconVolume))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $settingsStore.mapsBeaconVolume, in: 0...1, step: 0.05)
+                }
+            }
+
+            Section("Voice and Other Audio") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Voice Volume")
+                        Spacer()
+                        Text(String(format: "%.2f", settingsStore.mapsVoiceVolume))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $settingsStore.mapsVoiceVolume, in: 0...1, step: 0.05)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Other Volume")
+                        Spacer()
+                        Text(String(format: "%.2f", settingsStore.mapsOtherVolume))
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $settingsStore.mapsOtherVolume, in: 0...1, step: 0.05)
+                }
+            }
+
+            Section("Callouts") {
+                Toggle("Automatic Callouts", isOn: $settingsStore.mapsAutoCalloutsEnabled)
+                Toggle("POI Callouts", isOn: poiCalloutsBinding)
+                    .disabled(!settingsStore.mapsAutoCalloutsEnabled)
+                Toggle("Mobility Callouts", isOn: mobilityCalloutsBinding)
+                    .disabled(!settingsStore.mapsAutoCalloutsEnabled)
+                Toggle("Beacon Callouts", isOn: $settingsStore.mapsDestinationSenseEnabled)
+                    .disabled(!settingsStore.mapsAutoCalloutsEnabled)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Auto Callout Interval")
+                        Spacer()
+                        Text("\(Int(settingsStore.mapsAutoCalloutIntervalSeconds))s")
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $settingsStore.mapsAutoCalloutIntervalSeconds, in: 8...60, step: 1)
+                }
+            }
+
+            Section("Street Preview") {
+                Toggle("Include Unnamed Roads", isOn: $settingsStore.mapsPreviewIncludeUnnamedRoads)
+            }
+
+            Section("Spatial Audio") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Maximum Distance")
@@ -130,20 +234,8 @@ private struct MapsSettingsView: View {
                 Toggle("Head Tracking", isOn: $settingsStore.mapsHeadTrackingEnabled)
                     .help("Use AirPods motion sensors for immersive audio")
 
-                Toggle("Auto Callouts", isOn: $settingsStore.mapsAutoCalloutsEnabled)
                 Toggle("Background Audio", isOn: $settingsStore.mapsBackgroundAudioEnabled)
-                Toggle("Beacon Alerts", isOn: $settingsStore.mapsBeaconAlertsEnabled)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Auto Callout Interval")
-                        Spacer()
-                        Text("\(Int(settingsStore.mapsAutoCalloutIntervalSeconds))s")
-                            .foregroundStyle(.secondary)
-                    }
-                    Slider(value: $settingsStore.mapsAutoCalloutIntervalSeconds, in: 8...60, step: 1)
-                }
-                
                 Text("High-quality HRTF spatial audio with 3D rendering.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -154,6 +246,12 @@ private struct MapsSettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Devices") {
+                NavigationLink("Headphones and GPS") {
+                    MapsDevicesSettingsView()
+                }
+            }
         }
         .navigationTitle("Maps")
         .onChange(of: settingsStore.mapsMaxDistanceMeters) { _ in
@@ -162,8 +260,24 @@ private struct MapsSettingsView: View {
         .onChange(of: settingsStore.mapsReverbBlend) { _ in
             applyMapsAudioSettings()
         }
+        .onChange(of: settingsStore.mapsBeaconStyle) { _ in
+            applyMapsRuntimeSettings()
+        }
+        .onChange(of: settingsStore.mapsBeaconMelodiesEnabled) { _ in
+            applyMapsRuntimeSettings()
+        }
+        .onChange(of: settingsStore.mapsBeaconVolume) { _ in
+            applyMapsRuntimeSettings()
+        }
+        .onChange(of: settingsStore.mapsOtherVolume) { _ in
+            applyMapsRuntimeSettings()
+        }
+        .onChange(of: settingsStore.mapsMixAudioWithOthers) { _ in
+            applyMapsRuntimeSettings()
+        }
         .onAppear {
             applyMapsAudioSettings()
+            applyMapsRuntimeSettings()
         }
     }
 
@@ -172,6 +286,172 @@ private struct MapsSettingsView: View {
             maxDistanceMeters: settingsStore.mapsMaxDistanceMeters,
             reverbBlend: settingsStore.mapsReverbBlend
         )
+    }
+
+    private func applyMapsRuntimeSettings() {
+        HRTFAudioEngine.shared.applyMapsRuntimeSettings(
+            beaconStyle: settingsStore.mapsBeaconStyle,
+            beaconMelodiesEnabled: settingsStore.mapsBeaconMelodiesEnabled,
+            beaconVolume: settingsStore.mapsBeaconVolume,
+            otherVolume: settingsStore.mapsOtherVolume,
+            mixAudioWithOthers: settingsStore.mapsMixAudioWithOthers
+        )
+    }
+}
+
+private struct MapsDevicesSettingsView: View {
+    @StateObject private var monitor = MapsDevicesMonitor()
+
+    var body: some View {
+        Form {
+            Section("Audio") {
+                LabeledContent("Output") {
+                    Text(monitor.audioOutputName)
+                }
+                LabeledContent("Headphone motion") {
+                    Text(monitor.headphoneMotionAvailable ? "Available" : "Unavailable")
+                }
+            }
+
+            Section("Location") {
+                LabeledContent("Authorization") {
+                    Text(monitor.locationPermissionLabel)
+                }
+                LabeledContent("GPS") {
+                    Text(monitor.gpsStatusText)
+                }
+
+                Button("Request Location Permission") {
+                    monitor.requestLocationPermission()
+                }
+
+                Button("Open System Settings") {
+                    monitor.openSystemSettings()
+                }
+            }
+
+            Section("Heading") {
+                Text("Facing heading: \(Int(monitor.currentHeading.rounded()))°")
+            }
+        }
+        .navigationTitle("Devices")
+        .onAppear { monitor.start() }
+        .onDisappear { monitor.stop() }
+    }
+}
+
+@MainActor
+private final class MapsDevicesMonitor: NSObject, ObservableObject, CLLocationManagerDelegate, UserHeadingProviderDelegate {
+    @Published var audioOutputName = "Unknown"
+    @Published var headphoneMotionAvailable = false
+    @Published var locationPermissionLabel = "Not determined"
+    @Published var gpsStatusText = "Unavailable"
+    @Published var currentHeading: Double = 0
+
+    private let locationManager = CLLocationManager()
+    private var headingProvider: UserHeadingProvider?
+
+    override init() {
+        super.init()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+    }
+
+    func start() {
+        refreshAudioRoute()
+        refreshLocationAuthorizationLabel()
+        startHeadingProvider()
+
+        let status = locationManager.authorizationStatus
+        if status == .authorizedWhenInUse || status == .authorizedAlways {
+            locationManager.startUpdatingLocation()
+        }
+    }
+
+    func stop() {
+        locationManager.stopUpdatingLocation()
+        headingProvider?.stopUserHeadingUpdates()
+        headingProvider = nil
+    }
+
+    func requestLocationPermission() {
+        locationManager.requestWhenInUseAuthorization()
+    }
+
+    func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+
+    func userHeadingProvider(_ provider: UserHeadingProvider, didUpdateUserHeading heading: HeadingValue?) {
+        guard let heading else { return }
+        currentHeading = heading.value
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        refreshLocationAuthorizationLabel()
+        let status = manager.authorizationStatus
+        if status == .authorizedWhenInUse || status == .authorizedAlways {
+            manager.startUpdatingLocation()
+        } else {
+            manager.stopUpdatingLocation()
+            gpsStatusText = "Permission required"
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        let lat = location.coordinate.latitude
+        let lon = location.coordinate.longitude
+        let accuracy = max(0, Int(location.horizontalAccuracy.rounded()))
+        gpsStatusText = String(format: "%.5f, %.5f (±%dm)", lat, lon, accuracy)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        gpsStatusText = "Error: \(error.localizedDescription)"
+    }
+
+    private func refreshAudioRoute() {
+        let route = AVAudioSession.sharedInstance().currentRoute
+        audioOutputName = route.outputs.first?.portName ?? "Unknown"
+    }
+
+    private func refreshLocationAuthorizationLabel() {
+        switch locationManager.authorizationStatus {
+        case .authorizedAlways:
+            locationPermissionLabel = "Always"
+        case .authorizedWhenInUse:
+            locationPermissionLabel = "When In Use"
+        case .denied:
+            locationPermissionLabel = "Denied"
+        case .restricted:
+            locationPermissionLabel = "Restricted"
+        case .notDetermined:
+            locationPermissionLabel = "Not determined"
+        @unknown default:
+            locationPermissionLabel = "Unknown"
+        }
+    }
+
+    private func startHeadingProvider() {
+        headingProvider?.stopUserHeadingUpdates()
+
+        if #available(iOS 14.4, *) {
+            let headphoneProvider = HeadphoneMotionProvider()
+            if headphoneProvider.isHeadphoneMotionAvailable {
+                headphoneMotionAvailable = true
+                headphoneProvider.delegate = self
+                headphoneProvider.startUserHeadingUpdates()
+                headingProvider = headphoneProvider
+                return
+            }
+        }
+
+        headphoneMotionAvailable = false
+        let fallback = DeviceMotionProvider()
+        fallback.delegate = self
+        fallback.startUserHeadingUpdates()
+        headingProvider = fallback
     }
 }
 

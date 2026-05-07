@@ -2,14 +2,13 @@ import SwiftUI
 import CoreLocation
 import MapKit
 
-/// Street Preview: Audio-based virtual localization experience
+/// Street Preview with search, heading-aware movement, and Soundscape-style around/ahead callouts.
 struct StreetPreviewView: View {
     let initialLocation: CLLocation?
     let initialHeading: Double?
-    @State private var selectedLocation: CLLocation?
-    @State private var searchText: String = ""
-    @State private var deviceHeading: Double = 0.0
-    @State private var isPlaying: Bool = false
+
+    @EnvironmentObject private var settingsStore: SettingsStore
+    @StateObject private var viewModel = StreetPreviewViewModel()
     @StateObject private var deviceHeadingProvider = DeviceMotionProvider()
     @StateObject private var headingBridge = StreetPreviewHeadingBridge()
     @State private var headphoneHeadingProvider: HeadphoneMotionProvider?
@@ -18,180 +17,144 @@ struct StreetPreviewView: View {
         self.initialLocation = initialLocation
         self.initialHeading = initialHeading
     }
-    
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                // Location Search
-                HStack {
-                    Image(systemName: "mappin.circle")
-                        .foregroundStyle(.blue)
-                    
-                    TextField("Enter location address", text: $searchText)
-                        .textFieldStyle(.roundedBorder)
-                        .submitLabel(.search)
-                        .onSubmit {
-                            geocodeLocation(searchText)
-                        }
-                }
-                .padding()
-                
-                if let location = selectedLocation {
-                    VStack(spacing: 12) {
-                        // Location Info
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("📍 Location")
-                                .font(.headline)
-                            Text(String(format: "%.4f°, %.4f°", location.coordinate.latitude, location.coordinate.longitude))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        
-                        // Virtual Heading Compass
-                        VStack(spacing: 12) {
-                            Text("🧭 Your Heading: \(Int(deviceHeading))°")
-                                .font(.headline)
-                            
-                            HStack(spacing: 12) {
-                                Button {
-                                    rotateHeading(by: -15)
-                                } label: {
-                                    Label("Left", systemImage: "arrow.left")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.bordered)
-                                
-                                Button {
-                                    resetHeading()
-                                } label: {
-                                    Image(systemName: "compass.drawing")
-                                }
-                                .buttonStyle(.bordered)
-                                
-                                Button {
-                                    rotateHeading(by: 15)
-                                } label: {
-                                    Label("Right", systemImage: "arrow.right")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                            
-                            // Audio Cue Status
-                            if isPlaying {
-                                HStack {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                    Text("Playing audio cue...")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        
-                        // Controls
-                        Button(action: playAudioCue) {
-                            Label("Play Audio Cue", systemImage: isPlaying ? "stop.circle.fill" : "play.circle.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isPlaying)
-                        
-                        Spacer()
-                    }
-                    .padding()
-                }
-                
-                Spacer()
+        ScrollView {
+            VStack(spacing: 14) {
+                searchCard
+                headingCard
+                movementCard
+                calloutCard
+                nearbyCard
             }
-            .navigationTitle("Street Preview")
-            .accessibilityLabel("Street Preview")
-            .accessibilityHint("Explore a location's soundscape using audio cues")
-            .accessibilityAction(named: Text("Rotate Left")) {
-                rotateHeading(by: -15)
-                playAudioCue()
-            }
-            .accessibilityAction(named: Text("Rotate Right")) {
-                rotateHeading(by: 15)
-                playAudioCue()
-            }
+            .padding()
         }
+        .navigationTitle("Street Preview")
         .onAppear {
-            if selectedLocation == nil, let initialLocation {
-                selectedLocation = initialLocation
-            }
-            if let initialHeading {
-                deviceHeading = initialHeading
-            }
+            viewModel.configure(
+                initialLocation: initialLocation,
+                initialHeading: initialHeading,
+                includeUnnamedRoads: settingsStore.mapsPreviewIncludeUnnamedRoads,
+                metricUnits: settingsStore.mapsMetricUnits
+            )
             startHeadingUpdates()
         }
         .onDisappear {
             stopHeadingUpdates()
         }
         .onReceive(headingBridge.$heading.compactMap { $0 }) { heading in
-            deviceHeading = heading.value
+            viewModel.updateHeading(heading.value)
         }
     }
-    
-    // MARK: - Methods
-    
-    private func geocodeLocation(_ address: String) {
-        let geocoder = CLGeocoder()
-        geocoder.geocodeAddressString(address) { placemarks, error in
-            if let placemark = placemarks?.first,
-               let location = placemark.location {
-                selectedLocation = location
-                deviceHeading = 0.0
+
+    private var searchCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                TextField("Search address or place", text: $viewModel.searchText)
+                    .textFieldStyle(.roundedBorder)
+                    .submitLabel(.search)
+                    .onSubmit { viewModel.searchLocation() }
+
+                Button("Search") {
+                    viewModel.searchLocation()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+            Text(viewModel.statusText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var headingCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Heading")
+                .font(.headline)
+            Text("Facing \(viewModel.facingDirectionLabel), \(Int(viewModel.heading.rounded()))°")
+                .font(.subheadline)
+
+            if let location = viewModel.location {
+                Text(String(format: "Lat %.5f, Lon %.5f", location.coordinate.latitude, location.coordinate.longitude))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
-    
-    private func rotateHeading(by degrees: Double) {
-        deviceHeading = (deviceHeading + degrees).truncatingRemainder(dividingBy: 360.0)
-        if deviceHeading < 0 {
-            deviceHeading += 360.0
+
+    private var movementCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Move")
+                .font(.headline)
+
+            HStack(spacing: 10) {
+                Button("Back 30m") { viewModel.moveBackward() }
+                    .buttonStyle(.bordered)
+                Button("Forward 30m") { viewModel.moveForward() }
+                    .buttonStyle(.borderedProminent)
+            }
+
+            HStack(spacing: 10) {
+                Button("Turn Left") { viewModel.turnLeft() }
+                    .buttonStyle(.bordered)
+                Button("Turn Right") { viewModel.turnRight() }
+                    .buttonStyle(.bordered)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
-    
-    private func resetHeading() {
-        deviceHeading = 0.0
+
+    private var calloutCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Callouts")
+                .font(.headline)
+
+            HStack(spacing: 10) {
+                Button("My Location") { viewModel.calloutMyLocation() }
+                    .buttonStyle(.bordered)
+                Button("Around Me") { viewModel.calloutAroundMe() }
+                    .buttonStyle(.bordered)
+                Button("Ahead of Me") { viewModel.calloutAheadOfMe() }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
-    
-    private func playAudioCue() {
-        guard selectedLocation != nil else { return }
-        
-        isPlaying = true
-        
-        // Determine spatial direction based on heading
-        let spatialDir: SpatialDirection = {
-            let heading = deviceHeading
-            if heading >= 315 || heading < 45 {
-                return .ahead
-            } else if heading >= 45 && heading < 135 {
-                return .right
-            } else if heading >= 135 && heading < 225 {
-                return .behind
+
+    private var nearbyCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Nearby Places")
+                .font(.headline)
+
+            if viewModel.nearby.isEmpty {
+                Text("No nearby places yet. Search or move to refresh.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             } else {
-                return .left
+                ForEach(viewModel.nearby.prefix(8)) { item in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.title)
+                        Text(item.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
-        }()
-        
-        // Play spatial audio cue
-        HRTFAudioEngine.shared.playDirectionalCue(direction: spatialDir)
-        HRTFAudioEngine.shared.updateListenerHeading(deviceHeading)
-        
-        // Simulate audio playback duration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            isPlaying = false
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
-    
+
     private func startHeadingUpdates() {
         if #available(iOS 14.4, *) {
             let headphoneProvider = HeadphoneMotionProvider()
@@ -205,11 +168,309 @@ struct StreetPreviewView: View {
         deviceHeadingProvider.delegate = headingBridge
         deviceHeadingProvider.startUserHeadingUpdates()
     }
-    
+
     private func stopHeadingUpdates() {
         headphoneHeadingProvider?.stopUserHeadingUpdates()
         headphoneHeadingProvider = nil
         deviceHeadingProvider.stopUserHeadingUpdates()
+    }
+}
+
+@MainActor
+private final class StreetPreviewViewModel: ObservableObject {
+    @Published var searchText = ""
+    @Published var statusText = "Search a location to start Street Preview."
+    @Published var location: CLLocation?
+    @Published var heading: Double = 0
+    @Published var nearby: [PreviewPOI] = []
+
+    private let announcer = AccessibilityAnnouncementCenter()
+    private var includeUnnamedRoads = false
+    private var metricUnits = true
+
+    var facingDirectionLabel: String {
+        directionLabel(heading)
+    }
+
+    func configure(initialLocation: CLLocation?, initialHeading: Double?, includeUnnamedRoads: Bool, metricUnits: Bool) {
+        self.includeUnnamedRoads = includeUnnamedRoads
+        self.metricUnits = metricUnits
+        if let initialLocation {
+            location = initialLocation
+            statusText = "Street Preview ready at selected location."
+            loadNearbyPOIs()
+        }
+        if let initialHeading {
+            heading = normalize(initialHeading)
+            HRTFAudioEngine.shared.updateListenerHeading(heading)
+        }
+    }
+
+    func updateHeading(_ newHeading: Double) {
+        heading = normalize(newHeading)
+        HRTFAudioEngine.shared.updateListenerHeading(heading)
+    }
+
+    func searchLocation() {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+
+        statusText = "Searching \(query)..."
+        CLGeocoder().geocodeAddressString(query) { [weak self] placemarks, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let loc = placemarks?.first?.location {
+                    self.location = loc
+                    self.statusText = "Loaded \(query)."
+                    self.announcer.announce("Street preview loaded for \(query)", minimumInterval: 0)
+                    self.loadNearbyPOIs()
+                } else {
+                    self.statusText = "Search failed. \(error?.localizedDescription ?? "Try another place.")"
+                }
+            }
+        }
+    }
+
+    func moveForward() {
+        move(distanceMeters: 30)
+    }
+
+    func moveBackward() {
+        move(distanceMeters: -30)
+    }
+
+    func turnLeft() {
+        updateHeading(heading - 30)
+        announcer.announce("Turned left. Facing \(facingDirectionLabel)", minimumInterval: 0)
+    }
+
+    func turnRight() {
+        updateHeading(heading + 30)
+        announcer.announce("Turned right. Facing \(facingDirectionLabel)", minimumInterval: 0)
+    }
+
+    func calloutMyLocation() {
+        guard let location else {
+            announcer.announce("Location unavailable.", minimumInterval: 0)
+            return
+        }
+        let text = String(
+            format: "My location %.5f, %.5f. Facing %@.",
+            location.coordinate.latitude,
+            location.coordinate.longitude,
+            facingDirectionLabel
+        )
+        HRTFAudioEngine.shared.playSFX(.calloutStart)
+        announcer.announce(text, minimumInterval: 0)
+    }
+
+    func calloutAroundMe() {
+        guard let location else {
+            announcer.announce("Around Me unavailable.", minimumInterval: 0)
+            return
+        }
+
+        if nearby.isEmpty {
+            loadNearbyPOIs {
+                self.calloutAroundMe()
+            }
+            return
+        }
+
+        HRTFAudioEngine.shared.playSFX(.calloutStart)
+        for poi in nearby.prefix(6) {
+            let relative = normalizedRelativeAngle(targetBearing: poi.bearing, facing: heading)
+            playSpatialCue(relative)
+            announcer.announce("\(poi.title), \(poi.distanceLabel(metricUnits: metricUnits)), \(relativeDirectionLabel(relative)).", minimumInterval: 0)
+        }
+        HRTFAudioEngine.shared.playSFX(.calloutEnd)
+        _ = location
+    }
+
+    func calloutAheadOfMe() {
+        guard location != nil else {
+            announcer.announce("Ahead of Me unavailable.", minimumInterval: 0)
+            return
+        }
+
+        if nearby.isEmpty {
+            loadNearbyPOIs {
+                self.calloutAheadOfMe()
+            }
+            return
+        }
+
+        let frontal = nearby.filter { abs(normalizedRelativeAngle(targetBearing: $0.bearing, facing: heading)) <= 70 }
+        let targets = frontal.isEmpty ? nearby : frontal
+
+        HRTFAudioEngine.shared.playSFX(.calloutStart)
+        for poi in targets.prefix(4) {
+            let relative = normalizedRelativeAngle(targetBearing: poi.bearing, facing: heading)
+            playSpatialCue(relative)
+            announcer.announce("\(poi.title), \(poi.distanceLabel(metricUnits: metricUnits)), \(relativeDirectionLabel(relative)).", minimumInterval: 0)
+        }
+        HRTFAudioEngine.shared.playSFX(.calloutEnd)
+    }
+
+    private func move(distanceMeters: Double) {
+        guard let location else {
+            announcer.announce("Search a location first.", minimumInterval: 0)
+            return
+        }
+
+        let shifted = destinationPoint(
+            lat: location.coordinate.latitude,
+            lon: location.coordinate.longitude,
+            bearing: heading,
+            distanceMeters: distanceMeters
+        )
+        self.location = CLLocation(latitude: shifted.lat, longitude: shifted.lon)
+        statusText = "Moved \(Int(abs(distanceMeters))) meters."
+        loadNearbyPOIs()
+    }
+
+    private func loadNearbyPOIs(onComplete: (() -> Void)? = nil) {
+        guard let location else { return }
+        let request = MKLocalPointsOfInterestRequest(center: location.coordinate, radius: 300)
+        let search = MKLocalSearch(request: request)
+
+        search.start { [weak self] response, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let response {
+                    let mapped = response.mapItems.compactMap { item -> PreviewPOI? in
+                        let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        if !self.includeUnnamedRoads && name.isEmpty {
+                            return nil
+                        }
+                        let itemLoc = item.placemark.location ?? CLLocation(latitude: item.placemark.coordinate.latitude, longitude: item.placemark.coordinate.longitude)
+                        let distance = location.distance(from: itemLoc)
+                        let bearing = self.bearingBetween(from: location, to: itemLoc)
+                        let category = self.categoryText(from: item)
+                        let title = name.isEmpty ? category : name
+                        return PreviewPOI(
+                            id: item.placemark.coordinate.latitude.description + item.placemark.coordinate.longitude.description + title,
+                            title: title,
+                            category: category,
+                            distanceMeters: Int(distance.rounded()),
+                            bearing: bearing
+                        )
+                    }
+
+                    self.nearby = mapped.sorted { $0.distanceMeters < $1.distanceMeters }
+                    self.statusText = self.nearby.isEmpty ? "No nearby places." : "Loaded \(self.nearby.count) nearby places."
+                } else {
+                    self.nearby = []
+                    self.statusText = "Nearby lookup failed. \(error?.localizedDescription ?? "")"
+                }
+                onComplete?()
+            }
+        }
+    }
+
+    private func categoryText(from item: MKMapItem) -> String {
+        if item.pointOfInterestCategory == .publicTransport { return "bus stop" }
+        if item.pointOfInterestCategory == .airport { return "airport" }
+        if item.pointOfInterestCategory == .parking { return "parking" }
+        if item.pointOfInterestCategory == .hospital { return "hospital" }
+        if item.pointOfInterestCategory == .school { return "school" }
+        if item.pointOfInterestCategory == .atm { return "atm" }
+        if item.pointOfInterestCategory == .fireStation { return "fire station" }
+        if item.pointOfInterestCategory == .storefront { return "store" }
+        if item.pointOfInterestCategory == .restaurant { return "restaurant" }
+        if item.pointOfInterestCategory == .cafe { return "cafe" }
+        if item.pointOfInterestCategory == .park { return "park" }
+        if item.pointOfInterestCategory == .hotel { return "hotel" }
+        return "building"
+    }
+
+    private func normalize(_ value: Double) -> Double {
+        var result = value.truncatingRemainder(dividingBy: 360)
+        if result < 0 { result += 360 }
+        return result
+    }
+
+    private func directionLabel(_ bearing: Double) -> String {
+        switch bearing {
+        case 337.5...360, 0..<22.5: return "north"
+        case 22.5..<67.5: return "north-east"
+        case 67.5..<112.5: return "east"
+        case 112.5..<157.5: return "south-east"
+        case 157.5..<202.5: return "south"
+        case 202.5..<247.5: return "south-west"
+        case 247.5..<292.5: return "west"
+        default: return "north-west"
+        }
+    }
+
+    private func relativeDirectionLabel(_ relativeAngle: Double) -> String {
+        let absAngle = abs(relativeAngle)
+        if absAngle <= 18 { return "ahead" }
+        if absAngle <= 65 { return relativeAngle < 0 ? "ahead to your left" : "ahead to your right" }
+        if absAngle <= 120 { return relativeAngle < 0 ? "to your left" : "to your right" }
+        return "behind"
+    }
+
+    private func playSpatialCue(_ relativeAngle: Double) {
+        let absAngle = abs(relativeAngle)
+        if absAngle <= 18 {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead)
+        } else if absAngle <= 120 {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: relativeAngle < 0 ? .left : .right)
+        } else {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .behind)
+        }
+    }
+
+    private func normalizedRelativeAngle(targetBearing: Double, facing: Double) -> Double {
+        var relative = (targetBearing - facing).truncatingRemainder(dividingBy: 360)
+        if relative > 180 { relative -= 360 }
+        if relative < -180 { relative += 360 }
+        return relative
+    }
+
+    private func bearingBetween(from: CLLocation, to: CLLocation) -> Double {
+        let lat1 = from.coordinate.latitude * .pi / 180
+        let lon1 = from.coordinate.longitude * .pi / 180
+        let lat2 = to.coordinate.latitude * .pi / 180
+        let lon2 = to.coordinate.longitude * .pi / 180
+        let dLon = lon2 - lon1
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        let radians = atan2(y, x)
+        let degrees = radians * 180 / .pi
+        return normalize(degrees)
+    }
+
+    private func destinationPoint(lat: Double, lon: Double, bearing: Double, distanceMeters: Double) -> (lat: Double, lon: Double) {
+        let R = 6_371_000.0
+        let bearingRad = bearing * .pi / 180
+        let latRad = lat * .pi / 180
+        let lonRad = lon * .pi / 180
+        let angDist = distanceMeters / R
+        let newLatRad = asin(sin(latRad) * cos(angDist) + cos(latRad) * sin(angDist) * cos(bearingRad))
+        let newLonRad = lonRad + atan2(sin(bearingRad) * sin(angDist) * cos(latRad), cos(angDist) - sin(latRad) * sin(newLatRad))
+        return (lat: newLatRad * 180 / .pi, lon: newLonRad * 180 / .pi)
+    }
+}
+
+private struct PreviewPOI: Identifiable {
+    let id: String
+    let title: String
+    let category: String
+    let distanceMeters: Int
+    let bearing: Double
+
+    var subtitle: String {
+        "\(category) • \(distanceMeters)m"
+    }
+
+    func distanceLabel(metricUnits: Bool) -> String {
+        if metricUnits {
+            return distanceMeters <= 15 ? "close by" : "about \(distanceMeters) meters"
+        }
+        let feet = max(1, Int((Double(distanceMeters) * 3.28084).rounded()))
+        return feet <= 40 ? "close by" : "about \(feet) feet"
     }
 }
 
@@ -224,4 +485,5 @@ private final class StreetPreviewHeadingBridge: NSObject, ObservableObject, @pre
 
 #Preview {
     StreetPreviewView()
+        .environmentObject(SettingsStore())
 }

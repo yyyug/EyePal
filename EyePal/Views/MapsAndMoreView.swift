@@ -12,12 +12,15 @@ struct MapsView: View {
     @StateObject private var viewModel = MapsViewModel()
     @State private var showStreetPreview = false
     @State private var showStandby = false
+    @State private var showIntersectionDetail = false
+    @State private var showAlongStreetGuide = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     mapsSearchCard
+                    searchResultsCard
                     soundscapeHomeCard
                     markerCard
                     guidedRouteCard
@@ -31,9 +34,17 @@ struct MapsView: View {
                 AlongStreetGuideView(viewModel: viewModel)
                     .environmentObject(openAIStore)
             }
+            .navigationDestination(isPresented: $showAlongStreetGuide) {
+                AlongStreetGuideView(viewModel: viewModel)
+                    .environmentObject(openAIStore)
+            }
+            .navigationDestination(isPresented: $showIntersectionDetail) {
+                IntersectionDetailView(viewModel: viewModel)
+                    .environmentObject(openAIStore)
+            }
             .navigationDestination(isPresented: $showStreetPreview) {
                 StreetPreviewView(
-                    initialLocation: viewModel.currentUserLocation,
+                    initialLocation: viewModel.streetPreviewSeedLocation,
                     initialHeading: viewModel.currentFacingHeading
                 )
             }
@@ -84,6 +95,73 @@ struct MapsView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
             }
+
+            Text(viewModel.statusText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var searchResultsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Search Results")
+                .font(.headline)
+
+            if viewModel.intersections.isEmpty {
+                Text("Search a road or use current location to load place results.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(viewModel.intersections.prefix(5).enumerated()), id: \.element.id) { index, intersection in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button {
+                            viewModel.select(index: index)
+                            showIntersectionDetail = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(viewModel.intersectionHeading(for: intersection))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(viewModel.intersectionDetails(for: intersection))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        HStack(spacing: 10) {
+                            Button("Location Details") {
+                                viewModel.select(index: index)
+                                showIntersectionDetail = true
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("Set Beacon") {
+                                viewModel.select(index: index)
+                                viewModel.armBeaconFromFocusedIntersection()
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("Add Marker") {
+                                viewModel.select(index: index)
+                                viewModel.saveFocusedAsMarker()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+
+                if viewModel.intersections.count > 5 {
+                    NavigationLink(value: AlongStreetRoute()) {
+                        Label("Show all results", systemImage: "list.bullet")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -127,16 +205,20 @@ struct MapsView: View {
                 .accessibilityLabel("Nearby Markers")
                 .accessibilityHint("Lists saved markers nearby")
 
-                NavigationLink(value: AlongStreetRoute()) {
-                    Text("Along Street Guide")
-                        .frame(maxWidth: .infinity)
+                Button("Along Street Guide") {
+                    showAlongStreetGuide = true
                 }
                 .buttonStyle(.bordered)
 
                 Button("Street Preview") {
-                    showStreetPreview = true
+                    if viewModel.streetPreviewSeedLocation != nil {
+                        showStreetPreview = true
+                    } else {
+                        viewModel.loadFromCurrentLocation()
+                    }
                 }
                 .buttonStyle(.bordered)
+                .disabled(viewModel.isLocating)
                 .accessibilityLabel("Street Preview")
                 .accessibilityHint("Audio-based virtual localization experience")
             }
@@ -277,6 +359,12 @@ struct MapsView: View {
                 .buttonStyle(.bordered)
                 .disabled(viewModel.activeBeacon == nil)
             }
+
+            Toggle("Beacon Audio", isOn: Binding(
+                get: { viewModel.isBeaconAudioEnabled },
+                set: { viewModel.setBeaconAudioEnabled($0) }
+            ))
+            .disabled(viewModel.activeBeacon == nil)
 
             Text(viewModel.activeBeacon?.title ?? "No active beacon")
                 .font(.footnote)
@@ -584,6 +672,44 @@ private struct IntersectionDetailView: View {
                 .padding()
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
 
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Location Actions")
+                        .font(.headline)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.saveFocusedAsMarker()
+                        } label: {
+                            Label("Add Marker", systemImage: "mappin.and.ellipse")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            viewModel.armBeaconFromFocusedIntersection()
+                        } label: {
+                            Label("Set Beacon", systemImage: "dot.radiowaves.left.and.right")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+
+                    if let focused = viewModel.focusedIntersection {
+                        NavigationLink {
+                            StreetPreviewView(
+                                initialLocation: CLLocation(latitude: focused.lat, longitude: focused.lon),
+                                initialHeading: viewModel.currentFacingHeading
+                            )
+                        } label: {
+                            Label("Street Preview", systemImage: "figure.walk")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding()
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+
                 VStack(spacing: 10) {
                     HStack(spacing: 12) {
                         Button {
@@ -677,7 +803,6 @@ struct MoreView: View {
     @StateObject private var floorStore = FloorRecordStore()
 
     private enum MoreDestination: Hashable {
-        case soundscapeSuite
         case floorDetection
         case settings
         case feature(AppFeature)
@@ -687,10 +812,6 @@ struct MoreView: View {
         NavigationStack {
             List {
                 Section {
-                    NavigationLink(value: MoreDestination.soundscapeSuite) {
-                        Label("Soundscape Features", systemImage: "waveform.path.ecg.rectangle")
-                    }
-
                     NavigationLink(value: MoreDestination.floorDetection) {
                         Label("Floor Detection", systemImage: "building.2")
                     }
@@ -709,8 +830,6 @@ struct MoreView: View {
                 .navigationTitle("More")
                 .navigationDestination(for: MoreDestination.self) { destination in
                     switch destination {
-                    case .soundscapeSuite:
-                        SoundscapeFeatureSuiteView()
                     case .floorDetection:
                         FloorDetectionListView()
                             .environmentObject(floorStore)
@@ -1348,6 +1467,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     @Published var guidedRoutes: [GuidedRoute] = []
     @Published var activeGuidedRoute: GuidedRoute?
     @Published var activeBeacon: BeaconTarget?
+    @Published var isBeaconAudioEnabled = true
     @Published var autoCalloutsEnabled = true
     @Published var currentUserLocation: CLLocation?
     @Published var gpsHorizontalAccuracyMeters: Double?
@@ -1366,6 +1486,13 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
 
     var focusedIntersection: MapIntersection? {
         intersections.indices.contains(focusedIndex) ? intersections[focusedIndex] : nil
+    }
+
+    var streetPreviewSeedLocation: CLLocation? {
+        if let focusedIntersection {
+            return CLLocation(latitude: focusedIntersection.lat, longitude: focusedIntersection.lon)
+        }
+        return currentUserLocation
     }
 
     private let apiClient = AlaViaAPIClient()
@@ -1388,15 +1515,39 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     private var activeGuidedWaypointIndex: Int = 0
     private var speechCooldown: TimeInterval = 2.5
     private var didAutoLocateOnMapsEnter = false
+    private var metricUnits = Locale.current.usesMetricSystem
+    private var placeSenseEnabled = true
+    private var landmarkSenseEnabled = true
+    private var informationSenseEnabled = true
+    private var mobilitySenseEnabled = true
+    private var safetySenseEnabled = true
+    private var intersectionSenseEnabled = true
+    private var destinationSenseEnabled = true
 
     func bind(settingsStore: SettingsStore) {
         self.settingsStore = settingsStore
         speechCooldown = settingsStore.speechCooldown
         autoCalloutsEnabled = settingsStore.mapsAutoCalloutsEnabled
+        metricUnits = settingsStore.mapsMetricUnits
+        isBeaconAudioEnabled = settingsStore.mapsBeaconAudioEnabled
+        placeSenseEnabled = settingsStore.mapsPlaceSenseEnabled
+        landmarkSenseEnabled = settingsStore.mapsLandmarkSenseEnabled
+        informationSenseEnabled = settingsStore.mapsInformationSenseEnabled
+        mobilitySenseEnabled = settingsStore.mapsMobilitySenseEnabled
+        safetySenseEnabled = settingsStore.mapsSafetySenseEnabled
+        intersectionSenseEnabled = settingsStore.mapsIntersectionSenseEnabled
+        destinationSenseEnabled = settingsStore.mapsDestinationSenseEnabled
 
         HRTFAudioEngine.shared.applyMapsAudioSettings(
             maxDistanceMeters: settingsStore.mapsMaxDistanceMeters,
             reverbBlend: settingsStore.mapsReverbBlend
+        )
+        HRTFAudioEngine.shared.applyMapsRuntimeSettings(
+            beaconStyle: settingsStore.mapsBeaconStyle,
+            beaconMelodiesEnabled: settingsStore.mapsBeaconMelodiesEnabled,
+            beaconVolume: settingsStore.mapsBeaconVolume,
+            otherVolume: settingsStore.mapsOtherVolume,
+            mixAudioWithOthers: settingsStore.mapsMixAudioWithOthers
         )
 
         markerStore.$markers
@@ -1438,6 +1589,12 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         autoCalloutsEnabled = enabled
         settingsStore?.mapsAutoCalloutsEnabled = enabled
         restartAutoCalloutsIfNeeded()
+    }
+
+    func setBeaconAudioEnabled(_ enabled: Bool) {
+        isBeaconAudioEnabled = enabled
+        settingsStore?.mapsBeaconAudioEnabled = enabled
+        announce(text: enabled ? "Audio beacon enabled." : "Audio beacon muted.")
     }
 
     func userHeadingProvider(_ provider: UserHeadingProvider, didUpdateUserHeading heading: HeadingValue?) {
@@ -1608,11 +1765,27 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     }
 
     func calloutAroundMe() {
-        guard let current = focusedIntersection else {
-            announce(text: "Around Me unavailable. Search a road first.")
+        guard let origin = activeReferenceLocation() else {
+            announce(text: "Around Me unavailable. Search or locate first.")
             return
         }
-        announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)).")
+
+        let heading = headingForAroundMe()
+        let facing = directionFromBearing(heading)
+        let targets = buildSpatialTargets(origin: origin, heading: heading, mode: .around)
+
+        guard !targets.isEmpty else {
+            announce(text: "Around Me. Facing \(facing). No nearby places found.")
+            return
+        }
+
+        let summary = targets.prefix(4).map { target -> String in
+            let bearing = bearingBetween(from: origin, to: target.location)
+            let relative = normalizedRelativeAngle(targetBearing: bearing, facing: heading)
+            return "\(target.title), \(phraseForDistance(target.distanceMeters)), \(relativeDirectionLabel(relative))"
+        }.joined(separator: ". ")
+
+        announce(text: "Around Me. Facing \(facing). \(summary).")
     }
 
     func playAroundMeSpatialAudio() {
@@ -1654,17 +1827,27 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     }
 
     func calloutAheadOfMe() {
-        guard intersections.indices.contains(focusedIndex) else {
-            announce(text: "Ahead of Me unavailable. Search a road first.")
+        guard let origin = activeReferenceLocation() else {
+            announce(text: "Ahead of Me unavailable. Search or locate first.")
             return
         }
-        let nextIndex = focusedIndex + 1
-        guard intersections.indices.contains(nextIndex) else {
-            announce(text: "Ahead of Me: last intersection.")
+
+        let heading = headingForAheadMe()
+        let facing = directionFromBearing(heading)
+        let targets = buildSpatialTargets(origin: origin, heading: heading, mode: .ahead)
+
+        guard !targets.isEmpty else {
+            announce(text: "Ahead of Me. Facing \(facing). No points ahead found.")
             return
         }
-        let next = intersections[nextIndex]
-        announce(text: "Ahead of Me: \(intersectionHeading(for: next)).")
+
+        let summary = targets.prefix(3).map { target -> String in
+            let bearing = bearingBetween(from: origin, to: target.location)
+            let relative = normalizedRelativeAngle(targetBearing: bearing, facing: heading)
+            return "\(target.title), \(phraseForDistance(target.distanceMeters)), \(relativeDirectionLabel(relative))"
+        }.joined(separator: ". ")
+
+        announce(text: "Ahead of Me. Facing \(facing). \(summary).")
     }
 
     func playAheadOfMeSpatialAudio() {
@@ -1883,11 +2066,13 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
                 self.playAheadOfMeSpatialAudio()
                 self.calloutNearbyMarkers()
                 self.checkBeaconProximity()
+                self.playBeaconPulseIfNeeded()
             }
         }
     }
 
     private func checkBeaconProximity() {
+        guard destinationSenseEnabled, settingsStore?.mapsBeaconAlertsEnabled ?? true else { return }
         guard let beacon = activeBeacon, let current = focusedIntersection else { return }
         let currentLocation = CLLocation(latitude: current.lat, longitude: current.lon)
         let beaconLocation = CLLocation(latitude: beacon.lat, longitude: beacon.lon)
@@ -1902,6 +2087,31 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         } else {
             beaconReachAnnounced = false
         }
+    }
+
+    private func playBeaconPulseIfNeeded() {
+        guard destinationSenseEnabled, isBeaconAudioEnabled else { return }
+        guard let beacon = activeBeacon else { return }
+
+        let reference = activeReferenceLocation() ?? focusedIntersection.map { CLLocation(latitude: $0.lat, longitude: $0.lon) }
+        guard let reference else { return }
+
+        let beaconLocation = CLLocation(latitude: beacon.lat, longitude: beacon.lon)
+        let distance = reference.distance(from: beaconLocation)
+        guard distance <= 500 else { return }
+
+        let heading = currentFacingHeading
+        let bearing = bearingBetween(from: reference, to: beaconLocation)
+        let relative = normalizedRelativeAngle(targetBearing: bearing, facing: heading)
+        let direction: SpatialDirection
+        if abs(relative) <= 18 {
+            direction = .ahead
+        } else if abs(relative) <= 120 {
+            direction = relative < 0 ? .left : .right
+        } else {
+            direction = .behind
+        }
+        HRTFAudioEngine.shared.playBeaconDirectionalCue(direction: direction, distanceMeters: distance)
     }
 
     private func nearbySavedMarkersSummary(maxCount: Int = 4) -> [String] {
@@ -2140,7 +2350,18 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     private func buildSpatialTargets(origin: CLLocation, heading: Double, mode: SpatialMode) -> [SpatialCalloutTarget] {
         var candidates: [SpatialCalloutTarget] = []
 
-        let sortedPOIs = nearbyPOIs
+        let eligiblePOIs = nearbyPOIs.filter { poi in
+            switch poi.category {
+            case .mobility:
+                return mobilitySenseEnabled
+            case .crossing:
+                return mobilitySenseEnabled || safetySenseEnabled || intersectionSenseEnabled
+            case .transit, .building, .amenity, .park, .generic:
+                return placeSenseEnabled || landmarkSenseEnabled || informationSenseEnabled
+            }
+        }
+
+        let sortedPOIs = eligiblePOIs
             .sorted {
                 let lhsScore = $0.category.priority * 1000 - $0.distanceMeters
                 let rhsScore = $1.category.priority * 1000 - $1.distanceMeters
@@ -2250,6 +2471,11 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     }
 
     private func phraseForDistance(_ distanceMeters: Int) -> String {
+        if !metricUnits {
+            let feet = max(1, Int((Double(distanceMeters) * 3.28084).rounded()))
+            if feet <= 40 { return "close by" }
+            return "about \(feet) feet"
+        }
         if distanceMeters <= 15 { return "close by" }
         if distanceMeters < 200 { return "about \(distanceMeters) meters" }
         return "\(distanceMeters) meters"
@@ -2271,6 +2497,10 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
               gpsHorizontalAccuracyMeters.isFinite,
               gpsHorizontalAccuracyMeters > 0 else {
             return ""
+        }
+        if !metricUnits {
+            let feet = Int((gpsHorizontalAccuracyMeters * 3.28084).rounded())
+            return " GPS accuracy about \(max(feet, 1)) feet."
         }
         let rounded = Int(gpsHorizontalAccuracyMeters.rounded())
         return " GPS accuracy about \(rounded) meters."
