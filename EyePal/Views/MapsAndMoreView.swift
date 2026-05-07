@@ -1029,10 +1029,56 @@ private struct NearbyPOI: Identifiable {
     let title: String
     let kindLabel: String?
     let addressLabel: String?
+    let category: POICategory
     let lat: Double
     let lon: Double
     let distanceMeters: Int
     let bearing: Double
+}
+
+private enum POICategory {
+    case transit
+    case mobility
+    case crossing
+    case building
+    case amenity
+    case park
+    case generic
+
+    var priority: Int {
+        switch self {
+        case .transit: return 100
+        case .mobility: return 90
+        case .crossing: return 80
+        case .building: return 70
+        case .amenity: return 60
+        case .park: return 50
+        case .generic: return 10
+        }
+    }
+
+    static func resolve(kindLabel: String?, title: String) -> POICategory {
+        let candidate = "\((kindLabel ?? "").lowercased()) \(title.lowercased())"
+        if candidate.contains("bus") || candidate.contains("station") || candidate.contains("platform") || candidate.contains("metro") {
+            return .transit
+        }
+        if candidate.contains("stair") || candidate.contains("lift") || candidate.contains("elevator") || candidate.contains("escalator") {
+            return .mobility
+        }
+        if candidate.contains("cross") || candidate.contains("junction") || candidate.contains("intersection") {
+            return .crossing
+        }
+        if candidate.contains("building") || candidate.contains("tower") || candidate.contains("mall") || candidate.contains("school") {
+            return .building
+        }
+        if candidate.contains("playground") || candidate.contains("park") || candidate.contains("garden") {
+            return .park
+        }
+        if candidate.contains("shop") || candidate.contains("restaurant") || candidate.contains("hospital") || candidate.contains("toilet") {
+            return .amenity
+        }
+        return .generic
+    }
 }
 
 private struct SpatialCalloutTarget: Identifiable {
@@ -1338,6 +1384,8 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     private var cancellables: Set<AnyCancellable> = []
     private var beaconReachAnnounced = false
     private var announcedNearbyMarkerIDs = Set<UUID>()
+    private var announcedGuidedWaypointIDs = Set<UUID>()
+    private var activeGuidedWaypointIndex: Int = 0
     private var speechCooldown: TimeInterval = 2.5
     private var didAutoLocateOnMapsEnter = false
 
@@ -1757,6 +1805,8 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         if activeGuidedRoute != nil {
             let name = activeGuidedRoute?.name ?? "route"
             activeGuidedRoute = nil
+            activeGuidedWaypointIndex = 0
+            announcedGuidedWaypointIDs.removeAll()
             announce(text: "Stopped guided route: \(name)")
             return
         }
@@ -1766,6 +1816,8 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
             return
         }
         activeGuidedRoute = first
+        activeGuidedWaypointIndex = 0
+        announcedGuidedWaypointIDs.removeAll()
         HRTFAudioEngine.shared.playSFX(.guidedRouteStarted)
         announce(text: "Started guided route: \(first.name)")
     }
@@ -1828,6 +1880,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 guard !Task.isCancelled else { return }
                 self.calloutAroundMe()
+                self.playAheadOfMeSpatialAudio()
                 self.calloutNearbyMarkers()
                 self.checkBeaconProximity()
             }
@@ -1965,17 +2018,30 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     private func announceGuidedRouteProgressIfNeeded(current: MapIntersection) {
         guard let route = activeGuidedRoute else { return }
         let currentLocation = CLLocation(latitude: current.lat, longitude: current.lon)
-        let nearest = route.waypoints
-            .map { waypoint -> (GuidedWaypoint, Double) in
-                let target = CLLocation(latitude: waypoint.lat, longitude: waypoint.lon)
-                return (waypoint, currentLocation.distance(from: target))
-            }
-            .min { $0.1 < $1.1 }
+        guard !route.waypoints.isEmpty else { return }
 
-        guard let nearest else { return }
-        if nearest.1 <= 30 {
+        let safeIndex = min(activeGuidedWaypointIndex, route.waypoints.count - 1)
+        let nextWaypoint = route.waypoints[safeIndex]
+        let nextLocation = CLLocation(latitude: nextWaypoint.lat, longitude: nextWaypoint.lon)
+        let distanceToNext = currentLocation.distance(from: nextLocation)
+
+        if distanceToNext <= 28 && !announcedGuidedWaypointIDs.contains(nextWaypoint.id) {
+            announcedGuidedWaypointIDs.insert(nextWaypoint.id)
             HRTFAudioEngine.shared.playSFX(.markerReached)
-            announce(text: "Guided route point reached: \(nearest.0.title)")
+            announce(text: "Guided route point reached: \(nextWaypoint.title)")
+
+            if safeIndex >= route.waypoints.count - 1 {
+                HRTFAudioEngine.shared.playSFX(.guidedRouteStopped)
+                announce(text: "Guided route completed: \(route.name)")
+                activeGuidedRoute = nil
+                activeGuidedWaypointIndex = 0
+                announcedGuidedWaypointIDs.removeAll()
+            } else {
+                activeGuidedWaypointIndex = safeIndex + 1
+                let upcoming = route.waypoints[activeGuidedWaypointIndex]
+                let upcomingDistance = Int(currentLocation.distance(from: CLLocation(latitude: upcoming.lat, longitude: upcoming.lon)).rounded())
+                announce(text: "Next waypoint: \(upcoming.title), about \(max(upcomingDistance, 1)) meters.")
+            }
         }
     }
 
@@ -2074,10 +2140,20 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     private func buildSpatialTargets(origin: CLLocation, heading: Double, mode: SpatialMode) -> [SpatialCalloutTarget] {
         var candidates: [SpatialCalloutTarget] = []
 
-        candidates.append(contentsOf: nearbyPOIs.prefix(16).map { poi in
+        let sortedPOIs = nearbyPOIs
+            .sorted {
+                let lhsScore = $0.category.priority * 1000 - $0.distanceMeters
+                let rhsScore = $1.category.priority * 1000 - $1.distanceMeters
+                if lhsScore == rhsScore {
+                    return $0.distanceMeters < $1.distanceMeters
+                }
+                return lhsScore > rhsScore
+            }
+
+        candidates.append(contentsOf: sortedPOIs.prefix(20).map { poi in
             SpatialCalloutTarget(
                 id: "poi-\(poi.id)",
-                title: poi.title,
+                title: "\(poi.title), \(poi.category == .generic ? "place" : poi.kindLabel ?? "point")",
                 location: CLLocation(latitude: poi.lat, longitude: poi.lon),
                 distanceMeters: max(poi.distanceMeters, 1)
             )
@@ -2205,7 +2281,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
             let rows = try await apiClient.fetchPlacesAround(
                 lat: location.coordinate.latitude,
                 lon: location.coordinate.longitude,
-                radiusMeters: 140
+                radiusMeters: 260
             )
             nearbyPOIs = rows.map {
                 NearbyPOI(
@@ -2213,6 +2289,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
                     title: $0.title,
                     kindLabel: $0.kindLabel,
                     addressLabel: $0.addressLabel,
+                    category: POICategory.resolve(kindLabel: $0.kindLabel, title: $0.title),
                     lat: $0.lat,
                     lon: $0.lon,
                     distanceMeters: $0.distanceMeters,
