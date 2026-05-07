@@ -394,7 +394,7 @@ private struct StreetPreviewPlaceSwitcherView: View {
 }
 
 private struct StreetPreviewPlaceRow: View {
-    let place: SoundscapePlace
+    let place: SuitePlace
     let isSelected: Bool
     let onSelect: () -> Void
 
