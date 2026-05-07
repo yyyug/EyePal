@@ -66,9 +66,6 @@ struct MapsView: View {
 
     private var mapsSearchCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Search")
-                .font(.headline)
-
             TextField("Search road or address", text: $viewModel.query)
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.words)
@@ -1301,10 +1298,13 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     private let spatialAudio = SpatialAudioCuePlayer()
     private let markerStore = MarkerStore()
     private let guidedRouteStore = GuidedRouteStore()
+    private let liveTracker = LiveLocationTracker()
     private var settingsStore: SettingsStore?
     private var autoCalloutTask: Task<Void, Never>?
     private var headingProvider: UserHeadingProvider?
     private var currentHeading: Double = 0
+    private var liveCompassHeading: Double = 0
+    private var lastAutoRefreshLocation: CLLocation?
     private var cancellables: Set<AnyCancellable> = []
     private var beaconReachAnnounced = false
     private var speechCooldown: TimeInterval = 2.5
@@ -1335,12 +1335,23 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
 
         startHeadingTracking(enabled: settingsStore.mapsHeadTrackingEnabled)
         restartAutoCalloutsIfNeeded()
+
+        liveTracker.onHeadingUpdate = { [weak self] heading in
+            guard let self else { return }
+            self.liveCompassHeading = heading
+            HRTFAudioEngine.shared.updateListenerHeading(heading)
+        }
+        liveTracker.onLocationUpdate = { [weak self] location in
+            self?.handleLiveLocationUpdate(location)
+        }
+        liveTracker.start()
     }
 
     func unbind() {
         autoCalloutTask?.cancel()
         autoCalloutTask = nil
         stopHeadingTracking()
+        liveTracker.stop()
         cancellables.removeAll()
     }
 
@@ -1366,9 +1377,26 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     }
 
     func startAutoLocationIfNeeded() {
-        guard !didAutoLocateOnMapsEnter else { return }
+        guard !didAutoLocateOnMapsEnter else {
+            // Already ran once — if we have data, announce it immediately
+            if let current = focusedIntersection {
+                let dir = directionFromBearing(liveCompassHeading > 0 ? liveCompassHeading : currentHeading)
+                HRTFAudioEngine.shared.playSFX(.calloutStart)
+                announce(text: "\(current.currentRoad). Facing \(dir).")
+            }
+            return
+        }
         didAutoLocateOnMapsEnter = true
-        announce(text: "Auto locating current position.")
+
+        // If already loaded (e.g. returning to tab), announce immediately
+        if let current = focusedIntersection {
+            let dir = directionFromBearing(liveCompassHeading > 0 ? liveCompassHeading : currentHeading)
+            HRTFAudioEngine.shared.playSFX(.calloutStart)
+            announce(text: "\(current.currentRoad). Facing \(dir).")
+            return
+        }
+
+        announce(text: "Locating current position.")
         loadFromCurrentLocation()
     }
 
@@ -1378,20 +1406,31 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
             statusText = "Getting current location..."
             do {
                 let location = try await locationProvider.requestCurrentLocation()
-                try? await apiClient.scanNearbyTiles(lat: location.coordinate.latitude, lon: location.coordinate.longitude)
-                let reverse = try await apiClient.reverseRoad(lat: location.coordinate.latitude, lon: location.coordinate.longitude)
-                query = reverse.displayName
-                try await loadRoad(
-                    using: reverse.roadName,
-                    focusCoordinate: location.coordinate,
-                    preferredBearing: location.course >= 0 ? location.course : nil,
-                    statusPrefix: "GPS located: \(reverse.displayName)"
+                // Fire tile pre-fetch in background — don't await, it's optional
+                Task { try? await apiClient.scanNearbyTiles(lat: location.coordinate.latitude, lon: location.coordinate.longitude) }
+                // Single combined call: reverse-geocode + intersections
+                let result = try await apiClient.fetchIntersectionsNear(
+                    lat: location.coordinate.latitude,
+                    lon: location.coordinate.longitude,
+                    countryCode: countryCode
                 )
+                query = result.displayName
+                lastAutoRefreshLocation = location
+                intersections = result.response.intersections
+                focusedIndex = findFocusedIntersectionIndex(
+                    intersections: result.response.intersections,
+                    focusCoordinate: location.coordinate,
+                    preferredBearing: location.course >= 0 ? location.course : nil
+                )
+                routePlaces = []
+                statusText = "GPS located: \(result.displayName). Loaded \(result.response.intersections.count) intersections."
+                isLocating = false
+                await refreshRoutePlacesAndAnnounce()
             } catch {
                 errorMessage = error.localizedDescription
                 statusText = "GPS failed: \(error.localizedDescription)"
+                isLocating = false
             }
-            isLocating = false
         }
     }
 
@@ -1472,7 +1511,17 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         }
     }
     func calloutMyLocation() {
-        loadFromCurrentLocation()
+        HRTFAudioEngine.shared.playSFX(.calloutStart)
+        if let current = focusedIntersection {
+            let heading = liveCompassHeading > 0 ? liveCompassHeading : currentHeading
+            let dir = directionFromBearing(heading)
+            announce(text: "My Location: \(current.currentRoad). Facing \(dir).")
+        } else if isLocating {
+            announce(text: "Locating your position. Please wait.")
+        } else {
+            announce(text: "Getting current location.")
+            loadFromCurrentLocation()
+        }
     }
 
     func calloutAroundMe() {
@@ -1485,11 +1534,19 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
 
     func playAroundMeSpatialAudio() {
         guard let current = focusedIntersection else {
-            announce(text: "Around Me unavailable. Search a road first.")
+            if isLocating {
+                announce(text: "Locating. Please wait.")
+            } else {
+                announce(text: "Around Me: loading location.")
+                loadFromCurrentLocation()
+            }
             return
         }
 
-        announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)).")
+        let heading = liveCompassHeading > 0 ? liveCompassHeading : currentHeading
+        let dir = directionFromBearing(heading)
+        HRTFAudioEngine.shared.playSFX(.calloutStart)
+        announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)). Facing \(dir).")
     }
 
     func calloutAheadOfMe() {
@@ -1507,19 +1564,21 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     }
 
     func playAheadOfMeSpatialAudio() {
-        guard intersections.indices.contains(focusedIndex) else {
-            announce(text: "Ahead of Me unavailable. Search a road first.")
+        guard !intersections.isEmpty else {
+            if isLocating {
+                announce(text: "Locating. Please wait.")
+            } else {
+                announce(text: "Ahead of Me: loading location.")
+                loadFromCurrentLocation()
+            }
             return
         }
-        let nextIndex = focusedIndex + 1
-        guard intersections.indices.contains(nextIndex) else {
-            announce(text: "Ahead of Me: last intersection.")
-            return
-        }
-        
-        let next = intersections[nextIndex]
 
-        announce(text: "Ahead of Me: \(intersectionHeading(for: next)).")
+        let heading = liveCompassHeading > 0 ? liveCompassHeading : currentHeading
+        let ahead = findIntersectionAhead(heading: heading)
+        let dir = directionFromBearing(heading)
+        HRTFAudioEngine.shared.playSFX(.calloutStart)
+        announce(text: "Ahead of Me facing \(dir): \(intersectionHeading(for: ahead)).")
     }
 
     func calloutNearbyMarkers() {
@@ -1900,6 +1959,80 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         let index = Int((normalized / 45).rounded()) % directions.count
         return directions[index]
     }
+
+    // MARK: - Compass-based Ahead of Me
+
+    private func findIntersectionAhead(heading: Double) -> MapIntersection {
+        guard let current = focusedIntersection, intersections.count > 1 else {
+            return intersections.first ?? MapIntersection(
+                id: "", currentRoad: "", crossRoad: "", intersectionType: "",
+                directionToNext: nil, distanceToNext: 0, addressLabel: nil,
+                addressSource: nil, lat: 0, lon: 0, heading: 0, leftRoad: nil, rightRoad: nil
+            )
+        }
+        let currentLoc = CLLocation(latitude: current.lat, longitude: current.lon)
+        let candidates = intersections.filter { $0.id != current.id }
+        guard !candidates.isEmpty else { return current }
+        return candidates.min { a, b in
+            let bearingA = bearingBetween(
+                from: currentLoc,
+                to: CLLocation(latitude: a.lat, longitude: a.lon)
+            )
+            let bearingB = bearingBetween(
+                from: currentLoc,
+                to: CLLocation(latitude: b.lat, longitude: b.lon)
+            )
+            return angleDistance(bearingA, heading) < angleDistance(bearingB, heading)
+        } ?? candidates[0]
+    }
+
+    private func bearingBetween(from: CLLocation, to: CLLocation) -> Double {
+        let lat1 = from.coordinate.latitude * .pi / 180
+        let lat2 = to.coordinate.latitude * .pi / 180
+        let dLon = (to.coordinate.longitude - from.coordinate.longitude) * .pi / 180
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        return (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
+    }
+
+    // MARK: - Background Live Location Refresh
+
+    private func handleLiveLocationUpdate(_ location: CLLocation) {
+        // Determine if we should auto-refresh intersection data
+        let shouldRefresh: Bool
+        if let last = lastAutoRefreshLocation {
+            shouldRefresh = location.distance(from: last) > 60
+        } else {
+            shouldRefresh = intersections.isEmpty
+        }
+
+        guard shouldRefresh, !isLoading, !isLocating else { return }
+        lastAutoRefreshLocation = location
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                // Single combined call instead of reverseRoad + fetchIntersections
+                let result = try await self.apiClient.fetchIntersectionsNear(
+                    lat: location.coordinate.latitude,
+                    lon: location.coordinate.longitude,
+                    countryCode: self.countryCode
+                )
+                guard !self.isLoading else { return }
+                self.intersections = result.response.intersections
+                self.focusedIndex = self.findFocusedIntersectionIndex(
+                    intersections: result.response.intersections,
+                    focusCoordinate: location.coordinate,
+                    preferredBearing: location.course >= 0 ? location.course : nil
+                )
+                self.routePlaces = []
+                self.statusText = "Auto-located: \(result.displayName). \(result.response.intersections.count) intersections."
+                await self.refreshRoutePlacesAndAnnounce()
+            } catch {
+                // Silent fail — background refresh should not surface errors
+            }
+        }
+    }
 }
 
 private struct AlaViaGeocodeResult {
@@ -2033,6 +2166,77 @@ private final class SpatialAudioCuePlayer {
     }
 }
 
+// MARK: - Live Location + Compass Tracker (Soundscape-style)
+
+/// Continuously tracks GPS position and magnetic compass heading.
+/// Used to power "Around Me" / "Ahead of Me" without waiting for on-demand
+/// location requests, and to feed the HRTF engine listener orientation.
+@MainActor
+private final class LiveLocationTracker: NSObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    private(set) var compassHeading: CLLocationDirection = 0
+    private(set) var currentLocation: CLLocation?
+    var onHeadingUpdate: ((CLLocationDirection) -> Void)?
+    var onLocationUpdate: ((CLLocation) -> Void)?
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.headingFilter = 5   // degrees — only fire when heading changes meaningfully
+        manager.distanceFilter = 15 // metres  — only fire when moved
+    }
+
+    func start() {
+        let status = manager.authorizationStatus
+        guard status != .denied, status != .restricted else { return }
+        if status == .notDetermined {
+            manager.requestWhenInUseAuthorization()
+        } else {
+            startTracking()
+        }
+    }
+
+    func stop() {
+        manager.stopUpdatingLocation()
+        manager.stopUpdatingHeading()
+    }
+
+    private func startTracking() {
+        manager.startUpdatingLocation()
+        if CLLocationManager.headingAvailable() {
+            manager.startUpdatingHeading()
+        }
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        guard status == .authorizedWhenInUse || status == .authorizedAlways else { return }
+        Task { @MainActor in self.startTracking() }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let loc = locations.last else { return }
+        Task { @MainActor in
+            self.currentLocation = loc
+            self.onLocationUpdate?(loc)
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        // Prefer true heading (requires location); fall back to magnetic
+        let heading = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        Task { @MainActor in
+            self.compassHeading = heading
+            self.onHeadingUpdate?(heading)
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Ignore location errors for continuous tracking
+    }
+}
+
 private final class AlaViaAPIClient {
     struct RoutePlacePayload {
         let id: String
@@ -2122,6 +2326,41 @@ private final class AlaViaAPIClient {
             "radiusMeters": 1000,
             "zoom": 16,
         ])
+    }
+
+    /// Combined reverse-geocode + intersection fetch in a single round-trip.
+    /// Returns road name and intersections without requiring the caller to know
+    /// the road name in advance. Saves one sequential API call vs reverseRoad + fetchIntersections.
+    func fetchIntersectionsNear(lat: Double, lon: Double, countryCode: String) async throws -> (displayName: String, response: IntersectionResponse) {
+        let json = try await post(path: "/api/intersections/near", body: [
+            "lat": lat,
+            "lon": lon,
+            "countryCode": countryCode,
+        ])
+        let displayName = json["displayName"] as? String ?? json["resolvedRoadName"] as? String ?? "Current location"
+        let resolvedRoad = json["roadName"] as? String ?? json["resolvedRoadName"] as? String ?? ""
+        let rows = json["intersections"] as? [[String: Any]] ?? []
+        let response = IntersectionResponse(
+            roadName: resolvedRoad,
+            intersections: rows.enumerated().map { index, row in
+                MapIntersection(
+                    id: String(row["id"] as? Int ?? index),
+                    currentRoad: row["streetName"] as? String ?? resolvedRoad,
+                    crossRoad: firstCrossStreet(row) ?? (row["name"] as? String ?? "Unknown"),
+                    intersectionType: row["type"] as? String ?? "Unknown",
+                    directionToNext: row["directionToNext"] as? String,
+                    distanceToNext: row["distanceToNext"] as? Int ?? 0,
+                    addressLabel: row["addressLabel"] as? String,
+                    addressSource: row["addressSource"] as? String,
+                    lat: row["lat"] as? Double ?? 0,
+                    lon: row["lon"] as? Double ?? 0,
+                    heading: row["bearingToNext"] as? Double ?? row["heading"] as? Double ?? 0,
+                    leftRoad: ((row["leftTurn"] as? [String: Any])?["roadName"] as? String) ?? row["leftRoad"] as? String,
+                    rightRoad: ((row["rightTurn"] as? [String: Any])?["roadName"] as? String) ?? row["rightRoad"] as? String
+                )
+            }
+        )
+        return (displayName: displayName, response: response)
     }
 
     func describeStreetview(lat: Double, lon: Double, heading: Double) async throws -> String {
