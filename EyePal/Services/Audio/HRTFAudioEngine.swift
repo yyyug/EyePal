@@ -9,8 +9,9 @@ final class HRTFAudioEngine: NSObject {
     
     // MARK: - Properties
     private let audioEngine = AVAudioEngine()
-    private var environmentNodes: [AVAudioEnvironmentNode] = []
-    private var activePlayers: [AudioPlayerNode] = []
+    private var environmentNode: AVAudioEnvironmentNode?
+    private var pooledPlayers: [AudioPlayerNode] = []
+    private var nextPlayerIndex = 0
     private var userHeading: Double = 0.0
     private var userLocation: CLLocation?
     private var maxDistance: Float = 100.0
@@ -53,6 +54,9 @@ final class HRTFAudioEngine: NSObject {
     private func setupAudioEngine() {
         audioEngine.attach(reverbUnit)
         audioEngine.connect(reverbUnit, to: mainMixer, format: nil)
+
+        let environment = createEnvironmentNode()
+        setupPlayerPool(count: 6, environment: environment)
         
         // Configure reverb for spatial awareness
         reverbUnit.loadFactoryPreset(.cathedral)
@@ -65,35 +69,51 @@ final class HRTFAudioEngine: NSObject {
     }
     
     // MARK: - HRTF Environment Node Creation
-    func createEnvironmentNode() -> AVAudioEnvironmentNode {
+    private func createEnvironmentNode() -> AVAudioEnvironmentNode {
         let environment = AVAudioEnvironmentNode()
-        
-        // High-quality HRTF rendering algorithm
-        let format = audioEngine.outputNode.outputFormat(forBus: 0)
+
         audioEngine.attach(environment)
-        audioEngine.connect(environment, to: reverbUnit, format: format)
-        
-        // Configure HRTF parameters
+        audioEngine.connect(environment, to: reverbUnit, format: nil)
+
         environment.renderingAlgorithm = .HRTFHQ
         environment.distanceAttenuationParameters.referenceDistance = 1.0
         environment.distanceAttenuationParameters.maximumDistance = maxDistance
         environment.distanceAttenuationParameters.rolloffFactor = 1.0
-        
-        // Enable reverb for spatial context
+
         environment.reverbParameters.enable = true
         environment.reverbParameters.loadFactoryReverbPreset(.cathedral)
         environment.reverbParameters.level = reverbBlend
         environment.reverbBlend = reverbBlend
-        
-        environmentNodes.append(environment)
+
+        environmentNode = environment
         return environment
+    }
+
+    private func setupPlayerPool(count: Int, environment: AVAudioEnvironmentNode) {
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1) else { return }
+        pooledPlayers.removeAll()
+        pooledPlayers.reserveCapacity(count)
+
+        for _ in 0..<count {
+            let player = AVAudioPlayerNode()
+            audioEngine.attach(player)
+            audioEngine.connect(player, to: environment, format: format)
+            pooledPlayers.append(player)
+        }
+    }
+
+    private func nextPlayer() -> AVAudioPlayerNode? {
+        guard !pooledPlayers.isEmpty else { return nil }
+        let index = nextPlayerIndex % pooledPlayers.count
+        nextPlayerIndex = (nextPlayerIndex + 1) % pooledPlayers.count
+        return pooledPlayers[index]
     }
 
     func applyMapsAudioSettings(maxDistanceMeters: Double, reverbBlend: Double) {
         maxDistance = Float(max(10, min(200, maxDistanceMeters)))
         self.reverbBlend = Float(max(0, min(0.5, reverbBlend)))
 
-        for environment in environmentNodes {
+        if let environment = environmentNode {
             environment.distanceAttenuationParameters.maximumDistance = maxDistance
             environment.reverbParameters.level = self.reverbBlend
             environment.reverbBlend = self.reverbBlend
@@ -103,8 +123,8 @@ final class HRTFAudioEngine: NSObject {
     // MARK: - Listener Orientation Update
     func updateListenerHeading(_ heading: Double) {
         userHeading = heading
-        
-        for environment in environmentNodes {
+
+        if let environment = environmentNode {
             environment.listenerAngularOrientation = AVAudio3DAngularOrientation(
                 yaw: Float(heading),
                 pitch: 0.0,
@@ -123,26 +143,24 @@ final class HRTFAudioEngine: NSObject {
         let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)
         guard let format else { return }
         
-        let environment = environmentNodes.last ?? createEnvironmentNode()
-        
-        let player = AVAudioPlayerNode()
-        audioEngine.attach(player)
-        audioEngine.connect(player, to: environment, format: format)
+        guard environmentNode != nil else { return }
+
+        if !audioEngine.isRunning {
+            try? audioEngine.start()
+        }
+
+        guard let player = nextPlayer() else { return }
+        player.stop()
         
         // Set 3D position
         player.position = position
         
         // Generate audio buffer
         if let buffer = generateToneBuffer(frequency: frequency, format: format, duration: duration) {
-            player.scheduleBuffer(buffer, at: nil, options: .interrupts) { [weak self, weak player] in
-                guard let self, let player else { return }
-                self.audioEngine.detach(player)
-                self.activePlayers.removeAll { $0 === player }
-            }
+            player.scheduleBuffer(buffer, at: nil, options: .interrupts)
         }
-        
+
         try? player.play()
-        activePlayers.append(player)
     }
     
     // MARK: - Directional Audio Cues (for Soundscape compatibility)
@@ -191,11 +209,9 @@ final class HRTFAudioEngine: NSObject {
     
     // MARK: - Cleanup
     func stop() {
-        for player in activePlayers {
+        for player in pooledPlayers {
             player.stop()
-            audioEngine.detach(player)
         }
-        activePlayers.removeAll()
     }
     
     deinit {
