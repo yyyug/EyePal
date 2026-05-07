@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -56,7 +56,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent Payload EyePal-unsigned.ipa
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: EyePal-unsigned-ipa
           path: EyePal-unsigned.ipa
