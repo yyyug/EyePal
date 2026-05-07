@@ -28,11 +28,13 @@ struct HeadingValue: Equatable {
 
 /// Provides user head orientation from headphones with motion sensors (iOS 14.4+)
 @available(iOS 14.4, *)
-final class HeadphoneMotionProvider: NSObject, UserHeadingProvider {
+final class HeadphoneMotionProvider: NSObject, UserHeadingProvider, ObservableObject {
     // MARK: - Properties
     private let manager = CMHeadphoneMotionManager()
     private let motionQueue = OperationQueue()
     private var lastYaw: Double = 0.0
+    
+    @Published var currentHeading: HeadingValue?
     
     weak var delegate: UserHeadingProviderDelegate?
     
@@ -106,10 +108,12 @@ final class HeadphoneMotionProvider: NSObject, UserHeadingProvider {
 }
 
 /// Fallback device heading provider using device compass + motion
-final class DeviceMotionProvider: NSObject, UserHeadingProvider {
+final class DeviceMotionProvider: NSObject, UserHeadingProvider, ObservableObject {
     private let locationManager = CLLocationManager()
     private let motionManager = CMMotionManager()
     private let operationQueue = OperationQueue()
+    
+    @Published var currentHeading: HeadingValue?
     
     weak var delegate: UserHeadingProviderDelegate?
     
