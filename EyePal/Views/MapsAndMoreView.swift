@@ -11,6 +11,7 @@ struct MapsView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var viewModel = MapsViewModel()
     @State private var showStreetPreview = false
+    @State private var showStandby = false
 
     var body: some View {
         NavigationStack {
@@ -57,6 +58,9 @@ struct MapsView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+        .fullScreenCover(isPresented: $showStandby) {
+            StandbyView()
+        }
     }
 
     private var mapsSearchCard: some View {
@@ -94,6 +98,13 @@ struct MapsView: View {
                 .buttonStyle(.bordered)
                 .accessibilityLabel("My Location")
                 .accessibilityHint("Announces your current location and heading")
+
+                Button("Sleep") {
+                    showStandby = true
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Sleep")
+                .accessibilityHint("Pause exploration and open standby mode")
 
                 Button("Around Me") {
                     viewModel.playAroundMeSpatialAudio()
@@ -666,6 +677,7 @@ struct MoreView: View {
     @StateObject private var floorStore = FloorRecordStore()
 
     private enum MoreDestination: Hashable {
+        case soundscapeSuite
         case floorDetection
         case settings
         case feature(AppFeature)
@@ -675,6 +687,10 @@ struct MoreView: View {
         NavigationStack {
             List {
                 Section {
+                    NavigationLink(value: MoreDestination.soundscapeSuite) {
+                        Label("Soundscape Features", systemImage: "waveform.path.ecg.rectangle")
+                    }
+
                     NavigationLink(value: MoreDestination.floorDetection) {
                         Label("Floor Detection", systemImage: "building.2")
                     }
@@ -693,6 +709,8 @@ struct MoreView: View {
                 .navigationTitle("More")
                 .navigationDestination(for: MoreDestination.self) { destination in
                     switch destination {
+                    case .soundscapeSuite:
+                        SoundscapeFeatureSuiteView()
                     case .floorDetection:
                         FloorDetectionListView()
                             .environmentObject(floorStore)
@@ -1006,6 +1024,17 @@ private struct RoutePlace: Identifiable {
     let side: RouteSide
 }
 
+private struct NearbyPOI: Identifiable {
+    let id: String
+    let title: String
+    let kindLabel: String?
+    let addressLabel: String?
+    let lat: Double
+    let lon: Double
+    let distanceMeters: Int
+    let bearing: Double
+}
+
 private struct SpatialCalloutTarget: Identifiable {
     let id: String
     let title: String
@@ -1275,6 +1304,8 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     @Published var activeBeacon: BeaconTarget?
     @Published var autoCalloutsEnabled = true
     @Published var currentUserLocation: CLLocation?
+    @Published var gpsHorizontalAccuracyMeters: Double?
+    @Published var nearbyPOIs: [NearbyPOI] = []
 
     var currentFacingHeading: Double {
         if liveCompassHeading > 0 { return liveCompassHeading }
@@ -1306,6 +1337,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     private var lastAutoRefreshLocation: CLLocation?
     private var cancellables: Set<AnyCancellable> = []
     private var beaconReachAnnounced = false
+    private var announcedNearbyMarkerIDs = Set<UUID>()
     private var speechCooldown: TimeInterval = 2.5
     private var didAutoLocateOnMapsEnter = false
 
@@ -1381,7 +1413,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
             if let current = focusedIntersection {
                 let dir = directionFromBearing(liveCompassHeading > 0 ? liveCompassHeading : currentHeading)
                 HRTFAudioEngine.shared.playSFX(.calloutStart)
-                announce(text: "\(current.currentRoad). Facing \(dir).")
+                announce(text: "\(current.currentRoad). Facing \(dir).\(gpsAccuracyPhrase())")
             }
             return
         }
@@ -1391,7 +1423,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         if let current = focusedIntersection {
             let dir = directionFromBearing(liveCompassHeading > 0 ? liveCompassHeading : currentHeading)
             HRTFAudioEngine.shared.playSFX(.calloutStart)
-            announce(text: "\(current.currentRoad). Facing \(dir).")
+            announce(text: "\(current.currentRoad). Facing \(dir).\(gpsAccuracyPhrase())")
             return
         }
 
@@ -1406,6 +1438,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
             do {
                 let location = try await locationProvider.requestCurrentLocation()
                 currentUserLocation = location
+                gpsHorizontalAccuracyMeters = location.horizontalAccuracy >= 0 ? location.horizontalAccuracy : nil
                 // Fire tile pre-fetch in background — don't await, it's optional
                 Task { try? await apiClient.scanNearbyTiles(lat: location.coordinate.latitude, lon: location.coordinate.longitude) }
                 // Single combined call: reverse-geocode + intersections
@@ -1425,6 +1458,8 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
                 routePlaces = []
                 statusText = "GPS located: \(result.displayName). Loaded \(result.response.intersections.count) intersections."
                 isLocating = false
+                await loadNearbyPOIs(around: location)
+                checkMarkerProximity(currentLocation: location)
                 await refreshRoutePlacesAndAnnounce()
             } catch {
                 errorMessage = error.localizedDescription
@@ -1515,7 +1550,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         if let current = focusedIntersection {
             let heading = liveCompassHeading > 0 ? liveCompassHeading : currentHeading
             let dir = directionFromBearing(heading)
-            announce(text: "My Location: \(current.currentRoad). Facing \(dir).")
+            announce(text: "My Location: \(current.currentRoad). Facing \(dir).\(gpsAccuracyPhrase())")
         } else if isLocating {
             announce(text: "Locating your position. Please wait.")
         } else {
@@ -2039,6 +2074,15 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     private func buildSpatialTargets(origin: CLLocation, heading: Double, mode: SpatialMode) -> [SpatialCalloutTarget] {
         var candidates: [SpatialCalloutTarget] = []
 
+        candidates.append(contentsOf: nearbyPOIs.prefix(16).map { poi in
+            SpatialCalloutTarget(
+                id: "poi-\(poi.id)",
+                title: poi.title,
+                location: CLLocation(latitude: poi.lat, longitude: poi.lon),
+                distanceMeters: max(poi.distanceMeters, 1)
+            )
+        })
+
         candidates.append(contentsOf: routePlaces.prefix(10).map { place in
             SpatialCalloutTarget(
                 id: "place-\(place.id)",
@@ -2146,6 +2190,58 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         }
     }
 
+    private func gpsAccuracyPhrase() -> String {
+        guard let gpsHorizontalAccuracyMeters,
+              gpsHorizontalAccuracyMeters.isFinite,
+              gpsHorizontalAccuracyMeters > 0 else {
+            return ""
+        }
+        let rounded = Int(gpsHorizontalAccuracyMeters.rounded())
+        return " GPS accuracy about \(rounded) meters."
+    }
+
+    private func loadNearbyPOIs(around location: CLLocation) async {
+        do {
+            let rows = try await apiClient.fetchPlacesAround(
+                lat: location.coordinate.latitude,
+                lon: location.coordinate.longitude,
+                radiusMeters: 140
+            )
+            nearbyPOIs = rows.map {
+                NearbyPOI(
+                    id: $0.id,
+                    title: $0.title,
+                    kindLabel: $0.kindLabel,
+                    addressLabel: $0.addressLabel,
+                    lat: $0.lat,
+                    lon: $0.lon,
+                    distanceMeters: $0.distanceMeters,
+                    bearing: $0.bearing
+                )
+            }
+        } catch {
+            nearbyPOIs = []
+        }
+    }
+
+    private func checkMarkerProximity(currentLocation: CLLocation) {
+        let newlyReached = savedMarkers.compactMap { marker -> SavedMarker? in
+            let markerLocation = CLLocation(latitude: marker.lat, longitude: marker.lon)
+            let distance = currentLocation.distance(from: markerLocation)
+            return distance <= 22 ? marker : nil
+        }
+
+        let reachedIDs = Set(newlyReached.map(\.id))
+
+        for marker in newlyReached where !announcedNearbyMarkerIDs.contains(marker.id) {
+            announcedNearbyMarkerIDs.insert(marker.id)
+            HRTFAudioEngine.shared.playSFX(.markerReached)
+            announce(text: "Nearby marker: \(marker.title).")
+        }
+
+        announcedNearbyMarkerIDs = announcedNearbyMarkerIDs.intersection(reachedIDs)
+    }
+
     private func directionFromBearing(_ bearing: Double) -> String {
         let directions = ["North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"]
         let normalized = (bearing.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
@@ -2192,6 +2288,8 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
 
     private func handleLiveLocationUpdate(_ location: CLLocation) {
         currentUserLocation = location
+        gpsHorizontalAccuracyMeters = location.horizontalAccuracy >= 0 ? location.horizontalAccuracy : nil
+        checkMarkerProximity(currentLocation: location)
         // Determine if we should auto-refresh intersection data
         let shouldRefresh: Bool
         if let last = lastAutoRefreshLocation {
@@ -2221,6 +2319,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
                 )
                 self.routePlaces = []
                 self.statusText = "Auto-located: \(result.displayName). \(result.response.intersections.count) intersections."
+                await self.loadNearbyPOIs(around: location)
                 await self.refreshRoutePlacesAndAnnounce()
             } catch {
                 // Silent fail — background refresh should not surface errors
@@ -2442,6 +2541,17 @@ private final class AlaViaAPIClient {
         let sortMeters: Int
     }
 
+    struct NearbyPlacePayload {
+        let id: String
+        let title: String
+        let kindLabel: String?
+        let addressLabel: String?
+        let lat: Double
+        let lon: Double
+        let distanceMeters: Int
+        let bearing: Double
+    }
+
     func autobbox(query: String, countryCode: String) async throws -> AlaViaGeocodeResult {
         var autobboxBody: [String: Any] = ["query": query]
         if !countryCode.isEmpty { autobboxBody["countryCode"] = countryCode }
@@ -2520,6 +2630,27 @@ private final class AlaViaAPIClient {
             "radiusMeters": 1000,
             "zoom": 16,
         ])
+    }
+
+    func fetchPlacesAround(lat: Double, lon: Double, radiusMeters: Int) async throws -> [NearbyPlacePayload] {
+        let json = try await post(path: "/api/osm/places-around", body: [
+            "lat": lat,
+            "lon": lon,
+            "radiusMeters": radiusMeters,
+        ])
+        let rows = json["places"] as? [[String: Any]] ?? []
+        return rows.enumerated().map { index, row in
+            NearbyPlacePayload(
+                id: row["id"] as? String ?? "poi-\(index)",
+                title: row["title"] as? String ?? row["name"] as? String ?? "Unnamed place",
+                kindLabel: row["kindLabel"] as? String,
+                addressLabel: row["addressLabel"] as? String,
+                lat: row["lat"] as? Double ?? 0,
+                lon: row["lon"] as? Double ?? 0,
+                distanceMeters: row["distanceMeters"] as? Int ?? 0,
+                bearing: row["bearing"] as? Double ?? 0
+            )
+        }
     }
 
     /// Combined reverse-geocode + intersection fetch in a single round-trip.
@@ -2610,5 +2741,50 @@ private final class AlaViaAPIClient {
             return name.split(separator: "×").dropFirst().first.map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
         }
         return nil
+    }
+}
+
+struct StandbyView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var wakeIn30Seconds = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "moon.zzz.fill")
+                    .font(.system(size: 52))
+                Text("Standby")
+                    .font(.title2.weight(.bold))
+                Text("Exploration is paused. You can wake now or delay wake-up.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                Toggle("Wake automatically in 30 seconds", isOn: $wakeIn30Seconds)
+                    .padding(.horizontal)
+
+                Button("Wake Now") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Close") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding()
+            .navigationTitle("Standby")
+            .onChange(of: wakeIn30Seconds) { isOn in
+                guard isOn else { return }
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 30_000_000_000)
+                    if wakeIn30Seconds {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
