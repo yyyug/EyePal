@@ -37,7 +37,9 @@
 		A10000010000000000000022 /* QuickRecognitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000022 /* QuickRecognitionView.swift */; };
         A10000010000000000000023 /* MapsAndMoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000023 /* MapsAndMoreView.swift */; };
 		A10000010000000000000024 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000024 /* AppFeature.swift */; };
-/* End PBXBuildFile section */
+        A10000010000000000000025 /* HRTFAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000025 /* HRTFAudioEngine.swift */; };
+        A10000010000000000000026 /* HeadphoneMotionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000026 /* HeadphoneMotionProvider.swift */; };
+        A10000010000000000000027 /* StreetPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000027 /* StreetPreviewView.swift */; };
 
 /* Begin PBXFileReference section */
         A10001000000000000000001 /* EyePal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EyePal.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -73,6 +75,9 @@
 		A10001010000000000000022 /* QuickRecognitionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickRecognitionView.swift; sourceTree = "<group>"; };
         A10001010000000000000023 /* MapsAndMoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapsAndMoreView.swift; sourceTree = "<group>"; };
         A10001010000000000000024 /* AppFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFeature.swift; sourceTree = "<group>"; };
+        A10001010000000000000025 /* HRTFAudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRTFAudioEngine.swift; sourceTree = "<group>"; };
+        A10001010000000000000026 /* HeadphoneMotionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadphoneMotionProvider.swift; sourceTree = "<group>"; };
+        A10001010000000000000027 /* StreetPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreetPreviewView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -139,6 +144,8 @@
                 A10003000000000000000009 /* ReadText */,
                 A1000300000000000000000A /* Face */,
 				A1000300000000000000000B /* OpenAI */,
+                A1000300000000000000000C /* Audio */,
+                A1000300000000000000000D /* Sensors */,
             );
             path = Services;
             sourceTree = "<group>";
@@ -164,6 +171,7 @@
                 A1000101000000000000000F /* ReadTextView.swift */,
                 A10001010000000000000010 /* FaceRecognitionView.swift */,
                 A10001010000000000000011 /* SettingsView.swift */,
+                A10001010000000000000027 /* StreetPreviewView.swift */,
             );
             path = Views;
             sourceTree = "<group>";
@@ -205,6 +213,22 @@
 			path = OpenAI;
 			sourceTree = "<group>";
 		};
+        A1000300000000000000000C /* Audio */ = {
+            isa = PBXGroup;
+            children = (
+                A10001010000000000000025 /* HRTFAudioEngine.swift */,
+            );
+            path = Audio;
+            sourceTree = "<group>";
+        };
+        A1000300000000000000000D /* Sensors */ = {
+            isa = PBXGroup;
+            children = (
+                A10001010000000000000026 /* HeadphoneMotionProvider.swift */,
+            );
+            path = Sensors;
+            sourceTree = "<group>";
+        };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -302,6 +326,9 @@
                 A1000001000000000000000E /* SettingsStore.swift in Sources */,
                 A10000010000000000000011 /* SettingsView.swift in Sources */,
                 A10000010000000000000023 /* MapsAndMoreView.swift in Sources */,
+                A10000010000000000000025 /* HRTFAudioEngine.swift in Sources */,
+                A10000010000000000000026 /* HeadphoneMotionProvider.swift in Sources */,
+                A10000010000000000000027 /* StreetPreviewView.swift in Sources */,
                 A10000010000000000000008 /* TextRecognitionService.swift in Sources */,
             );
             runOnlyForDeploymentPostprocessing = 0;

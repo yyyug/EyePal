@@ -1,6 +1,7 @@
 ﻿import SwiftUI
 import CoreLocation
 import AVFoundation
+import MapKit
 
 private let alaViaBaseURL = URL(string: "https://via.inclu.si")!
 
@@ -48,21 +49,29 @@ struct MapsView: View {
                     viewModel.calloutMyLocation()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("My Location")
+                .accessibilityHint("Announces your current location and heading")
 
                 Button("Around Me") {
-                    viewModel.calloutAroundMe()
+                    viewModel.playAroundMeSpatialAudio()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Around Me")
+                .accessibilityHint("Plays spatial audio cues of nearby places")
 
                 Button("Ahead of Me") {
-                    viewModel.calloutAheadOfMe()
+                    viewModel.playAheadOfMeSpatialAudio()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Ahead of Me")
+                .accessibilityHint("Plays spatial audio cues of places ahead")
 
                 Button("Nearby Markers") {
                     viewModel.calloutNearbyMarkers()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Nearby Markers")
+                .accessibilityHint("Lists saved markers nearby")
 
                 NavigationLink(value: AlongStreetRoute()) {
                     Text("Along Street Guide")
@@ -467,6 +476,7 @@ struct MoreView: View {
     private enum MoreDestination: Hashable {
         case floorDetection
         case settings
+        case streetPreview
         case feature(AppFeature)
     }
 
@@ -480,6 +490,10 @@ struct MoreView: View {
 
                     NavigationLink(value: MoreDestination.settings) {
                         Label("Settings", systemImage: "gearshape")
+                    }
+                    
+                    NavigationLink(value: MoreDestination.streetPreview) {
+                        Label("Street Preview", systemImage: "ear.and.waveform")
                     }
                 }
 
@@ -503,6 +517,8 @@ struct MoreView: View {
                         SettingsView()
                             .environmentObject(settingsStore)
                             .environmentObject(openAIStore)
+                    case .streetPreview:
+                        StreetPreviewView()
                     case .feature(let feature):
                         moreFeatureView(for: feature)
                     }
@@ -1084,6 +1100,26 @@ private final class MapsViewModel: ObservableObject {
         announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)).")
     }
 
+    func playAroundMeSpatialAudio() {
+        guard let current = focusedIntersection else {
+            announce(text: "Around Me unavailable. Search a road first.")
+            return
+        }
+        
+        // Play spatial audio cues for directions around current location
+        HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .left, frequency: 620)
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .right, frequency: 980)
+        }
+        
+        announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)).")
+    }
+
     func calloutAheadOfMe() {
         guard intersections.indices.contains(focusedIndex) else {
             announce(text: "Ahead of Me unavailable. Search a road first.")
@@ -1095,6 +1131,25 @@ private final class MapsViewModel: ObservableObject {
             return
         }
         let next = intersections[nextIndex]
+        announce(text: "Ahead of Me: \(intersectionHeading(for: next)).")
+    }
+
+    func playAheadOfMeSpatialAudio() {
+        guard intersections.indices.contains(focusedIndex) else {
+            announce(text: "Ahead of Me unavailable. Search a road first.")
+            return
+        }
+        let nextIndex = focusedIndex + 1
+        guard intersections.indices.contains(nextIndex) else {
+            announce(text: "Ahead of Me: last intersection.")
+            return
+        }
+        
+        let next = intersections[nextIndex]
+        
+        // Play spatial audio cue directly ahead
+        HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead, frequency: 820)
+        
         announce(text: "Ahead of Me: \(intersectionHeading(for: next)).")
     }
 
