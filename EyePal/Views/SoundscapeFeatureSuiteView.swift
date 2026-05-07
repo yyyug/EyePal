@@ -379,29 +379,44 @@ private struct StreetPreviewPlaceSwitcherView: View {
     @ObservedObject var viewModel: SoundscapeSuiteViewModel
 
     var body: some View {
-        List {
-            ForEach(viewModel.searchResults, id: \.id) { place in
-                Button {
-                    viewModel.selectedPlace = place
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(place.title)
-                            Text(place.subtitleText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if viewModel.selectedPlace?.id == place.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.accent)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
+        let places = viewModel.searchResults
+
+        List(places, id: \.id) { place in
+            StreetPreviewPlaceRow(
+                place: place,
+                isSelected: viewModel.selectedPlace?.id == place.id
+            ) {
+                viewModel.selectedPlace = place
             }
         }
         .navigationTitle("Preview Place Search")
+    }
+}
+
+private struct StreetPreviewPlaceRow: View {
+    let place: SoundscapePlace
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(place.title)
+                    Text(place.subtitleText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.accent)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
