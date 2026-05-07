@@ -4,6 +4,8 @@ import MapKit
 
 /// Street Preview: Audio-based virtual localization experience
 struct StreetPreviewView: View {
+    let initialLocation: CLLocation?
+    let initialHeading: Double?
     @State private var selectedLocation: CLLocation?
     @State private var searchText: String = ""
     @State private var deviceHeading: Double = 0.0
@@ -11,6 +13,11 @@ struct StreetPreviewView: View {
     @StateObject private var deviceHeadingProvider = DeviceMotionProvider()
     @StateObject private var headingBridge = StreetPreviewHeadingBridge()
     @State private var headphoneHeadingProvider: HeadphoneMotionProvider?
+
+    init(initialLocation: CLLocation? = nil, initialHeading: Double? = nil) {
+        self.initialLocation = initialLocation
+        self.initialHeading = initialHeading
+    }
     
     var body: some View {
         NavigationStack {
@@ -116,6 +123,12 @@ struct StreetPreviewView: View {
             }
         }
         .onAppear {
+            if selectedLocation == nil, let initialLocation {
+                selectedLocation = initialLocation
+            }
+            if let initialHeading {
+                deviceHeading = initialHeading
+            }
             startHeadingUpdates()
         }
         .onDisappear {

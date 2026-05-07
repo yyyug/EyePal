@@ -31,7 +31,10 @@ struct MapsView: View {
                     .environmentObject(openAIStore)
             }
             .navigationDestination(isPresented: $showStreetPreview) {
-                StreetPreviewView()
+                StreetPreviewView(
+                    initialLocation: viewModel.currentUserLocation,
+                    initialHeading: viewModel.currentFacingHeading
+                )
             }
         }
         .onAppear {
@@ -91,14 +94,6 @@ struct MapsView: View {
                 .buttonStyle(.bordered)
                 .accessibilityLabel("My Location")
                 .accessibilityHint("Announces your current location and heading")
-
-                NavigationLink(value: AlongStreetRoute()) {
-                    Text("Search")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Search")
-                .accessibilityHint("Search a road or address")
 
                 Button("Around Me") {
                     viewModel.playAroundMeSpatialAudio()
@@ -303,6 +298,7 @@ private struct AlongStreetGuideView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @State private var showingCountryPicker = false
     @State private var showingDetail = false
+    @State private var didAutoLoadFromHome = false
 
     var body: some View {
         ScrollView {
@@ -317,6 +313,11 @@ private struct AlongStreetGuideView: View {
         .navigationDestination(isPresented: $showingDetail) {
             IntersectionDetailView(viewModel: viewModel)
                 .environmentObject(openAIStore)
+        }
+        .onAppear {
+            guard !didAutoLoadFromHome else { return }
+            didAutoLoadFromHome = true
+            viewModel.loadFromCurrentLocation()
         }
     }
 
@@ -1005,6 +1006,13 @@ private struct RoutePlace: Identifiable {
     let side: RouteSide
 }
 
+private struct SpatialCalloutTarget: Identifiable {
+    let id: String
+    let title: String
+    let location: CLLocation
+    let distanceMeters: Int
+}
+
 private enum RouteSide {
     case left
     case right
@@ -1266,6 +1274,14 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     @Published var activeGuidedRoute: GuidedRoute?
     @Published var activeBeacon: BeaconTarget?
     @Published var autoCalloutsEnabled = true
+    @Published var currentUserLocation: CLLocation?
+
+    var currentFacingHeading: Double {
+        if liveCompassHeading > 0 { return liveCompassHeading }
+        if currentHeading > 0 { return currentHeading }
+        if let course = liveTracker.currentLocation?.course, course >= 0 { return course }
+        return 0
+    }
 
     var currentRoadText: String {
         focusedIntersection?.currentRoad ?? intersections.first?.currentRoad ?? "Not loaded"
@@ -1389,6 +1405,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
             statusText = "Getting current location..."
             do {
                 let location = try await locationProvider.requestCurrentLocation()
+                currentUserLocation = location
                 // Fire tile pre-fetch in background — don't await, it's optional
                 Task { try? await apiClient.scanNearbyTiles(lat: location.coordinate.latitude, lon: location.coordinate.longitude) }
                 // Single combined call: reverse-geocode + intersections
@@ -1516,20 +1533,41 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     }
 
     func playAroundMeSpatialAudio() {
-        guard let current = focusedIntersection else {
-            if isLocating {
-                announce(text: "Locating. Please wait.")
-            } else {
-                announce(text: "Around Me: loading location.")
-                loadFromCurrentLocation()
+        Task {
+            guard let origin = activeReferenceLocation() else {
+                if isLocating {
+                    announce(text: "Locating. Please wait.")
+                } else {
+                    announce(text: "Around Me: loading location.")
+                    loadFromCurrentLocation()
+                }
+                return
             }
-            return
-        }
 
-        let heading = liveCompassHeading > 0 ? liveCompassHeading : currentHeading
-        let dir = directionFromBearing(heading)
-        HRTFAudioEngine.shared.playSFX(.calloutStart)
-        announce(text: "\(intersectionHeading(for: current)). \(intersectionDetails(for: current)). Facing \(dir).")
+            let heading = headingForAroundMe()
+            let facing = directionFromBearing(heading)
+            HRTFAudioEngine.shared.updateListenerHeading(heading)
+            HRTFAudioEngine.shared.playSFX(.calloutStart)
+            announceImmediate(text: "Around Me. Facing \(facing).")
+
+            let targets = buildSpatialTargets(origin: origin, heading: heading, mode: .around)
+            guard !targets.isEmpty else {
+                announceImmediate(text: "No nearby places found.")
+                return
+            }
+
+            for target in targets.prefix(6) {
+                let bearing = bearingBetween(from: origin, to: target.location)
+                let relative = normalizedRelativeAngle(targetBearing: bearing, facing: heading)
+                playSpatialCue(relativeAngle: relative)
+                let distancePhrase = phraseForDistance(target.distanceMeters)
+                let directionPhrase = relativeDirectionLabel(relative)
+                announceImmediate(text: "\(target.title), \(distancePhrase), \(directionPhrase).")
+                try? await Task.sleep(nanoseconds: 650_000_000)
+            }
+
+            HRTFAudioEngine.shared.playSFX(.calloutEnd)
+        }
     }
 
     func calloutAheadOfMe() {
@@ -1547,21 +1585,49 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     }
 
     func playAheadOfMeSpatialAudio() {
-        guard !intersections.isEmpty else {
-            if isLocating {
-                announce(text: "Locating. Please wait.")
-            } else {
-                announce(text: "Ahead of Me: loading location.")
-                loadFromCurrentLocation()
+        Task {
+            guard let origin = activeReferenceLocation() else {
+                if isLocating {
+                    announce(text: "Locating. Please wait.")
+                } else {
+                    announce(text: "Ahead of Me: loading location.")
+                    loadFromCurrentLocation()
+                }
+                return
             }
-            return
-        }
 
-        let heading = liveCompassHeading > 0 ? liveCompassHeading : currentHeading
-        let ahead = findIntersectionAhead(heading: heading)
-        let dir = directionFromBearing(heading)
-        HRTFAudioEngine.shared.playSFX(.calloutStart)
-        announce(text: "Ahead of Me facing \(dir): \(intersectionHeading(for: ahead)).")
+            let heading = headingForAheadMe()
+            let facing = directionFromBearing(heading)
+            HRTFAudioEngine.shared.updateListenerHeading(heading)
+            HRTFAudioEngine.shared.playSFX(.calloutStart)
+            announceImmediate(text: "Ahead of Me. Facing \(facing).")
+
+            let targets = buildSpatialTargets(origin: origin, heading: heading, mode: .ahead)
+            if !targets.isEmpty {
+                for target in targets.prefix(4) {
+                    let bearing = bearingBetween(from: origin, to: target.location)
+                    let relative = normalizedRelativeAngle(targetBearing: bearing, facing: heading)
+                    playSpatialCue(relativeAngle: relative)
+                    let distancePhrase = phraseForDistance(target.distanceMeters)
+                    let directionPhrase = relativeDirectionLabel(relative)
+                    announceImmediate(text: "\(target.title), \(distancePhrase), \(directionPhrase).")
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                }
+                HRTFAudioEngine.shared.playSFX(.calloutEnd)
+                return
+            }
+
+            if !intersections.isEmpty {
+                let ahead = findIntersectionAhead(heading: heading)
+                let intersectionBearing = bearingBetween(from: origin, to: CLLocation(latitude: ahead.lat, longitude: ahead.lon))
+                let relative = normalizedRelativeAngle(targetBearing: intersectionBearing, facing: heading)
+                playSpatialCue(relativeAngle: relative)
+                announceImmediate(text: "\(intersectionHeading(for: ahead)), \(relativeDirectionLabel(relative)).")
+                HRTFAudioEngine.shared.playSFX(.calloutEnd)
+            } else {
+                announceImmediate(text: "No points ahead found.")
+            }
+        }
     }
 
     func calloutNearbyMarkers() {
@@ -1850,6 +1916,10 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         announcementCenter.announce(text, minimumInterval: speechCooldown)
     }
 
+    private func announceImmediate(text: String) {
+        announcementCenter.announce(text, minimumInterval: 0)
+    }
+
     private func playSpatialSummary(for places: [RoutePlace]) async {
         for place in places.prefix(3) {
             spatialAudio.play(side: place.side)
@@ -1936,6 +2006,146 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
         abs((((a - b).truncatingRemainder(dividingBy: 360)) + 540).truncatingRemainder(dividingBy: 360) - 180)
     }
 
+    private enum SpatialMode {
+        case around
+        case ahead
+    }
+
+    private func headingForAroundMe() -> Double {
+        if let course = liveTracker.currentLocation?.course, course >= 0 {
+            return course
+        }
+        return currentFacingHeading
+    }
+
+    private func headingForAheadMe() -> Double {
+        if currentHeading > 0 { return currentHeading }
+        return currentFacingHeading
+    }
+
+    private func activeReferenceLocation() -> CLLocation? {
+        if let live = liveTracker.currentLocation {
+            return live
+        }
+        if let currentUserLocation {
+            return currentUserLocation
+        }
+        if let current = focusedIntersection {
+            return CLLocation(latitude: current.lat, longitude: current.lon)
+        }
+        return nil
+    }
+
+    private func buildSpatialTargets(origin: CLLocation, heading: Double, mode: SpatialMode) -> [SpatialCalloutTarget] {
+        var candidates: [SpatialCalloutTarget] = []
+
+        candidates.append(contentsOf: routePlaces.prefix(10).map { place in
+            SpatialCalloutTarget(
+                id: "place-\(place.id)",
+                title: place.title,
+                location: CLLocation(latitude: place.lat, longitude: place.lon),
+                distanceMeters: max(place.sortMeters, 1)
+            )
+        })
+
+        if candidates.isEmpty {
+            candidates.append(contentsOf: intersections.prefix(8).map { intersection in
+                let location = CLLocation(latitude: intersection.lat, longitude: intersection.lon)
+                let distance = Int(origin.distance(from: location).rounded())
+                return SpatialCalloutTarget(
+                    id: "intersection-\(intersection.id)",
+                    title: intersection.crossRoad,
+                    location: location,
+                    distanceMeters: max(distance, 1)
+                )
+            })
+        }
+
+        candidates.append(contentsOf: savedMarkers.prefix(4).map { marker in
+            let location = CLLocation(latitude: marker.lat, longitude: marker.lon)
+            let distance = Int(origin.distance(from: location).rounded())
+            return SpatialCalloutTarget(
+                id: "marker-\(marker.id.uuidString)",
+                title: marker.title,
+                location: location,
+                distanceMeters: max(distance, 1)
+            )
+        })
+
+        var deduped: [SpatialCalloutTarget] = []
+        var seen = Set<String>()
+        for item in candidates {
+            let key = item.title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty, !seen.contains(key) else { continue }
+            seen.insert(key)
+            deduped.append(item)
+        }
+
+        switch mode {
+        case .around:
+            return deduped.sorted { $0.distanceMeters < $1.distanceMeters }
+        case .ahead:
+            let withAngles = deduped.map { target -> (SpatialCalloutTarget, Double) in
+                let bearing = bearingBetween(from: origin, to: target.location)
+                let relative = normalizedRelativeAngle(targetBearing: bearing, facing: heading)
+                return (target, relative)
+            }
+
+            let frontal = withAngles
+                .filter { abs($0.1) <= 65 }
+                .sorted {
+                    let lhsScore = abs($0.1) * 3 + Double($0.0.distanceMeters)
+                    let rhsScore = abs($1.1) * 3 + Double($1.0.distanceMeters)
+                    return lhsScore < rhsScore
+                }
+                .map { $0.0 }
+
+            if !frontal.isEmpty {
+                return frontal
+            }
+
+            return withAngles
+                .sorted {
+                    let lhsScore = abs($0.1) * 3 + Double($0.0.distanceMeters)
+                    let rhsScore = abs($1.1) * 3 + Double($1.0.distanceMeters)
+                    return lhsScore < rhsScore
+                }
+                .map { $0.0 }
+        }
+    }
+
+    private func normalizedRelativeAngle(targetBearing: Double, facing heading: Double) -> Double {
+        var relative = (targetBearing - heading).truncatingRemainder(dividingBy: 360)
+        if relative > 180 { relative -= 360 }
+        if relative < -180 { relative += 360 }
+        return relative
+    }
+
+    private func relativeDirectionLabel(_ relativeAngle: Double) -> String {
+        let absAngle = abs(relativeAngle)
+        if absAngle <= 18 { return "ahead" }
+        if absAngle <= 65 { return relativeAngle < 0 ? "ahead to your left" : "ahead to your right" }
+        if absAngle <= 120 { return relativeAngle < 0 ? "to your left" : "to your right" }
+        return "behind"
+    }
+
+    private func phraseForDistance(_ distanceMeters: Int) -> String {
+        if distanceMeters <= 15 { return "close by" }
+        if distanceMeters < 200 { return "about \(distanceMeters) meters" }
+        return "\(distanceMeters) meters"
+    }
+
+    private func playSpatialCue(relativeAngle: Double) {
+        let absAngle = abs(relativeAngle)
+        if absAngle <= 18 {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .ahead)
+        } else if absAngle <= 120 {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: relativeAngle < 0 ? .left : .right)
+        } else {
+            HRTFAudioEngine.shared.playDirectionalCue(direction: .behind)
+        }
+    }
+
     private func directionFromBearing(_ bearing: Double) -> String {
         let directions = ["North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"]
         let normalized = (bearing.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
@@ -1981,6 +2191,7 @@ private final class MapsViewModel: ObservableObject, UserHeadingProviderDelegate
     // MARK: - Background Live Location Refresh
 
     private func handleLiveLocationUpdate(_ location: CLLocation) {
+        currentUserLocation = location
         // Determine if we should auto-refresh intersection data
         let shouldRefresh: Bool
         if let last = lastAutoRefreshLocation {
