@@ -1538,7 +1538,7 @@ private enum RouteSide {
     }
 }
 
-private struct FloorRecord: Identifiable, Codable, Equatable, Hashable {
+struct FloorRecord: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     let name: String
     let floorLabel: String
