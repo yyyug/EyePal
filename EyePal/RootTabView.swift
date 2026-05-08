@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootTabView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+    @StateObject private var floorStore = FloorRecordStore()
 
     var body: some View {
         TabView {
@@ -13,6 +14,7 @@ struct RootTabView: View {
             }
 
             MoreView()
+                .environmentObject(floorStore)
                 .tabItem {
                     Label("More", systemImage: "ellipsis.circle")
                 }
@@ -22,6 +24,11 @@ struct RootTabView: View {
     @ViewBuilder
     private func rootView(for feature: AppFeature) -> some View {
         switch feature {
+        case .floorDetection:
+            FloorDetectionListView()
+                .environmentObject(floorStore)
+        case .chat:
+            RealtimeChatView()
         case .quickRecognition:
             QuickRecognitionView()
         case .detailsRecognition:
