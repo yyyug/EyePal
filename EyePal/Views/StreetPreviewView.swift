@@ -380,7 +380,37 @@ private final class StreetPreviewViewModel: ObservableObject {
         if item.pointOfInterestCategory == .cafe { return "cafe" }
         if item.pointOfInterestCategory == .park { return "park" }
         if item.pointOfInterestCategory == .hotel { return "hotel" }
-        return "building"
+
+        // Handle category variants across SDK versions without referencing unavailable static symbols.
+        let rawCategory = item.pointOfInterestCategory?.rawValue.lowercased() ?? ""
+        let name = item.name?.lowercased() ?? ""
+        let combined = "\(rawCategory) \(name)"
+
+        if combined.contains("store") || combined.contains("shop") || combined.contains("mall") || combined.contains("market") {
+            return "store"
+        }
+        if combined.contains("pharmacy") {
+            return "pharmacy"
+        }
+        if combined.contains("bank") {
+            return "bank"
+        }
+        if combined.contains("library") {
+            return "library"
+        }
+        if combined.contains("station") {
+            return "station"
+        }
+        if combined.contains("museum") {
+            return "museum"
+        }
+        if combined.contains("theater") || combined.contains("cinema") {
+            return "theater"
+        }
+        if combined.contains("building") || combined.contains("tower") {
+            return "building"
+        }
+        return "place"
     }
 
     private func normalize(_ value: Double) -> Double {
