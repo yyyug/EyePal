@@ -14,6 +14,7 @@ struct MapsView: View {
     @State private var showStandby = false
     @State private var showIntersectionDetail = false
     @State private var showAlongStreetGuide = false
+    @State private var markerBeingEdited: SavedMarker?
 
     var body: some View {
         NavigationStack {
@@ -71,6 +72,11 @@ struct MapsView: View {
         }
         .fullScreenCover(isPresented: $showStandby) {
             StandbyView()
+        }
+        .sheet(item: $markerBeingEdited) { marker in
+            MarkerEditorSheet(marker: marker) { title, subtitle in
+                viewModel.updateMarker(marker, title: title, subtitle: subtitle)
+            }
         }
     }
 
@@ -147,6 +153,11 @@ struct MapsView: View {
                             Button("Add Marker") {
                                 viewModel.select(index: index)
                                 viewModel.saveFocusedAsMarker()
+                            }
+                            .buttonStyle(.bordered)
+
+                            ShareLink(item: viewModel.intersectionShareURL(intersection)) {
+                                Label("Share", systemImage: "square.and.arrow.up")
                             }
                             .buttonStyle(.bordered)
                         }
@@ -282,8 +293,21 @@ struct MapsView: View {
             } else {
                 ForEach(viewModel.savedMarkers.prefix(3)) { marker in
                     HStack {
-                        Text(marker.title)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(marker.title)
+                            Text(marker.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
+                        Button {
+                            markerBeingEdited = marker
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                        ShareLink(item: viewModel.markerShareURL(marker)) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
                         Button(role: .destructive) {
                             viewModel.deleteMarker(marker)
                         } label: {
@@ -330,6 +354,45 @@ struct MapsView: View {
                 Text("No active guided route.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+
+            if !viewModel.guidedRoutes.isEmpty {
+                ForEach(viewModel.guidedRoutes.prefix(3)) { route in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(route.name)
+                                .font(.footnote.weight(.semibold))
+                            Spacer()
+                            Text("\(route.waypoints.count) pts")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack(spacing: 10) {
+                            Button(viewModel.activeGuidedRoute?.id == route.id ? "Stop" : "Start") {
+                                if viewModel.activeGuidedRoute?.id == route.id {
+                                    viewModel.stopGuidedRoute()
+                                } else {
+                                    viewModel.startGuidedRoute(route)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+
+                            ShareLink(item: viewModel.routeShareURL(route)) {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button(role: .destructive) {
+                                viewModel.deleteGuidedRoute(route)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
             }
         }
         .padding()
@@ -692,6 +755,14 @@ private struct IntersectionDetailView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
+                    }
+
+                    if let focused = viewModel.focusedIntersection {
+                        ShareLink(item: viewModel.intersectionShareURL(focused)) {
+                            Label("Share Location", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
                     }
 
                     if let focused = viewModel.focusedIntersection {
@@ -1317,6 +1388,21 @@ private final class MarkerStore: ObservableObject {
         save()
     }
 
+    func update(_ marker: SavedMarker, title: String, subtitle: String) {
+        guard let index = markers.firstIndex(where: { $0.id == marker.id }) else { return }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        markers[index] = SavedMarker(
+            id: marker.id,
+            title: trimmed,
+            subtitle: subtitle,
+            lat: marker.lat,
+            lon: marker.lon,
+            createdAt: marker.createdAt
+        )
+        save()
+    }
+
     private func load() {
         guard let data = defaults.data(forKey: key), let decoded = try? JSONDecoder().decode([SavedMarker].self, from: data) else {
             markers = []
@@ -1355,6 +1441,11 @@ private final class GuidedRouteStore: ObservableObject {
             ),
             at: 0
         )
+        save()
+    }
+
+    func delete(_ route: GuidedRoute) {
+        routes.removeAll { $0.id == route.id }
         save()
     }
 
@@ -1960,6 +2051,11 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         announce(text: "Marker deleted: \(marker.title)")
     }
 
+    func updateMarker(_ marker: SavedMarker, title: String, subtitle: String) {
+        markerStore.update(marker, title: title, subtitle: subtitle)
+        announce(text: "Marker updated: \(title)")
+    }
+
     func saveGuidedRouteFromCurrentIntersections() {
         guard intersections.count >= 2 else {
             announce(text: "Cannot save guided route. Load at least two intersections.")
@@ -2003,6 +2099,49 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         announcedGuidedWaypointIDs.removeAll()
         HRTFAudioEngine.shared.playSFX(.guidedRouteStarted)
         announce(text: "Started guided route: \(first.name)")
+    }
+
+    func startGuidedRoute(_ route: GuidedRoute) {
+        activeGuidedRoute = route
+        activeGuidedWaypointIndex = 0
+        announcedGuidedWaypointIDs.removeAll()
+        HRTFAudioEngine.shared.playSFX(.guidedRouteStarted)
+        announce(text: "Started guided route: \(route.name)")
+    }
+
+    func stopGuidedRoute() {
+        guard let active = activeGuidedRoute else { return }
+        activeGuidedRoute = nil
+        activeGuidedWaypointIndex = 0
+        announcedGuidedWaypointIDs.removeAll()
+        announce(text: "Stopped guided route: \(active.name)")
+    }
+
+    func deleteGuidedRoute(_ route: GuidedRoute) {
+        guidedRouteStore.delete(route)
+        if activeGuidedRoute?.id == route.id {
+            activeGuidedRoute = nil
+            activeGuidedWaypointIndex = 0
+            announcedGuidedWaypointIDs.removeAll()
+        }
+        announce(text: "Deleted guided route: \(route.name)")
+    }
+
+    func markerShareURL(_ marker: SavedMarker) -> URL {
+        let title = marker.title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? marker.title
+        return URL(string: "https://maps.apple.com/?ll=\(marker.lat),\(marker.lon)&q=\(title)") ?? alaViaBaseURL
+    }
+
+    func intersectionShareURL(_ intersection: MapIntersection) -> URL {
+        let title = intersectionHeading(for: intersection).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+            ?? intersection.currentRoad
+        return URL(string: "https://maps.apple.com/?ll=\(intersection.lat),\(intersection.lon)&q=\(title)") ?? alaViaBaseURL
+    }
+
+    func routeShareURL(_ route: GuidedRoute) -> URL {
+        guard let first = route.waypoints.first else { return alaViaBaseURL }
+        let encoded = route.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? route.name
+        return URL(string: "https://maps.apple.com/?ll=\(first.lat),\(first.lon)&q=\(encoded)") ?? alaViaBaseURL
     }
 
     func armBeaconFromFocusedIntersection() {
@@ -3090,6 +3229,47 @@ struct StandbyView: View {
                     if wakeIn30Seconds {
                         dismiss()
                     }
+                }
+            }
+        }
+    }
+}
+
+private struct MarkerEditorSheet: View {
+    let marker: SavedMarker
+    let onSave: (String, String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var subtitle: String
+
+    init(marker: SavedMarker, onSave: @escaping (String, String) -> Void) {
+        self.marker = marker
+        self.onSave = onSave
+        _title = State(initialValue: marker.title)
+        _subtitle = State(initialValue: marker.subtitle)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Marker") {
+                    TextField("Title", text: $title)
+                    TextField("Subtitle", text: $subtitle)
+                }
+            }
+            .navigationTitle("Edit Marker")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(title, subtitle)
+                        dismiss()
+                    }
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
