@@ -26,6 +26,7 @@ struct StreetPreviewView: View {
                 movementCard
                 calloutCard
                 nearbyCard
+                locationExplorerCard
             }
             .padding()
         }
@@ -93,9 +94,9 @@ struct StreetPreviewView: View {
                 .font(.headline)
 
             HStack(spacing: 10) {
-                Button("Back 30m") { viewModel.moveBackward() }
+                Button("Back") { viewModel.moveBackward() }
                     .buttonStyle(.bordered)
-                Button("Forward 30m") { viewModel.moveForward() }
+                Button("Forward") { viewModel.moveForward() }
                     .buttonStyle(.borderedProminent)
             }
 
@@ -147,6 +148,41 @@ struct StreetPreviewView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var locationExplorerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Location Explorer")
+                .font(.headline)
+
+            if viewModel.nearby.isEmpty {
+                Text("No nearby places to explore.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(viewModel.nearby.prefix(5)) { item in
+                    Button {
+                        viewModel.explore(item)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                Text(item.distanceLabel(metricUnits: settingsStore.mapsMetricUnits))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -237,6 +273,12 @@ private final class StreetPreviewViewModel: ObservableObject {
 
     func moveBackward() {
         move(distanceMeters: -30)
+    }
+
+    func explore(_ poi: PreviewPOI) {
+        let relative = normalizedRelativeAngle(targetBearing: poi.bearing, facing: heading)
+        playSpatialCue(relative)
+        announcer.announce("\(poi.title), \(poi.distanceLabel(metricUnits: metricUnits)), \(relativeDirectionLabel(relative)).", minimumInterval: 0)
     }
 
     func turnLeft() {
