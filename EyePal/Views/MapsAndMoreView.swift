@@ -2300,7 +2300,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
             }
             searchByQuery()
         case .importMarker(let title, let subtitle, let lat, let lon):
-            markerStore.add(title: title, subtitle: subtitle, at: CLLocationCoordinate2D(latitude: lat, longitude: lon))
+            markerStore.add(title: title, subtitle: subtitle, lat: lat, lon: lon)
             announce(text: "Imported shared marker \(title).")
         }
     }
