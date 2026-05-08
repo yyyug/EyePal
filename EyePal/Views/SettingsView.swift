@@ -16,10 +16,6 @@ struct SettingsView: View {
                     FeatureOrderSettingsView()
                         .environmentObject(settingsStore)
                 }
-
-                Text("The first four items appear as tabs. Any remaining features stay in More in the same order.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             Section("Speech") {
@@ -93,8 +89,6 @@ private struct FeatureOrderSettingsView: View {
                     }
                 }
                 .onMove(perform: settingsStore.moveFeature)
-            } footer: {
-                Text("Reorder features to control tab placement. The top four items become tabs.")
             }
         }
         .environment(\.editMode, .constant(.active))

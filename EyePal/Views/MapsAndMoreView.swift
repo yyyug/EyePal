@@ -28,11 +28,9 @@ struct MapsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     offlineCard
                     mapsSearchCard
-                    searchResultsCard
                     soundscapeHomeCard
                     markerCard
                     guidedRouteCard
-                    guidedTourCard
                     beaconCard
                     autoCalloutCard
                 }
@@ -204,35 +202,26 @@ struct MapsView: View {
                             }
                         }
                         .buttonStyle(.plain)
-
-                        HStack(spacing: 10) {
-                            Button("Location Details") {
-                                viewModel.select(index: index)
-                                showIntersectionDetail = true
-                            }
-                            .buttonStyle(.bordered)
-
-                            Button("Set Beacon") {
-                                viewModel.select(index: index)
-                                viewModel.armBeaconFromFocusedIntersection()
-                            }
-                            .buttonStyle(.bordered)
-
-                            Button("Add Marker") {
-                                viewModel.select(index: index)
-                                viewModel.saveFocusedAsMarker()
-                                appActionCenter.donateActivity(EyePalUserActivityType.saveMarker, title: "Save Marker")
-                            }
-                            .buttonStyle(.bordered)
-
-                            ShareLink(item: viewModel.intersectionShareURL(intersection)) {
-                                Label("Share", systemImage: "square.and.arrow.up")
-                            }
-                            .buttonStyle(.bordered)
-                        }
                     }
                     .padding(10)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAction(named: Text("Location Details")) {
+                        viewModel.select(index: index)
+                        showIntersectionDetail = true
+                    }
+                    .accessibilityAction(named: Text("Set Beacon")) {
+                        viewModel.select(index: index)
+                        viewModel.armBeaconFromFocusedIntersection()
+                    }
+                    .accessibilityAction(named: Text("Add Marker")) {
+                        viewModel.select(index: index)
+                        viewModel.saveFocusedAsMarker()
+                        appActionCenter.donateActivity(EyePalUserActivityType.saveMarker, title: "Save Marker")
+                    }
+                    .accessibilityAction(named: Text("Share")) {
+                        viewModel.select(index: index)
+                    }
                 }
 
                 if viewModel.intersections.count > 5 {
@@ -1040,7 +1029,7 @@ struct MoreView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
-    @StateObject private var floorStore = FloorRecordStore()
+    @EnvironmentObject private var floorStore: FloorRecordStore
 
     private enum MoreDestination: Hashable {
         case floorDetection
@@ -1054,22 +1043,14 @@ struct MoreView: View {
         NavigationStack {
             List {
                 Section {
-                    NavigationLink(value: MoreDestination.floorDetection) {
-                        Label("Floor Detection", systemImage: "building.2")
-                    }
-
-                    NavigationLink(value: MoreDestination.chat) {
-                        Label("Chat", systemImage: "waveform.and.mic")
-                    }
-
-                    NavigationLink(value: MoreDestination.automation) {
-                        Label("Automation & Links", systemImage: "bolt.horizontal.circle")
-                    }
-
                     ForEach(settingsStore.moreFeatures) { feature in
                         NavigationLink(value: MoreDestination.feature(feature)) {
                             Label(feature.displayName, systemImage: feature.systemImageName)
                         }
+                    }
+
+                    NavigationLink(value: MoreDestination.automation) {
+                        Label("Automation & Links", systemImage: "bolt.horizontal.circle")
                     }
 
                     NavigationLink(value: MoreDestination.settings) {
@@ -1102,6 +1083,11 @@ struct MoreView: View {
     @ViewBuilder
     private func moreFeatureView(for feature: AppFeature) -> some View {
         switch feature {
+        case .floorDetection:
+            FloorDetectionListView()
+                .environmentObject(floorStore)
+        case .chat:
+            RealtimeChatView()
         case .quickRecognition:
             QuickRecognitionView()
         case .detailsRecognition:
@@ -1167,7 +1153,7 @@ private struct AutomationAndLinksView: View {
     }
 }
 
-private struct FloorDetectionListView: View {
+struct FloorDetectionListView: View {
     @EnvironmentObject private var floorStore: FloorRecordStore
     @State private var selectedRecord: FloorRecord?
     @State private var editingRecord: FloorRecord?
@@ -1721,7 +1707,7 @@ private final class GuidedRouteStore: ObservableObject {
 }
 
 @MainActor
-private final class FloorRecordStore: ObservableObject {
+final class FloorRecordStore: ObservableObject {
     @Published private(set) var records: [FloorRecord] = []
     private let defaults = UserDefaults.standard
     private let key = "floorDetection.records.v1"
@@ -1949,7 +1935,11 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         autoCalloutTask = nil
         stopHeadingTracking()
         liveTracker.stop()
+        liveTracker.onHeadingUpdate = nil
+        liveTracker.onLocationUpdate = nil
+        connectivityMonitor.onChange = nil
         connectivityMonitor.stop()
+        HRTFAudioEngine.shared.stop()
         cancellables.removeAll()
     }
 
@@ -2014,12 +2004,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
                 gpsHorizontalAccuracyMeters = location.horizontalAccuracy >= 0 ? location.horizontalAccuracy : nil
                 // Fire tile pre-fetch in background — don't await, it's optional
                 Task { try? await apiClient.scanNearbyTiles(lat: location.coordinate.latitude, lon: location.coordinate.longitude) }
-                // Single combined call: reverse-geocode + intersections
-                let result = try await apiClient.fetchIntersectionsNear(
-                    lat: location.coordinate.latitude,
-                    lon: location.coordinate.longitude,
-                    countryCode: countryCode
-                )
+                let result = try await fetchIntersectionsNearCurrentLocation(location)
                 query = result.displayName
                 lastAutoRefreshLocation = location
                 intersections = result.response.intersections
@@ -2307,9 +2292,13 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     }
 
     func saveFocusedAsMarker() {
-        guard let current = focusedIntersection else {
+        guard let current = focusedIntersection ?? intersections.first else {
             announce(text: "Cannot save marker. Search a road first.")
             return
+        }
+
+        if focusedIntersection == nil {
+            focusedIndex = 0
         }
 
         let title = current.addressLabel?.isEmpty == false ? (current.addressLabel ?? current.currentRoad) : current.currentRoad
@@ -2714,10 +2703,19 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         preferredBearing: CLLocationDirection?,
         statusPrefix: String
     ) async throws {
+        let bbox: [Double]?
         if let focusCoordinate {
             try? await apiClient.scanNearbyTiles(lat: focusCoordinate.latitude, lon: focusCoordinate.longitude)
+            bbox = [
+                focusCoordinate.longitude - 0.01,
+                focusCoordinate.latitude - 0.01,
+                focusCoordinate.longitude + 0.01,
+                focusCoordinate.latitude + 0.01,
+            ]
+        } else {
+            bbox = nil
         }
-        let response = try await apiClient.fetchIntersections(roadName: roadName, countryCode: countryCode)
+        let response = try await apiClient.fetchIntersections(roadName: roadName, countryCode: countryCode, bbox: bbox)
         intersections = response.intersections
         focusedIndex = findFocusedIntersectionIndex(intersections: response.intersections, focusCoordinate: focusCoordinate, preferredBearing: preferredBearing)
         routePlaces = []
@@ -2734,15 +2732,19 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
 
         let current = intersections[focusedIndex]
         let next = intersections.indices.contains(focusedIndex + 1) ? intersections[focusedIndex + 1] : nil
-        guard let next else {
+        let previous = focusedIndex > 0 ? intersections[focusedIndex - 1] : nil
+
+        if next == nil && previous == nil {
             routePlaces = []
             announce(text: intersectionHeading(for: current))
             return
         }
 
+        let segmentStart = next == nil ? previous! : current
+        let segmentEnd = next == nil ? current : next!
+
         do {
-            let previous = focusedIndex > 0 ? intersections[focusedIndex - 1] : nil
-            let places = try await apiClient.fetchRoutePlaces(start: current, end: next, roadName: current.currentRoad)
+            let places = try await apiClient.fetchRoutePlaces(start: segmentStart, end: segmentEnd, roadName: segmentStart.currentRoad)
             routePlaces = places.map { place in
                 RoutePlace(
                     id: place.id,
@@ -2752,7 +2754,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
                     lat: place.lat,
                     lon: place.lon,
                     sortMeters: place.sortMeters,
-                    side: resolveRouteSide(previous: previous, current: current, next: next, place: place)
+                    side: resolveRouteSide(previous: previous, current: segmentStart, next: segmentEnd, place: place)
                 )
             }
             await playSpatialSummary(for: routePlaces)
@@ -3172,12 +3174,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         Task { [weak self] in
             guard let self else { return }
             do {
-                // Single combined call instead of reverseRoad + fetchIntersections
-                let result = try await self.apiClient.fetchIntersectionsNear(
-                    lat: location.coordinate.latitude,
-                    lon: location.coordinate.longitude,
-                    countryCode: self.countryCode
-                )
+                let result = try await self.fetchIntersectionsNearCurrentLocation(location)
                 guard !self.isLoading else { return }
                 self.intersections = result.response.intersections
                 self.focusedIndex = self.findFocusedIntersectionIndex(
@@ -3193,6 +3190,47 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
                 // Silent fail — background refresh should not surface errors
             }
         }
+    }
+
+    private func fetchIntersectionsNearCurrentLocation(_ location: CLLocation) async throws -> (displayName: String, response: IntersectionResponse) {
+        let placemarks = await withCheckedContinuation { continuation in
+            CLGeocoder().reverseGeocodeLocation(location) { rows, _ in
+                continuation.resume(returning: rows)
+            }
+        }
+        let placemark = placemarks?.first
+
+        let roadName = placemark?.thoroughfare
+            ?? placemark?.name
+            ?? placemark?.locality
+            ?? "Current location"
+
+        let displayName = [
+            placemark?.name,
+            placemark?.locality,
+            placemark?.administrativeArea,
+        ]
+        .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+        .joined(separator: ", ")
+
+        let bbox = [
+            location.coordinate.longitude - 0.01,
+            location.coordinate.latitude - 0.01,
+            location.coordinate.longitude + 0.01,
+            location.coordinate.latitude + 0.01,
+        ]
+
+        let response = try await apiClient.fetchIntersections(
+            roadName: roadName,
+            countryCode: countryCode,
+            bbox: bbox
+        )
+
+        return (
+            displayName: displayName.isEmpty ? roadName : displayName,
+            response: response
+        )
     }
 }
 
@@ -3555,9 +3593,18 @@ private final class AlaViaAPIClient {
         let json = try await post(path: "/api/geocode/autobbox", body: autobboxBody)
         let lat = json["lat"] as? Double
         let lon = json["lon"] as? Double
+        let displayName =
+            (json["displayName"] as? String)
+            ?? (json["name"] as? String)
+            ?? (json["query"] as? String)
+            ?? query
+        let roadName =
+            (json["roadName"] as? String)
+            ?? (json["name"] as? String)
+            ?? query
         return AlaViaGeocodeResult(
-            displayName: json["displayName"] as? String ?? query,
-            roadName: (json["roadName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? (json["roadName"] as? String ?? query) : query,
+            displayName: displayName,
+            roadName: roadName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? query : roadName,
             coordinate: (lat != nil && lon != nil) ? CLLocationCoordinate2D(latitude: lat!, longitude: lon!) : nil
         )
     }
@@ -3573,26 +3620,35 @@ private final class AlaViaAPIClient {
         )
     }
 
-    func fetchIntersections(roadName: String, countryCode: String) async throws -> IntersectionResponse {
+    func fetchIntersections(roadName: String, countryCode: String, bbox: [Double]? = nil) async throws -> IntersectionResponse {
         var segmentBody: [String: Any] = ["roadName": roadName]
         if !countryCode.isEmpty { segmentBody["countryCode"] = countryCode }
+        if let bbox, bbox.count == 4 {
+            segmentBody["bbox"] = bbox
+        }
         let json = try await post(path: "/api/overpass/segment", body: segmentBody)
         let rows = json["intersections"] as? [[String: Any]] ?? []
         return IntersectionResponse(
             roadName: json["roadName"] as? String ?? roadName,
             intersections: rows.enumerated().map { index, row in
+                let heading = row["bearingToNext"] as? Double ?? row["heading"] as? Double ?? 0
+                let currentRoad = row["streetName"] as? String ?? roadName
+                let cross = firstCrossStreet(row)
+                    ?? (row["crossRoad"] as? String)
+                    ?? (row["name"] as? String)
+                    ?? "Unknown"
                 MapIntersection(
                     id: String(row["id"] as? Int ?? index),
-                    currentRoad: row["streetName"] as? String ?? roadName,
-                    crossRoad: firstCrossStreet(row) ?? (row["name"] as? String ?? "Unknown"),
+                    currentRoad: currentRoad,
+                    crossRoad: cross,
                     intersectionType: row["type"] as? String ?? "Unknown",
                     directionToNext: row["directionToNext"] as? String,
-                    distanceToNext: row["distanceToNext"] as? Int ?? 0,
+                    distanceToNext: row["distanceToNext"] as? Int ?? row["nextDistance"] as? Int ?? 0,
                     addressLabel: row["addressLabel"] as? String,
                     addressSource: row["addressSource"] as? String,
                     lat: row["lat"] as? Double ?? 0,
                     lon: row["lon"] as? Double ?? 0,
-                    heading: row["bearingToNext"] as? Double ?? row["heading"] as? Double ?? 0,
+                    heading: heading,
                     leftRoad: ((row["leftTurn"] as? [String: Any])?["roadName"] as? String) ?? row["leftRoad"] as? String,
                     rightRoad: ((row["rightTurn"] as? [String: Any])?["roadName"] as? String) ?? row["rightRoad"] as? String
                 )
@@ -3601,52 +3657,102 @@ private final class AlaViaAPIClient {
     }
 
     func fetchRoutePlaces(start: MapIntersection, end: MapIntersection, roadName: String) async throws -> [RoutePlacePayload] {
-        let json = try await post(path: "/api/osm/route-places", body: [
-            "roadName": roadName,
-            "start": ["lat": start.lat, "lon": start.lon],
-            "end": ["lat": end.lat, "lon": end.lon],
-        ])
-        let rows = json["places"] as? [[String: Any]] ?? []
-        return rows.enumerated().map { index, row in
-            RoutePlacePayload(
-                id: row["id"] as? String ?? "place-\(index)",
-                title: row["title"] as? String ?? row["name"] as? String ?? "Unnamed place",
-                kindLabel: row["kindLabel"] as? String ?? row["type"] as? String ?? "",
-                addressLabel: row["addressLabel"] as? String ?? "",
-                lat: row["lat"] as? Double ?? 0,
-                lon: row["lon"] as? Double ?? 0,
-                sortMeters: row["sortMeters"] as? Int ?? row["distanceMeters"] as? Int ?? 0
-            )
+        do {
+            let json = try await post(path: "/api/osm/route-places", body: [
+                "roadName": roadName,
+                "start": ["lat": start.lat, "lon": start.lon],
+                "end": ["lat": end.lat, "lon": end.lon],
+            ])
+            let rows = json["places"] as? [[String: Any]] ?? []
+            return rows.enumerated().map { index, row in
+                RoutePlacePayload(
+                    id: row["id"] as? String ?? "place-\(index)",
+                    title: row["title"] as? String ?? row["name"] as? String ?? "Unnamed place",
+                    kindLabel: row["kindLabel"] as? String ?? row["type"] as? String ?? "",
+                    addressLabel: row["addressLabel"] as? String ?? "",
+                    lat: row["lat"] as? Double ?? 0,
+                    lon: row["lon"] as? Double ?? 0,
+                    sortMeters: row["sortMeters"] as? Int ?? row["distanceMeters"] as? Int ?? 0
+                )
+            }
+        } catch {
+            let paid = try await post(path: "/api/paid/places", body: [
+                "intersections": [
+                    ["lat": start.lat, "lon": start.lon, "name": "\(start.currentRoad) & \(start.crossRoad)"],
+                    ["lat": end.lat, "lon": end.lon, "name": "\(end.currentRoad) & \(end.crossRoad)"],
+                ],
+                "radius": 80,
+                "language": Locale.preferredLanguages.first ?? "en",
+                "userConfirmedPaidCall": true,
+            ])
+            let rows = paid["places"] as? [[String: Any]] ?? []
+            return rows.enumerated().map { index, row in
+                RoutePlacePayload(
+                    id: row["id"] as? String ?? "place-\(index)",
+                    title: row["title"] as? String ?? row["name"] as? String ?? "Unnamed place",
+                    kindLabel: row["kindLabel"] as? String ?? row["type"] as? String ?? "",
+                    addressLabel: row["addressLabel"] as? String ?? "",
+                    lat: row["lat"] as? Double ?? 0,
+                    lon: row["lon"] as? Double ?? 0,
+                    sortMeters: row["sortMeters"] as? Int ?? row["distanceMeters"] as? Int ?? 0
+                )
+            }
         }
     }
 
     func scanNearbyTiles(lat: Double, lon: Double) async throws {
-        _ = try await post(path: "/api/osm/scan-nearby", body: [
-            "lat": lat,
-            "lon": lon,
-            "radiusMeters": 1000,
-            "zoom": 16,
-        ])
+        do {
+            _ = try await post(path: "/api/osm/scan-nearby", body: [
+                "lat": lat,
+                "lon": lon,
+                "radiusMeters": 1000,
+                "zoom": 16,
+            ])
+        } catch {
+            // Optional optimization endpoint; ignore when backend does not support it.
+        }
     }
 
     func fetchPlacesAround(lat: Double, lon: Double, radiusMeters: Int) async throws -> [NearbyPlacePayload] {
-        let json = try await post(path: "/api/osm/places-around", body: [
-            "lat": lat,
-            "lon": lon,
-            "radiusMeters": radiusMeters,
-        ])
-        let rows = json["places"] as? [[String: Any]] ?? []
-        return rows.enumerated().map { index, row in
-            NearbyPlacePayload(
-                id: row["id"] as? String ?? "poi-\(index)",
-                title: row["title"] as? String ?? row["name"] as? String ?? "Unnamed place",
-                kindLabel: row["kindLabel"] as? String,
-                addressLabel: row["addressLabel"] as? String,
-                lat: row["lat"] as? Double ?? 0,
-                lon: row["lon"] as? Double ?? 0,
-                distanceMeters: row["distanceMeters"] as? Int ?? 0,
-                bearing: row["bearing"] as? Double ?? 0
-            )
+        do {
+            let json = try await post(path: "/api/osm/places-around", body: [
+                "lat": lat,
+                "lon": lon,
+                "radiusMeters": radiusMeters,
+            ])
+            let rows = json["places"] as? [[String: Any]] ?? []
+            return rows.enumerated().map { index, row in
+                NearbyPlacePayload(
+                    id: row["id"] as? String ?? "poi-\(index)",
+                    title: row["title"] as? String ?? row["name"] as? String ?? "Unnamed place",
+                    kindLabel: row["kindLabel"] as? String,
+                    addressLabel: row["addressLabel"] as? String,
+                    lat: row["lat"] as? Double ?? 0,
+                    lon: row["lon"] as? Double ?? 0,
+                    distanceMeters: row["distanceMeters"] as? Int ?? 0,
+                    bearing: row["bearing"] as? Double ?? 0
+                )
+            }
+        } catch {
+            let paid = try await post(path: "/api/paid/places", body: [
+                "intersections": [["lat": lat, "lon": lon, "name": "Current location"]],
+                "radius": radiusMeters,
+                "language": Locale.preferredLanguages.first ?? "en",
+                "userConfirmedPaidCall": true,
+            ])
+            let rows = paid["places"] as? [[String: Any]] ?? []
+            return rows.enumerated().map { index, row in
+                NearbyPlacePayload(
+                    id: row["id"] as? String ?? "poi-\(index)",
+                    title: row["title"] as? String ?? row["name"] as? String ?? "Unnamed place",
+                    kindLabel: row["kindLabel"] as? String ?? row["type"] as? String,
+                    addressLabel: row["addressLabel"] as? String,
+                    lat: row["lat"] as? Double ?? lat,
+                    lon: row["lon"] as? Double ?? lon,
+                    distanceMeters: row["distanceMeters"] as? Int ?? 0,
+                    bearing: row["bearing"] as? Double ?? 0
+                )
+            }
         }
     }
 
@@ -3685,12 +3791,11 @@ private final class AlaViaAPIClient {
             )
             return (displayName: displayName, response: response)
         } catch {
-            // Compatibility fallback for older deployed backends that do not
-            // expose /api/intersections/near yet.
-            let reverse = try await reverseRoad(lat: lat, lon: lon)
-            let fallbackRoad = reverse.roadName.isEmpty ? reverse.displayName : reverse.roadName
-            let response = try await fetchIntersections(roadName: fallbackRoad, countryCode: countryCode)
-            return (displayName: reverse.displayName, response: response)
+            // Compatibility fallback for deployed backends without /api/intersections/near.
+            let query = String(format: "%.6f,%.6f", lat, lon)
+            let geo = try await autobbox(query: query, countryCode: countryCode)
+            let response = try await fetchIntersections(roadName: geo.roadName, countryCode: countryCode)
+            return (displayName: geo.displayName, response: response)
         }
     }
 
@@ -3786,7 +3891,7 @@ private final class AlaViaAPIClient {
 
 struct StandbyView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var wakeIn30Seconds = false
+    @State private var isConfirmed = false
 
     var body: some View {
         NavigationStack {
@@ -3795,36 +3900,33 @@ struct StandbyView: View {
                     .font(.system(size: 52))
                 Text("Standby")
                     .font(.title2.weight(.bold))
-                Text("Exploration is paused. You can wake now or delay wake-up.")
+                Text("Exploration is paused.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
 
-                Toggle("Wake automatically in 30 seconds", isOn: $wakeIn30Seconds)
-                    .padding(.horizontal)
-
-                Button("Wake Now") {
-                    dismiss()
+                if !isConfirmed {
+                    Button("Confirm") {
+                        isConfirmed = true
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
 
-                Button("Close") {
-                    dismiss()
+                if isConfirmed {
+                    Button("Wake Now") {
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Close") {
+                        dismiss()
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
             .padding()
             .navigationTitle("Standby")
-            .onChange(of: wakeIn30Seconds) { isOn in
-                guard isOn else { return }
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 30_000_000_000)
-                    if wakeIn30Seconds {
-                        dismiss()
-                    }
-                }
-            }
         }
     }
 }
@@ -3987,7 +4089,7 @@ private struct GuidedTourSheet: View {
     }
 }
 
-private struct RealtimeChatView: View {
+struct RealtimeChatView: View {
     private enum ChatMode: String, CaseIterable, Identifiable {
         case voiceAgent = "Voice Agent"
         case translate = "Translate"
@@ -3995,7 +4097,7 @@ private struct RealtimeChatView: View {
         var id: String { rawValue }
     }
 
-    @AppStorage("chatRealtimeAPIKey") private var apiKey = ""
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @AppStorage("chatTranslateTargetLanguage") private var translateTargetLanguage = "English"
     @StateObject private var speech = SpeechInputController()
     @State private var mode: ChatMode = .voiceAgent
@@ -4011,7 +4113,15 @@ private struct RealtimeChatView: View {
                 Text("gpt-realtime-2")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                SecureField("OpenAI API Key", text: $apiKey)
+                if openAIStore.isSignedIn {
+                    Text("Using existing ChatGPT login from Details Description")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Sign in with ChatGPT from Details Description first.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Mode") {
@@ -4060,7 +4170,7 @@ private struct RealtimeChatView: View {
                         Task { await sendCurrentInput() }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(isSending || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSending || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !openAIStore.isSignedIn)
                 }
             }
         }
@@ -4081,8 +4191,9 @@ private struct RealtimeChatView: View {
         input = ""
 
         do {
+            let credentials = try await openAIStore.activeCredentials()
             let response = try await service.generate(
-                apiKey: apiKey,
+                accessToken: credentials.accessToken,
                 model: "gpt-realtime-2",
                 mode: mode.rawValue,
                 targetLanguage: translateTargetLanguage,
@@ -4101,10 +4212,10 @@ private struct RealtimeChatView: View {
 }
 
 private final class RealtimeChatService {
-    func generate(apiKey: String, model: String, mode: String, targetLanguage: String, userText: String) async throws -> String {
+    func generate(accessToken: String, model: String, mode: String, targetLanguage: String, userText: String) async throws -> String {
         let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? model
         var request = URLRequest(url: URL(string: "wss://api.openai.com/v1/realtime?model=\(encodedModel)")!)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
 
         let instructions: String
