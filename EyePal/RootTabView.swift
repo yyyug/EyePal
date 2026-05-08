@@ -40,4 +40,5 @@ struct RootTabView: View {
     RootTabView()
         .environmentObject(SettingsStore())
         .environmentObject(OpenAISubscriptionStore())
+    .environmentObject(EyePalAppActionCenter())
 }

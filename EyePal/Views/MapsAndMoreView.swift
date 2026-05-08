@@ -3,28 +3,36 @@ import CoreLocation
 import AVFoundation
 import MapKit
 import Combine
+import Network
+import Speech
+import CryptoKit
 
 private let alaViaBaseURL = URL(string: "https://via.inclu.si")!
 
 struct MapsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
     @StateObject private var viewModel = MapsViewModel()
     @State private var showStreetPreview = false
     @State private var showStandby = false
     @State private var showIntersectionDetail = false
     @State private var showAlongStreetGuide = false
     @State private var markerBeingEdited: SavedMarker?
+    @State private var routeBeingEdited: GuidedRoute?
+    @State private var activeTourViewPresented = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    offlineCard
                     mapsSearchCard
                     searchResultsCard
                     soundscapeHomeCard
                     markerCard
                     guidedRouteCard
+                    guidedTourCard
                     beaconCard
                     autoCalloutCard
                 }
@@ -54,6 +62,13 @@ struct MapsView: View {
             viewModel.bind(settingsStore: settingsStore)
             viewModel.startAutoLocationIfNeeded()
         }
+        .onReceive(appActionCenter.$pendingMapAction.compactMap { $0 }) { action in
+            viewModel.handleExternalAction(action)
+            if case .streetPreview = action, viewModel.streetPreviewSeedLocation != nil {
+                showStreetPreview = true
+            }
+            _ = appActionCenter.consumeMapAction()
+        }
         .onDisappear {
             viewModel.unbind()
         }
@@ -78,6 +93,54 @@ struct MapsView: View {
                 viewModel.updateMarker(marker, title: title, subtitle: subtitle)
             }
         }
+        .sheet(item: $routeBeingEdited) { route in
+            GuidedRouteEditorSheet(route: route) { updated in
+                viewModel.updateGuidedRoute(updated)
+            }
+        }
+        .sheet(isPresented: $activeTourViewPresented) {
+            GuidedTourSheet(viewModel: viewModel)
+        }
+    }
+
+    private var offlineCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(viewModel.isOffline ? "Offline" : "Online", systemImage: viewModel.isOffline ? "wifi.slash" : "wifi")
+                    .font(.headline)
+                Spacer()
+                Text(viewModel.cacheStatusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(viewModel.isOffline
+                 ? "Network is unavailable. Local cache, markers, routes, and tours remain usable."
+                 : "Spatial data is cached on-device for quicker fallback and offline continuity.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.prefetchCurrentSpatialRegion()
+                } label: {
+                    Label("Prefetch Nearby", systemImage: "square.stack.3d.up.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.isOffline)
+
+                Button(role: .destructive) {
+                    viewModel.clearOnDeviceSpatialCache()
+                } label: {
+                    Label("Clear Cache", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var mapsSearchCard: some View {
@@ -94,6 +157,11 @@ struct MapsView: View {
             HStack(spacing: 12) {
                 Button {
                     viewModel.searchByQuery()
+                    appActionCenter.donateActivity(
+                        EyePalUserActivityType.search,
+                        title: "Search",
+                        userInfo: ["query": viewModel.query]
+                    )
                 } label: {
                     Label("Search", systemImage: "magnifyingglass")
                         .frame(maxWidth: .infinity)
@@ -183,6 +251,7 @@ struct MapsView: View {
             VStack(spacing: 8) {
                 Button("My Location") {
                     viewModel.calloutMyLocation()
+                    appActionCenter.donateActivity(EyePalUserActivityType.myLocation, title: "My Location")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("My Location")
@@ -197,6 +266,7 @@ struct MapsView: View {
 
                 Button("Around Me") {
                     viewModel.playAroundMeSpatialAudio()
+                    appActionCenter.donateActivity(EyePalUserActivityType.aroundMe, title: "Around Me")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Around Me")
@@ -204,6 +274,7 @@ struct MapsView: View {
 
                 Button("Ahead of Me") {
                     viewModel.playAheadOfMeSpatialAudio()
+                    appActionCenter.donateActivity(EyePalUserActivityType.aheadOfMe, title: "Ahead of Me")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Ahead of Me")
@@ -211,6 +282,7 @@ struct MapsView: View {
 
                 Button("Nearby Markers") {
                     viewModel.calloutNearbyMarkers()
+                    appActionCenter.donateActivity(EyePalUserActivityType.nearbyMarkers, title: "Nearby Markers")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Nearby Markers")
@@ -227,6 +299,7 @@ struct MapsView: View {
                     } else {
                         viewModel.loadFromCurrentLocation()
                     }
+                    appActionCenter.donateActivity(EyePalUserActivityType.streetPreview, title: "Street Preview")
                 }
                 .buttonStyle(.bordered)
                 .disabled(viewModel.isLocating)
@@ -377,6 +450,11 @@ struct MapsView: View {
                             }
                             .buttonStyle(.bordered)
 
+                            Button("Edit") {
+                                routeBeingEdited = route
+                            }
+                            .buttonStyle(.bordered)
+
                             ShareLink(item: viewModel.routeShareURL(route)) {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
@@ -389,6 +467,72 @@ struct MapsView: View {
                             }
                             .buttonStyle(.bordered)
                         }
+                    }
+                    .padding(10)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+            }
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var guidedTourCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Guided Tours")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.createTourFromCurrentRoute()
+                } label: {
+                    Label("Create Tour", systemImage: "map")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button(viewModel.activeTour == nil ? "Start Tour" : "Stop Tour") {
+                    if viewModel.activeTour == nil {
+                        viewModel.startFirstTour()
+                    } else {
+                        viewModel.stopTour()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.tours.isEmpty && viewModel.activeTour == nil)
+            }
+
+            if let tour = viewModel.activeTour {
+                Text("Active Tour: \(tour.name)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No active tour.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !viewModel.tours.isEmpty {
+                ForEach(viewModel.tours.prefix(3)) { tour in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tour.name)
+                                .font(.footnote.weight(.semibold))
+                            Text("\(tour.waypoints.count) waypoints")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Updates") {
+                            activeTourViewPresented = true
+                        }
+                        .buttonStyle(.bordered)
+                        Button(role: .destructive) {
+                            viewModel.deleteTour(tour)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .buttonStyle(.bordered)
                     }
                     .padding(10)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -683,6 +827,7 @@ private struct CountryPickerSheet: View {
 private struct IntersectionDetailView: View {
     @ObservedObject var viewModel: MapsViewModel
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @State private var editingMarker: SavedMarker?
 
     private var paidEnabled: Bool { openAIStore.isSignedIn }
 
@@ -740,13 +885,19 @@ private struct IntersectionDetailView: View {
                         .font(.headline)
 
                     HStack(spacing: 12) {
+                        let existingMarker = viewModel.markerForFocusedIntersection()
                         Button {
-                            viewModel.saveFocusedAsMarker()
+                            if let marker = existingMarker {
+                                editingMarker = marker
+                            } else {
+                                viewModel.saveFocusedAsMarker()
+                            }
                         } label: {
-                            Label("Add Marker", systemImage: "mappin.and.ellipse")
+                            Label(existingMarker == nil ? "Save Marker" : "Edit Marker", systemImage: existingMarker == nil ? "mappin.and.ellipse" : "pencil")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
+                        .disabled(viewModel.isLocationActionRestricted)
 
                         Button {
                             viewModel.armBeaconFromFocusedIntersection()
@@ -755,6 +906,7 @@ private struct IntersectionDetailView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.isLocationActionRestricted)
                     }
 
                     if let focused = viewModel.focusedIntersection {
@@ -776,6 +928,13 @@ private struct IntersectionDetailView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
+                        .disabled(viewModel.isLocationActionRestricted)
+                    }
+
+                    if viewModel.isLocationActionRestricted {
+                        Text("Some actions are disabled while route or tour guidance is active.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding()
@@ -866,6 +1025,11 @@ private struct IntersectionDetailView: View {
         }
         .navigationTitle("Intersection Details")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editingMarker) { marker in
+            MarkerEditorSheet(marker: marker) { title, subtitle in
+                viewModel.updateMarker(marker, title: title, subtitle: subtitle)
+            }
+        }
     }
 }
 struct MoreView: View {
@@ -875,6 +1039,7 @@ struct MoreView: View {
 
     private enum MoreDestination: Hashable {
         case floorDetection
+        case chat
         case settings
         case feature(AppFeature)
     }
@@ -885,6 +1050,10 @@ struct MoreView: View {
                 Section {
                     NavigationLink(value: MoreDestination.floorDetection) {
                         Label("Floor Detection", systemImage: "building.2")
+                    }
+
+                    NavigationLink(value: MoreDestination.chat) {
+                        Label("Chat", systemImage: "waveform.and.mic")
                     }
 
                     ForEach(settingsStore.moreFeatures) { feature in
@@ -904,6 +1073,8 @@ struct MoreView: View {
                     case .floorDetection:
                         FloorDetectionListView()
                             .environmentObject(floorStore)
+                    case .chat:
+                        RealtimeChatView()
                     case .settings:
                         SettingsView()
                             .environmentObject(settingsStore)
@@ -1348,6 +1519,21 @@ private struct GuidedRoute: Identifiable, Codable, Equatable, Hashable {
     let createdAt: Date
 }
 
+private struct GuidedTour: Identifiable, Codable, Equatable, Hashable {
+    let id: UUID
+    let name: String
+    let notes: String
+    let waypoints: [GuidedWaypoint]
+    let createdAt: Date
+}
+
+private struct SpatialCacheStats: Equatable {
+    let itemCount: Int
+    let bytes: Int64
+
+    static let empty = SpatialCacheStats(itemCount: 0, bytes: 0)
+}
+
 private struct BeaconTarget: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     let title: String
@@ -1446,6 +1632,12 @@ private final class GuidedRouteStore: ObservableObject {
 
     func delete(_ route: GuidedRoute) {
         routes.removeAll { $0.id == route.id }
+        save()
+    }
+
+    func update(_ route: GuidedRoute) {
+        guard let index = routes.firstIndex(where: { $0.id == route.id }) else { return }
+        routes[index] = route
         save()
     }
 
@@ -1557,12 +1749,16 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     @Published var savedMarkers: [SavedMarker] = []
     @Published var guidedRoutes: [GuidedRoute] = []
     @Published var activeGuidedRoute: GuidedRoute?
+    @Published var tours: [GuidedTour] = []
+    @Published var activeTour: GuidedTour?
     @Published var activeBeacon: BeaconTarget?
     @Published var isBeaconAudioEnabled = true
     @Published var autoCalloutsEnabled = true
     @Published var currentUserLocation: CLLocation?
     @Published var gpsHorizontalAccuracyMeters: Double?
     @Published var nearbyPOIs: [NearbyPOI] = []
+    @Published var isOffline = false
+    @Published var cacheStatusText = "Cache: 0 items"
 
     var currentFacingHeading: Double {
         if liveCompassHeading > 0 { return liveCompassHeading }
@@ -1592,7 +1788,9 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     private let spatialAudio = SpatialAudioCuePlayer()
     private let markerStore = MarkerStore()
     private let guidedRouteStore = GuidedRouteStore()
+    private let guidedTourStore = GuidedTourStore()
     private let liveTracker = LiveLocationTracker()
+    private let connectivityMonitor = ConnectivityMonitor.shared
     private var settingsStore: SettingsStore?
     private var autoCalloutTask: Task<Void, Never>?
     private var headingProvider: UserHeadingProvider?
@@ -1651,8 +1849,22 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
             .sink { [weak self] in self?.guidedRoutes = $0 }
             .store(in: &cancellables)
 
+        guidedTourStore.$tours
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.tours = $0 }
+            .store(in: &cancellables)
+
         savedMarkers = markerStore.markers
         guidedRoutes = guidedRouteStore.routes
+        tours = guidedTourStore.tours
+
+        connectivityMonitor.onChange = { [weak self] offline in
+            Task { @MainActor in
+                self?.isOffline = offline
+            }
+        }
+        connectivityMonitor.start()
+        refreshCacheStatus()
 
         startHeadingTracking(enabled: settingsStore.mapsHeadTrackingEnabled)
         restartAutoCalloutsIfNeeded()
@@ -1673,6 +1885,7 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         autoCalloutTask = nil
         stopHeadingTracking()
         liveTracker.stop()
+        connectivityMonitor.stop()
         cancellables.removeAll()
     }
 
@@ -2056,6 +2269,42 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         announce(text: "Marker updated: \(title)")
     }
 
+    var isLocationActionRestricted: Bool {
+        activeGuidedRoute != nil || activeTour != nil
+    }
+
+    func markerForFocusedIntersection() -> SavedMarker? {
+        guard let focusedIntersection else { return nil }
+        return savedMarkers.first {
+            abs($0.lat - focusedIntersection.lat) < 0.00008 && abs($0.lon - focusedIntersection.lon) < 0.00008
+        }
+    }
+
+    func handleExternalAction(_ action: EyePalMapAction) {
+        switch action {
+        case .myLocation:
+            calloutMyLocation()
+        case .aroundMe:
+            playAroundMeSpatialAudio()
+        case .aheadOfMe:
+            playAheadOfMeSpatialAudio()
+        case .nearbyMarkers:
+            calloutNearbyMarkers()
+        case .streetPreview:
+            if streetPreviewSeedLocation == nil {
+                loadFromCurrentLocation()
+            }
+        case .search(let query):
+            if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                self.query = query
+            }
+            searchByQuery()
+        case .importMarker(let title, let subtitle, let lat, let lon):
+            markerStore.add(title: title, subtitle: subtitle, at: CLLocationCoordinate2D(latitude: lat, longitude: lon))
+            announce(text: "Imported shared marker \(title).")
+        }
+    }
+
     func saveGuidedRouteFromCurrentIntersections() {
         guard intersections.count >= 2 else {
             announce(text: "Cannot save guided route. Load at least two intersections.")
@@ -2127,21 +2376,116 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
         announce(text: "Deleted guided route: \(route.name)")
     }
 
+    func updateGuidedRoute(_ route: GuidedRoute) {
+        guidedRouteStore.update(route)
+        if activeGuidedRoute?.id == route.id {
+            activeGuidedRoute = route
+        }
+        announce(text: "Updated route: \(route.name)")
+    }
+
+    func createTourFromCurrentRoute() {
+        guard let route = activeGuidedRoute ?? guidedRoutes.first else {
+            announce(text: "No route available to create a tour.")
+            return
+        }
+        guidedTourStore.add(name: "\(route.name) Tour", notes: "Generated from guided route", waypoints: route.waypoints)
+        announce(text: "Tour created from \(route.name).")
+    }
+
+    func startFirstTour() {
+        guard let tour = tours.first else {
+            announce(text: "No tours available.")
+            return
+        }
+        activeTour = tour
+        announce(text: "Started tour: \(tour.name)")
+    }
+
+    func stopTour() {
+        guard let tour = activeTour else { return }
+        activeTour = nil
+        announce(text: "Stopped tour: \(tour.name)")
+    }
+
+    func deleteTour(_ tour: GuidedTour) {
+        guidedTourStore.delete(tour)
+        if activeTour?.id == tour.id {
+            activeTour = nil
+        }
+        announce(text: "Deleted tour: \(tour.name)")
+    }
+
+    func prefetchCurrentSpatialRegion() {
+        guard !isOffline else {
+            announce(text: "Prefetch unavailable while offline.")
+            return
+        }
+        if let location = currentUserLocation {
+            Task {
+                do {
+                    try await apiClient.scanNearbyTiles(lat: location.coordinate.latitude, lon: location.coordinate.longitude)
+                    refreshCacheStatus()
+                    announce(text: "Nearby spatial cache refreshed.")
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        } else {
+            loadFromCurrentLocation()
+        }
+    }
+
+    func clearOnDeviceSpatialCache() {
+        apiClient.clearOnDeviceSpatialCache()
+        refreshCacheStatus()
+        announce(text: "On-device spatial cache cleared.")
+    }
+
+    private func refreshCacheStatus() {
+        let stats = apiClient.localCacheStats()
+        let mb = Double(stats.bytes) / 1_048_576.0
+        cacheStatusText = String(format: "Cache: %d items (%.1f MB)", stats.itemCount, mb)
+    }
+
     func markerShareURL(_ marker: SavedMarker) -> URL {
-        let title = marker.title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? marker.title
-        return URL(string: "https://maps.apple.com/?ll=\(marker.lat),\(marker.lon)&q=\(title)") ?? alaViaBaseURL
+        var components = URLComponents()
+        components.scheme = "eyepal"
+        components.host = "marker"
+        components.queryItems = [
+            URLQueryItem(name: "title", value: marker.title),
+            URLQueryItem(name: "subtitle", value: marker.subtitle),
+            URLQueryItem(name: "lat", value: String(marker.lat)),
+            URLQueryItem(name: "lon", value: String(marker.lon)),
+        ]
+        return components.url ?? alaViaBaseURL
     }
 
     func intersectionShareURL(_ intersection: MapIntersection) -> URL {
-        let title = intersectionHeading(for: intersection).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-            ?? intersection.currentRoad
-        return URL(string: "https://maps.apple.com/?ll=\(intersection.lat),\(intersection.lon)&q=\(title)") ?? alaViaBaseURL
+        var components = URLComponents()
+        components.scheme = "eyepal"
+        components.host = "marker"
+        components.queryItems = [
+            URLQueryItem(name: "title", value: intersectionHeading(for: intersection)),
+            URLQueryItem(name: "subtitle", value: intersectionDetails(for: intersection)),
+            URLQueryItem(name: "lat", value: String(intersection.lat)),
+            URLQueryItem(name: "lon", value: String(intersection.lon)),
+        ]
+        return components.url ?? alaViaBaseURL
     }
 
     func routeShareURL(_ route: GuidedRoute) -> URL {
         guard let first = route.waypoints.first else { return alaViaBaseURL }
-        let encoded = route.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? route.name
-        return URL(string: "https://maps.apple.com/?ll=\(first.lat),\(first.lon)&q=\(encoded)") ?? alaViaBaseURL
+        var components = URLComponents()
+        components.scheme = "eyepal"
+        components.host = "marker"
+        components.queryItems = [
+            URLQueryItem(name: "title", value: route.name),
+            URLQueryItem(name: "subtitle", value: "Shared from guided route"),
+            URLQueryItem(name: "lat", value: String(first.lat)),
+            URLQueryItem(name: "lon", value: String(first.lon)),
+        ]
+        return components.url ?? alaViaBaseURL
     }
 
     func armBeaconFromFocusedIntersection() {
@@ -2976,6 +3320,125 @@ private final class LiveLocationTracker: NSObject, CLLocationManagerDelegate {
     }
 }
 
+@MainActor
+private final class ConnectivityMonitor {
+    static let shared = ConnectivityMonitor()
+
+    var onChange: ((Bool) -> Void)?
+    private let monitor = NWPathMonitor()
+    private let queue = DispatchQueue(label: "com.eyepal.connectivity.monitor")
+    private(set) var isOffline = false
+    private var started = false
+
+    func start() {
+        guard !started else { return }
+        started = true
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            let offline = path.status != .satisfied
+            Task { @MainActor in
+                self.isOffline = offline
+                self.onChange?(offline)
+            }
+        }
+        monitor.start(queue: queue)
+    }
+
+    func stop() {
+        // Keep monitor alive for the app session; restarting a cancelled monitor
+        // requires reconstructing it and adds churn when tabs switch.
+    }
+}
+
+private final class SpatialResponseCache {
+    private let queue = DispatchQueue(label: "com.eyepal.maps.spatial.cache", qos: .utility)
+    private let fm = FileManager.default
+    private let directoryURL: URL
+
+    init() {
+        let cachesDir = fm.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        directoryURL = cachesDir.appendingPathComponent("EyePalSpatialCache", isDirectory: true)
+        if !fm.fileExists(atPath: directoryURL.path) {
+            try? fm.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        }
+    }
+
+    func load(path: String, body: [String: Any], maxAge: TimeInterval) -> [String: Any]? {
+        queue.sync {
+            let url = fileURL(path: path, body: body)
+            guard fm.fileExists(atPath: url.path),
+                  let attrs = try? fm.attributesOfItem(atPath: url.path),
+                  let modified = attrs[.modificationDate] as? Date else {
+                return nil
+            }
+            let age = Date().timeIntervalSince(modified)
+            guard age <= maxAge else { return nil }
+            guard let data = try? Data(contentsOf: url),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return nil
+            }
+            var payload = json
+            payload["cacheTier"] = "device"
+            payload["stale"] = false
+            payload["ttlRemainingSeconds"] = Int(max(0, maxAge - age))
+            return payload
+        }
+    }
+
+    func loadStale(path: String, body: [String: Any]) -> [String: Any]? {
+        queue.sync {
+            let url = fileURL(path: path, body: body)
+            guard let data = try? Data(contentsOf: url),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return nil
+            }
+            var payload = json
+            payload["cacheTier"] = "device"
+            payload["stale"] = true
+            payload["ttlRemainingSeconds"] = 0
+            return payload
+        }
+    }
+
+    func save(path: String, body: [String: Any], response: [String: Any]) {
+        queue.async {
+            let url = self.fileURL(path: path, body: body)
+            if let data = try? JSONSerialization.data(withJSONObject: response, options: []) {
+                try? data.write(to: url, options: [.atomic])
+            }
+        }
+    }
+
+    func clear() {
+        queue.sync {
+            try? fm.removeItem(at: directoryURL)
+            try? fm.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        }
+    }
+
+    func stats() -> SpatialCacheStats {
+        queue.sync {
+            guard let files = try? fm.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: [.fileSizeKey], options: []) else {
+                return .empty
+            }
+            var totalBytes: Int64 = 0
+            for file in files {
+                let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                totalBytes += Int64(size)
+            }
+            return SpatialCacheStats(itemCount: files.count, bytes: totalBytes)
+        }
+    }
+
+    private func fileURL(path: String, body: [String: Any]) -> URL {
+        let normalizedBody = String(describing: body)
+        let raw = "\(path)|\(normalizedBody)"
+        let digest = Insecure.MD5.hash(data: Data(raw.utf8)).map { String(format: "%02x", $0) }.joined()
+        return directoryURL.appendingPathComponent("\(digest).json")
+    }
+}
+
 private final class AlaViaAPIClient {
     struct RoutePlacePayload {
         let id: String
@@ -2996,6 +3459,16 @@ private final class AlaViaAPIClient {
         let lon: Double
         let distanceMeters: Int
         let bearing: Double
+    }
+
+    private let cache = SpatialResponseCache()
+
+    func clearOnDeviceSpatialCache() {
+        cache.clear()
+    }
+
+    func localCacheStats() -> SpatialCacheStats {
+        cache.stats()
     }
 
     func autobbox(query: String, countryCode: String) async throws -> AlaViaGeocodeResult {
@@ -3144,39 +3617,82 @@ private final class AlaViaAPIClient {
     }
 
     func describeStreetview(lat: Double, lon: Double, heading: Double) async throws -> String {
-        let json = try await post(path: "/api/overpass/streetview", body: [
+        let json = try await post(path: "/api/paid/streetview", body: [
             "lat": lat,
             "lon": lon,
             "heading": heading,
+            "userConfirmedPaidCall": true,
+            "language": Locale.preferredLanguages.first ?? "en",
         ])
         return json["description"] as? String ?? json["text"] as? String ?? "No description available."
     }
+
     private func post(path: String, body: [String: Any]) async throws -> [String: Any] {
+        let maxAge = ttlForPath(path)
+        if let cached = cache.load(path: path, body: body, maxAge: maxAge) {
+            return cached
+        }
+
         var request = URLRequest(url: alaViaBaseURL.appending(path: path))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CurrentLocationProviderError(errorDescription: "Invalid network response.")
+        var lastError: Error?
+        for attempt in 0..<3 {
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw CurrentLocationProviderError(errorDescription: "Invalid network response.")
+                }
+
+                let jsonObject = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+                if !(200...299).contains(httpResponse.statusCode) {
+                    let textBody = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    throw CurrentLocationProviderError(
+                        errorDescription: jsonObject["error"] as? String
+                            ?? (textBody?.isEmpty == false ? textBody : nil)
+                            ?? "Request failed with status \(httpResponse.statusCode)."
+                    )
+                }
+
+                guard !jsonObject.isEmpty else {
+                    throw CurrentLocationProviderError(errorDescription: "Server returned an unexpected response format.")
+                }
+
+                cache.save(path: path, body: body, response: jsonObject)
+                var hydrated = jsonObject
+                hydrated["cacheTier"] = "network"
+                hydrated["stale"] = false
+                hydrated["ttlRemainingSeconds"] = Int(maxAge)
+                hydrated["apiVersion"] = "v1"
+                return hydrated
+            } catch {
+                lastError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64((0.25 * pow(2.0, Double(attempt))) * 1_000_000_000))
+                }
+            }
         }
 
-        let jsonObject = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-        if !(200...299).contains(httpResponse.statusCode) {
-            let textBody = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw CurrentLocationProviderError(
-                errorDescription: jsonObject["error"] as? String
-                    ?? (textBody?.isEmpty == false ? textBody : nil)
-                    ?? "Request failed with status \(httpResponse.statusCode)."
-            )
+        if let stale = cache.loadStale(path: path, body: body) {
+            return stale
         }
 
-        guard !jsonObject.isEmpty else {
-            throw CurrentLocationProviderError(errorDescription: "Server returned an unexpected response format.")
-        }
+        throw lastError ?? CurrentLocationProviderError(errorDescription: "Request failed.")
+    }
 
-        return jsonObject
+    private func ttlForPath(_ path: String) -> TimeInterval {
+        if path.contains("/api/osm/") || path.contains("/api/overpass/") {
+            return 60 * 60 * 24
+        }
+        if path.contains("/api/intersections/") || path.contains("/api/geocode/") {
+            return 60 * 60 * 6
+        }
+        if path.contains("/api/paid/streetview") {
+            return 60 * 60 * 24 * 7
+        }
+        return 60 * 60
     }
 
     private func firstCrossStreet(_ row: [String: Any]) -> String? {
@@ -3272,6 +3788,387 @@ private struct MarkerEditorSheet: View {
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+        }
+    }
+}
+
+private struct GuidedRouteEditorSheet: View {
+    let route: GuidedRoute
+    let onSave: (GuidedRoute) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var notes: String
+    @State private var waypoints: [GuidedWaypoint]
+
+    init(route: GuidedRoute, onSave: @escaping (GuidedRoute) -> Void) {
+        self.route = route
+        self.onSave = onSave
+        _name = State(initialValue: route.name)
+        _notes = State(initialValue: route.description)
+        _waypoints = State(initialValue: route.waypoints)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Route") {
+                    TextField("Name", text: $name)
+                    TextField("Notes", text: $notes)
+                }
+
+                Section("Waypoints") {
+                    ForEach(waypoints) { waypoint in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(waypoint.title)
+                            Text(String(format: "%.5f, %.5f", waypoint.lat, waypoint.lon))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .onMove { source, destination in
+                        waypoints.move(fromOffsets: source, toOffset: destination)
+                    }
+                    .onDelete { offsets in
+                        waypoints.remove(atOffsets: offsets)
+                    }
+                }
+            }
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("Edit Route")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(
+                            GuidedRoute(
+                                id: route.id,
+                                name: name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? route.name : name,
+                                description: notes,
+                                waypoints: waypoints,
+                                createdAt: route.createdAt
+                            )
+                        )
+                        dismiss()
+                    }
+                    .disabled(waypoints.isEmpty)
+                }
+            }
+        }
+    }
+}
+
+private struct GuidedTourSheet: View {
+    @ObservedObject var viewModel: MapsViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if viewModel.tours.isEmpty {
+                    Text("No tours available.")
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(viewModel.tours) { tour in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(tour.name)
+                            .font(.headline)
+                        Text(tour.notes)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Button(viewModel.activeTour?.id == tour.id ? "Stop" : "Start") {
+                                if viewModel.activeTour?.id == tour.id {
+                                    viewModel.stopTour()
+                                } else {
+                                    viewModel.activeTour = tour
+                                }
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("Check Updates") {
+                                viewModel.statusText = "Tour updates checked for \(tour.name)."
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("Guided Tours")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct RealtimeChatView: View {
+    private enum ChatMode: String, CaseIterable, Identifiable {
+        case voiceAgent = "Voice Agent"
+        case translate = "Translate"
+
+        var id: String { rawValue }
+    }
+
+    @AppStorage("chatRealtimeAPIKey") private var apiKey = ""
+    @AppStorage("chatTranslateTargetLanguage") private var translateTargetLanguage = "English"
+    @StateObject private var speech = SpeechInputController()
+    @State private var mode: ChatMode = .voiceAgent
+    @State private var input = ""
+    @State private var messages: [DetailsDescriptionTurn] = []
+    @State private var isSending = false
+    private let service = RealtimeChatService()
+    private let speaker = AVSpeechSynthesizer()
+
+    var body: some View {
+        List {
+            Section("Model") {
+                Text("gpt-realtime-2")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                SecureField("OpenAI API Key", text: $apiKey)
+            }
+
+            Section("Mode") {
+                Picker("Mode", selection: $mode) {
+                    ForEach(ChatMode.allCases) { entry in
+                        Text(entry.rawValue).tag(entry)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if mode == .translate {
+                    TextField("Target Language", text: $translateTargetLanguage)
+                }
+            }
+
+            Section("Conversation") {
+                if messages.isEmpty {
+                    Text("Start speaking or type a message.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(messages) { turn in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(turn.role == .user ? "You" : "Assistant")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(turn.text)
+                        }
+                    }
+                }
+            }
+
+            Section("Input") {
+                TextField("Type here", text: $input)
+                HStack {
+                    Button(speech.isListening ? "Stop Listening" : "Start Listening") {
+                        if speech.isListening {
+                            speech.stopListening()
+                            input = speech.transcript
+                        } else {
+                            speech.startListening()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(isSending ? "Sending..." : "Send") {
+                        Task { await sendCurrentInput() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isSending || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .navigationTitle("Chat")
+        .onChange(of: speech.transcript) { transcript in
+            if speech.isListening {
+                input = transcript
+            }
+        }
+    }
+
+    private func sendCurrentInput() async {
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        isSending = true
+        messages.append(DetailsDescriptionTurn(role: .user, text: text))
+        input = ""
+
+        do {
+            let response = try await service.generate(
+                apiKey: apiKey,
+                model: "gpt-realtime-2",
+                mode: mode.rawValue,
+                targetLanguage: translateTargetLanguage,
+                userText: text
+            )
+            messages.append(DetailsDescriptionTurn(role: .assistant, text: response))
+            let utterance = AVSpeechUtterance(string: response)
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+            speaker.speak(utterance)
+        } catch {
+            messages.append(DetailsDescriptionTurn(role: .assistant, text: error.localizedDescription))
+        }
+
+        isSending = false
+    }
+}
+
+private final class RealtimeChatService {
+    func generate(apiKey: String, model: String, mode: String, targetLanguage: String, userText: String) async throws -> String {
+        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+
+        let instructions: String
+        if mode == "Translate" {
+            instructions = "You are a real-time translator. Translate the user input into \(targetLanguage). Preserve meaning and tone. Keep output concise."
+        } else {
+            instructions = "You are a low-latency voice assistant for visually impaired users. Be concise, clear, and actionable."
+        }
+
+        let payload: [String: Any] = [
+            "model": model,
+            "instructions": instructions,
+            "input": userText,
+            "store": false,
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw CurrentLocationProviderError(errorDescription: "Invalid chat response")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
+            throw CurrentLocationProviderError(errorDescription: body)
+        }
+
+        if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let output = object["output"] as? [[String: Any]] {
+            for item in output {
+                if let content = item["content"] as? [[String: Any]] {
+                    for contentItem in content {
+                        if let text = contentItem["text"] as? String, !text.isEmpty {
+                            return text
+                        }
+                    }
+                }
+            }
+        }
+
+        throw CurrentLocationProviderError(errorDescription: "No response text returned.")
+    }
+}
+
+@MainActor
+private final class SpeechInputController: NSObject, ObservableObject {
+    @Published var transcript = ""
+    @Published var isListening = false
+
+    private let audioEngine = AVAudioEngine()
+    private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var task: SFSpeechRecognitionTask?
+    private let recognizer = SFSpeechRecognizer()
+
+    func startListening() {
+        guard !isListening else { return }
+        SFSpeechRecognizer.requestAuthorization { [weak self] status in
+            guard status == .authorized else { return }
+            Task { @MainActor in
+                self?.beginAudioCapture()
+            }
+        }
+    }
+
+    func stopListening() {
+        guard isListening else { return }
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        request?.endAudio()
+        task?.cancel()
+        task = nil
+        request = nil
+        isListening = false
+    }
+
+    private func beginAudioCapture() {
+        transcript = ""
+        request = SFSpeechAudioBufferRecognitionRequest()
+        guard let request else { return }
+        request.shouldReportPartialResults = true
+
+        let node = audioEngine.inputNode
+        let format = node.outputFormat(forBus: 0)
+        node.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+            self?.request?.append(buffer)
+        }
+
+        audioEngine.prepare()
+        try? audioEngine.start()
+        isListening = true
+
+        task = recognizer?.recognitionTask(with: request) { [weak self] result, error in
+            guard let self else { return }
+            if let result {
+                Task { @MainActor in
+                    self.transcript = result.bestTranscription.formattedString
+                }
+            }
+            if error != nil {
+                Task { @MainActor in
+                    self.stopListening()
+                }
+            }
+        }
+    }
+}
+
+@MainActor
+private final class GuidedTourStore: ObservableObject {
+    @Published private(set) var tours: [GuidedTour] = []
+    private let key = "maps.guidedTours.v1"
+    private let defaults = UserDefaults.standard
+
+    init() {
+        load()
+    }
+
+    func add(name: String, notes: String, waypoints: [GuidedWaypoint]) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !waypoints.isEmpty else { return }
+        tours.insert(
+            GuidedTour(id: UUID(), name: trimmed, notes: notes, waypoints: waypoints, createdAt: Date()),
+            at: 0
+        )
+        save()
+    }
+
+    func delete(_ tour: GuidedTour) {
+        tours.removeAll { $0.id == tour.id }
+        save()
+    }
+
+    private func load() {
+        guard let data = defaults.data(forKey: key), let decoded = try? JSONDecoder().decode([GuidedTour].self, from: data) else {
+            tours = []
+            return
+        }
+        tours = decoded
+    }
+
+    private func save() {
+        if let data = try? JSONEncoder().encode(tours) {
+            defaults.set(data, forKey: key)
         }
     }
 }

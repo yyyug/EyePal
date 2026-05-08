@@ -16,6 +16,19 @@
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.eyepal.deep-links</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>eyepal</string>
+            </array>
+        </dict>
+    </array>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
@@ -28,8 +41,19 @@
     <string>EyePal uses location in the background to provide continuous spatial awareness, guided routes, markers, and beacon alerts.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>EyePal speaks recognized text and names for accessibility.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>EyePal uses the microphone for low-latency voice chat and live translation.</string>
     <key>NSMotionUsageDescription</key>
     <string>EyePal uses motion data from your device to track heading and orientation for accurate spatial audio and navigation.</string>
+    <key>NSUserActivityTypes</key>
+    <array>
+        <string>com.eyepal.activity.my-location</string>
+        <string>com.eyepal.activity.around-me</string>
+        <string>com.eyepal.activity.ahead-of-me</string>
+        <string>com.eyepal.activity.nearby-markers</string>
+        <string>com.eyepal.activity.search</string>
+        <string>com.eyepal.activity.street-preview</string>
+    </array>
     <key>UIBackgroundModes</key>
     <array>
         <string>audio</string>
