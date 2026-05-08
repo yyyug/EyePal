@@ -3637,7 +3637,7 @@ private final class AlaViaAPIClient {
                     ?? (row["crossRoad"] as? String)
                     ?? (row["name"] as? String)
                     ?? "Unknown"
-                MapIntersection(
+                return MapIntersection(
                     id: String(row["id"] as? Int ?? index),
                     currentRoad: currentRoad,
                     crossRoad: cross,
