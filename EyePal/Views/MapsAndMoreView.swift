@@ -221,6 +221,7 @@ struct MapsView: View {
                             Button("Add Marker") {
                                 viewModel.select(index: index)
                                 viewModel.saveFocusedAsMarker()
+                                appActionCenter.donateActivity(EyePalUserActivityType.saveMarker, title: "Save Marker")
                             }
                             .buttonStyle(.bordered)
 
@@ -344,6 +345,7 @@ struct MapsView: View {
             HStack(spacing: 12) {
                 Button {
                     viewModel.saveFocusedAsMarker()
+                    appActionCenter.donateActivity(EyePalUserActivityType.saveMarker, title: "Save Marker")
                 } label: {
                     Label("Save Marker", systemImage: "mappin.and.ellipse")
                         .frame(maxWidth: .infinity)
@@ -827,6 +829,7 @@ private struct CountryPickerSheet: View {
 private struct IntersectionDetailView: View {
     @ObservedObject var viewModel: MapsViewModel
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
     @State private var editingMarker: SavedMarker?
 
     private var paidEnabled: Bool { openAIStore.isSignedIn }
@@ -891,6 +894,7 @@ private struct IntersectionDetailView: View {
                                 editingMarker = marker
                             } else {
                                 viewModel.saveFocusedAsMarker()
+                                appActionCenter.donateActivity(EyePalUserActivityType.saveMarker, title: "Save Marker")
                             }
                         } label: {
                             Label(existingMarker == nil ? "Save Marker" : "Edit Marker", systemImage: existingMarker == nil ? "mappin.and.ellipse" : "pencil")
@@ -1035,11 +1039,13 @@ private struct IntersectionDetailView: View {
 struct MoreView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
     @StateObject private var floorStore = FloorRecordStore()
 
     private enum MoreDestination: Hashable {
         case floorDetection
         case chat
+        case automation
         case settings
         case feature(AppFeature)
     }
@@ -1054,6 +1060,10 @@ struct MoreView: View {
 
                     NavigationLink(value: MoreDestination.chat) {
                         Label("Chat", systemImage: "waveform.and.mic")
+                    }
+
+                    NavigationLink(value: MoreDestination.automation) {
+                        Label("Automation & Links", systemImage: "bolt.horizontal.circle")
                     }
 
                     ForEach(settingsStore.moreFeatures) { feature in
@@ -1075,6 +1085,9 @@ struct MoreView: View {
                             .environmentObject(floorStore)
                     case .chat:
                         RealtimeChatView()
+                    case .automation:
+                        AutomationAndLinksView()
+                            .environmentObject(appActionCenter)
                     case .settings:
                         SettingsView()
                             .environmentObject(settingsStore)
@@ -1099,6 +1112,57 @@ struct MoreView: View {
             MapsView()
         case .faces:
             FaceRecognitionView()
+        }
+    }
+}
+
+private struct AutomationAndLinksView: View {
+    @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
+    @State private var checklist: [EyePalDeepLinkValidationResult] = []
+
+    var body: some View {
+        List {
+            Section("Siri") {
+                Button {
+                    appActionCenter.donateCoreShortcuts()
+                } label: {
+                    Label("Refresh Siri Shortcut Suggestions", systemImage: "waveform.badge.mic")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+            Section("Deep Link Validation") {
+                Button {
+                    checklist = appActionCenter.deepLinkValidationChecklist()
+                } label: {
+                    Label("Run Validation Checklist", systemImage: "checklist")
+                }
+                .buttonStyle(.bordered)
+
+                if checklist.isEmpty {
+                    Text("Run checklist to verify marker, route, search, and action links.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(checklist) { row in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(row.isValid ? "PASS" : "FAIL")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(row.isValid ? .green : .red)
+                            Text(row.sampleURL)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(row.detail)
+                                .font(.footnote)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Automation & Links")
+        .onAppear {
+            if checklist.isEmpty {
+                checklist = appActionCenter.deepLinkValidationChecklist()
+            }
         }
     }
 }
@@ -2299,10 +2363,25 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
                 self.query = query
             }
             searchByQuery()
+        case .saveMarker:
+            saveFocusedAsMarker()
         case .importMarker(let title, let subtitle, let lat, let lon):
             markerStore.add(title: title, subtitle: subtitle, lat: lat, lon: lon)
             announce(text: "Imported shared marker \(title).")
+        case .importRoute(let name, let notes, let encodedWaypoints):
+            importSharedRoute(name: name, notes: notes, encodedWaypoints: encodedWaypoints)
         }
+    }
+
+    private func importSharedRoute(name: String, notes: String, encodedWaypoints: String) {
+        guard let data = Data(base64Encoded: encodedWaypoints),
+              let decoded = try? JSONDecoder().decode([GuidedWaypoint].self, from: data),
+              !decoded.isEmpty else {
+            announce(text: "Unable to import shared route.")
+            return
+        }
+        guidedRouteStore.add(name: name, description: notes, waypoints: decoded)
+        announce(text: "Imported shared route \(name) with \(decoded.count) waypoints.")
     }
 
     func saveGuidedRouteFromCurrentIntersections() {
@@ -2475,15 +2554,14 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
     }
 
     func routeShareURL(_ route: GuidedRoute) -> URL {
-        guard let first = route.waypoints.first else { return alaViaBaseURL }
+        guard let payload = try? JSONEncoder().encode(route.waypoints) else { return alaViaBaseURL }
         var components = URLComponents()
         components.scheme = "eyepal"
-        components.host = "marker"
+        components.host = "route"
         components.queryItems = [
-            URLQueryItem(name: "title", value: route.name),
-            URLQueryItem(name: "subtitle", value: "Shared from guided route"),
-            URLQueryItem(name: "lat", value: String(first.lat)),
-            URLQueryItem(name: "lon", value: String(first.lon)),
+            URLQueryItem(name: "name", value: route.name),
+            URLQueryItem(name: "notes", value: route.description),
+            URLQueryItem(name: "waypoints", value: payload.base64EncodedString()),
         ]
         return components.url ?? alaViaBaseURL
     }
@@ -4024,10 +4102,10 @@ private struct RealtimeChatView: View {
 
 private final class RealtimeChatService {
     func generate(apiKey: String, model: String, mode: String, targetLanguage: String, userText: String) async throws -> String {
-        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? model
+        var request = URLRequest(url: URL(string: "wss://api.openai.com/v1/realtime?model=\(encodedModel)")!)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
 
         let instructions: String
         if mode == "Translate" {
@@ -4036,29 +4114,109 @@ private final class RealtimeChatService {
             instructions = "You are a low-latency voice assistant for visually impaired users. Be concise, clear, and actionable."
         }
 
-        let payload: [String: Any] = [
-            "model": model,
-            "instructions": instructions,
-            "input": userText,
-            "store": false,
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw CurrentLocationProviderError(errorDescription: "Invalid chat response")
-        }
-        guard (200..<300).contains(http.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
-            throw CurrentLocationProviderError(errorDescription: body)
+        let session = URLSession(configuration: .default)
+        let socket = session.webSocketTask(with: request)
+        socket.resume()
+        defer {
+            socket.cancel(with: .goingAway, reason: nil)
         }
 
-        if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let output = object["output"] as? [[String: Any]] {
-            for item in output {
-                if let content = item["content"] as? [[String: Any]] {
-                    for contentItem in content {
-                        if let text = contentItem["text"] as? String, !text.isEmpty {
+        try await send(socket, payload: [
+            "type": "session.update",
+            "session": [
+                "instructions": instructions,
+            ],
+        ])
+
+        try await send(socket, payload: [
+            "type": "conversation.item.create",
+            "item": [
+                "type": "message",
+                "role": "user",
+                "content": [
+                    [
+                        "type": "input_text",
+                        "text": userText,
+                    ],
+                ],
+            ],
+        ])
+
+        try await send(socket, payload: [
+            "type": "response.create",
+            "response": [
+                "modalities": ["text"],
+            ],
+        ])
+
+        var outputText = ""
+
+        while true {
+            let message = try await socket.receive()
+            let text: String
+            switch message {
+            case .string(let eventText):
+                text = eventText
+            case .data(let data):
+                text = String(data: data, encoding: .utf8) ?? ""
+            @unknown default:
+                continue
+            }
+
+            guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] else {
+                continue
+            }
+
+            let type = object["type"] as? String ?? ""
+
+            if type == "error" {
+                throw CurrentLocationProviderError(errorDescription: errorMessage(from: object))
+            }
+
+            if type == "response.output_text.delta" || type == "response.text.delta" {
+                outputText += (object["delta"] as? String) ?? ""
+                continue
+            }
+
+            if type == "response.output_item.done", outputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                outputText = outputTextFrom(event: object)
+                continue
+            }
+
+            if type == "response.done" {
+                if outputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    outputText = outputTextFrom(event: object)
+                }
+                if !outputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return outputText
+                }
+                throw CurrentLocationProviderError(errorDescription: "No response text returned.")
+            }
+        }
+    }
+
+    private func send(_ socket: URLSessionWebSocketTask, payload: [String: Any]) async throws {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let text = String(data: data, encoding: .utf8) ?? "{}"
+        try await socket.send(.string(text))
+    }
+
+    private func outputTextFrom(event: [String: Any]) -> String {
+        if let item = event["item"] as? [String: Any],
+           let content = item["content"] as? [[String: Any]] {
+            for part in content {
+                if let text = part["text"] as? String, !text.isEmpty {
+                    return text
+                }
+            }
+        }
+
+        if let response = event["response"] as? [String: Any],
+           let output = response["output"] as? [[String: Any]] {
+            for entry in output {
+                if let content = entry["content"] as? [[String: Any]] {
+                    for part in content {
+                        if let text = part["text"] as? String, !text.isEmpty {
                             return text
                         }
                     }
@@ -4066,7 +4224,18 @@ private final class RealtimeChatService {
             }
         }
 
-        throw CurrentLocationProviderError(errorDescription: "No response text returned.")
+        return ""
+    }
+
+    private func errorMessage(from event: [String: Any]) -> String {
+        if let error = event["error"] as? [String: Any] {
+            let message = error["message"] as? String
+            let code = error["code"] as? String
+            if let message, !message.isEmpty {
+                return code.map { "\($0): \(message)" } ?? message
+            }
+        }
+        return "Realtime chat request failed."
     }
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import Intents
 
 enum EyePalUserActivityType {
     static let myLocation = "com.eyepal.activity.my-location"
@@ -7,6 +8,7 @@ enum EyePalUserActivityType {
     static let nearbyMarkers = "com.eyepal.activity.nearby-markers"
     static let search = "com.eyepal.activity.search"
     static let streetPreview = "com.eyepal.activity.street-preview"
+    static let saveMarker = "com.eyepal.activity.save-marker"
 
     static let all = [
         myLocation,
@@ -15,6 +17,7 @@ enum EyePalUserActivityType {
         nearbyMarkers,
         search,
         streetPreview,
+        saveMarker,
     ]
 }
 
@@ -25,7 +28,16 @@ enum EyePalMapAction: Equatable {
     case nearbyMarkers
     case streetPreview
     case search(String?)
+    case saveMarker
     case importMarker(title: String, subtitle: String, lat: Double, lon: Double)
+    case importRoute(name: String, notes: String, encodedWaypoints: String)
+}
+
+struct EyePalDeepLinkValidationResult: Identifiable, Hashable {
+    let id = UUID()
+    let sampleURL: String
+    let isValid: Bool
+    let detail: String
 }
 
 @MainActor
@@ -43,27 +55,8 @@ final class EyePalAppActionCenter: ObservableObject {
     }
 
     func handleIncomingURL(_ url: URL) {
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return
-        }
-        let host = (components.host ?? "").lowercased()
-        let items = components.queryItems ?? []
-
-        if host == "marker" {
-            let title = items.first(where: { $0.name == "title" })?.value ?? "Shared marker"
-            let subtitle = items.first(where: { $0.name == "subtitle" })?.value ?? ""
-            let lat = Double(items.first(where: { $0.name == "lat" })?.value ?? "")
-            let lon = Double(items.first(where: { $0.name == "lon" })?.value ?? "")
-            if let lat, let lon {
-                enqueue(.importMarker(title: title, subtitle: subtitle, lat: lat, lon: lon))
-            }
-            return
-        }
-
-        if host == "search" {
-            let query = items.first(where: { $0.name == "q" })?.value
-            enqueue(.search(query))
-            return
+        if let action = mapAction(from: url) {
+            enqueue(action)
         }
     }
 
@@ -82,6 +75,8 @@ final class EyePalAppActionCenter: ObservableObject {
             enqueue(.search(query))
         case EyePalUserActivityType.streetPreview:
             enqueue(.streetPreview)
+        case EyePalUserActivityType.saveMarker:
+            enqueue(.saveMarker)
         default:
             break
         }
@@ -92,9 +87,104 @@ final class EyePalAppActionCenter: ObservableObject {
         activity.title = title
         activity.isEligibleForSearch = true
         activity.isEligibleForPrediction = true
+        activity.isEligibleForPublicIndexing = false
         activity.persistentIdentifier = NSUserActivityPersistentIdentifier(type)
+        activity.suggestedInvocationPhrase = title
         activity.userInfo = userInfo
         activity.becomeCurrent()
+    }
+
+    func donateCoreShortcuts() {
+        let definitions: [(String, String)] = [
+            (EyePalUserActivityType.myLocation, "My Location"),
+            (EyePalUserActivityType.aroundMe, "Around Me"),
+            (EyePalUserActivityType.aheadOfMe, "Ahead of Me"),
+            (EyePalUserActivityType.nearbyMarkers, "Nearby Markers"),
+            (EyePalUserActivityType.search, "Search"),
+            (EyePalUserActivityType.streetPreview, "Street Preview"),
+            (EyePalUserActivityType.saveMarker, "Save Marker"),
+        ]
+
+        let shortcuts: [INShortcut] = definitions.compactMap { type, title in
+            let activity = NSUserActivity(activityType: type)
+            activity.title = title
+            activity.isEligibleForSearch = true
+            activity.isEligibleForPrediction = true
+            activity.isEligibleForPublicIndexing = false
+            activity.suggestedInvocationPhrase = title
+            return INShortcut(userActivity: activity)
+        }
+        INVoiceShortcutCenter.shared.setShortcutSuggestions(shortcuts)
+    }
+
+    func deepLinkValidationChecklist() -> [EyePalDeepLinkValidationResult] {
+        let samples = [
+            "eyepal://marker?title=Pier%2039&subtitle=SF&lat=37.8086&lon=-122.4098",
+            "eyepal://search?q=Market%20Street",
+            "eyepal://action?type=street-preview",
+            "https://via.inclu.si/v1/sharemarker?title=Home&subtitle=Favorite&lat=22.3027&lon=114.1772",
+            "eyepal://route?name=Harbor%20Walk&notes=Shared&waypoints=W3sidGl0bGUiOiJTdGFydCIsImxhdCI6MzcuNzc0OSwibG9uIjotMTIyLjQxOTR9LHsidGl0bGUiOiJGaW5pc2giLCJsYXQiOjM3Ljc3NzcsImxvbiI6LTEyMi40MTQ0fV0=",
+        ]
+
+        return samples.map { raw in
+            guard let url = URL(string: raw) else {
+                return EyePalDeepLinkValidationResult(sampleURL: raw, isValid: false, detail: "Invalid URL string")
+            }
+            if let action = mapAction(from: url) {
+                return EyePalDeepLinkValidationResult(sampleURL: raw, isValid: true, detail: String(describing: action))
+            }
+            return EyePalDeepLinkValidationResult(sampleURL: raw, isValid: false, detail: "No matching action")
+        }
+    }
+
+    private func mapAction(from url: URL) -> EyePalMapAction? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        let host = (components.host ?? "").lowercased()
+        let path = components.path.lowercased()
+        let items = components.queryItems ?? []
+
+        let markerHostOrPath = host == "marker" || path.contains("sharemarker") || path.contains("marker")
+        if markerHostOrPath {
+            let title = items.first(where: { $0.name == "title" })?.value ?? "Shared marker"
+            let subtitle = items.first(where: { $0.name == "subtitle" })?.value ?? ""
+            let lat = Double(items.first(where: { $0.name == "lat" })?.value ?? "")
+            let lon = Double(items.first(where: { $0.name == "lon" })?.value ?? "")
+            if let lat, let lon {
+                return .importMarker(title: title, subtitle: subtitle, lat: lat, lon: lon)
+            }
+        }
+
+        let routeHostOrPath = host == "route" || path.contains("share-route") || path.contains("route")
+        if routeHostOrPath {
+            let name = items.first(where: { $0.name == "name" })?.value ?? "Shared Route"
+            let notes = items.first(where: { $0.name == "notes" })?.value ?? ""
+            let encodedWaypoints = items.first(where: { $0.name == "waypoints" })?.value ?? ""
+            if !encodedWaypoints.isEmpty {
+                return .importRoute(name: name, notes: notes, encodedWaypoints: encodedWaypoints)
+            }
+        }
+
+        if host == "search" || path.contains("search") {
+            let query = items.first(where: { $0.name == "q" })?.value
+            return .search(query)
+        }
+
+        if host == "action" {
+            let type = (items.first(where: { $0.name == "type" })?.value ?? "").lowercased()
+            switch type {
+            case "my-location": return .myLocation
+            case "around-me": return .aroundMe
+            case "ahead-of-me": return .aheadOfMe
+            case "nearby-markers": return .nearbyMarkers
+            case "street-preview": return .streetPreview
+            case "save-marker": return .saveMarker
+            default: return nil
+            }
+        }
+
+        return nil
     }
 }
 
@@ -129,6 +219,9 @@ struct EyePalApp: App {
                     appActionCenter.handleContinuationActivity(activity)
                 }
                 .onContinueUserActivity(EyePalUserActivityType.streetPreview) { activity in
+                    appActionCenter.handleContinuationActivity(activity)
+                }
+                .onContinueUserActivity(EyePalUserActivityType.saveMarker) { activity in
                     appActionCenter.handleContinuationActivity(activity)
                 }
         }

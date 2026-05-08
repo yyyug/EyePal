@@ -45,6 +45,8 @@
     <string>EyePal uses the microphone for low-latency voice chat and live translation.</string>
     <key>NSMotionUsageDescription</key>
     <string>EyePal uses motion data from your device to track heading and orientation for accurate spatial audio and navigation.</string>
+    <key>NSSiriUsageDescription</key>
+    <string>EyePal uses Siri Shortcuts so you can quickly trigger navigation actions hands-free.</string>
     <key>NSUserActivityTypes</key>
     <array>
         <string>com.eyepal.activity.my-location</string>
@@ -53,6 +55,7 @@
         <string>com.eyepal.activity.nearby-markers</string>
         <string>com.eyepal.activity.search</string>
         <string>com.eyepal.activity.street-preview</string>
+        <string>com.eyepal.activity.save-marker</string>
     </array>
     <key>UIBackgroundModes</key>
     <array>
