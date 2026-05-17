@@ -322,7 +322,7 @@ final class OpenAIDetailsDescriptionService {
     }
 
     private func makeInstructions() -> String {
-        let baseInstructions = "You are a concise visual assistant for a blind user. Describe the scene accurately, prioritize safety-relevant details, visible text, people, objects, layout, and orientation cues. Answer follow-up questions using the image and prior conversation. Do not use markdown bold formatting or surround words with double asterisks."
+        let baseInstructions = "You are a concise visual assistant for a blind user. First read visible text exactly as it appears. Then describe people, objects, layout, and orientation cues clearly. Answer follow-up questions using the image and prior conversation. Do not use markdown bold formatting or surround words with double asterisks."
 
         guard let systemLanguageInstruction = currentSystemLanguageInstruction() else {
             return baseInstructions

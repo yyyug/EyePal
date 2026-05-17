@@ -2,15 +2,18 @@ import SwiftUI
 
 struct RootTabView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+    @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
     @StateObject private var floorStore = FloorRecordStore()
+    @State private var selectedTabIdentifier = ""
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTabIdentifier) {
             ForEach(settingsStore.tabFeatures) { feature in
                 rootView(for: feature)
                     .tabItem {
                         Label(feature.tabTitle, systemImage: feature.systemImageName)
                     }
+                    .tag(feature.rawValue)
             }
 
             MoreView()
@@ -18,6 +21,27 @@ struct RootTabView: View {
                 .tabItem {
                     Label("More", systemImage: "ellipsis.circle")
                 }
+                .tag("more")
+        }
+        .onAppear {
+            if selectedTabIdentifier.isEmpty {
+                selectedTabIdentifier = settingsStore.tabFeatures.first?.rawValue ?? "more"
+            }
+        }
+        .onReceive(appActionCenter.$pendingTabAction.compactMap { $0 }) { action in
+            switch action {
+            case .quickDescription:
+                selectedTabIdentifier = AppFeature.quickRecognition.rawValue
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    NotificationCenter.default.post(name: .eyePalRequestQuickCapture, object: nil)
+                }
+            case .detailsDescription:
+                selectedTabIdentifier = AppFeature.detailsRecognition.rawValue
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    NotificationCenter.default.post(name: .eyePalRequestDetailsCapture, object: nil)
+                }
+            }
+            _ = appActionCenter.consumeTabAction()
         }
     }
 

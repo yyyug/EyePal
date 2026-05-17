@@ -14,9 +14,6 @@ struct QuickRecognitionView: View {
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(viewModel.statusText)
-                        .font(.headline)
-
                     if settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text("Add your Moondream API key in Settings > Quick Recognition.")
                             .font(.subheadline)
@@ -30,6 +27,7 @@ struct QuickRecognitionView: View {
                         }
                         .frame(maxHeight: 160)
                         .accessibilityLabel("Quick recognition result")
+                        .accessibilitySortPriority(2)
                     }
 
                     VStack(spacing: 12) {
@@ -42,6 +40,7 @@ struct QuickRecognitionView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(viewModel.isProcessing || viewModel.isContinuousCapture)
+                            .accessibilitySortPriority(5)
 
                             Button {
                                 if viewModel.isContinuousCapture {
@@ -58,6 +57,7 @@ struct QuickRecognitionView: View {
                             }
                             .buttonStyle(.bordered)
                             .disabled(viewModel.isProcessing && !viewModel.isContinuousCapture)
+                            .accessibilitySortPriority(1)
                         }
 
                         HStack(spacing: 12) {
@@ -69,6 +69,9 @@ struct QuickRecognitionView: View {
                                 ) {
                                     viewModel.takePresetPhoto(preset)
                                 }
+                                .accessibilitySortPriority(
+                                    preset.title.caseInsensitiveCompare("Product") == .orderedSame ? 4 : 3
+                                )
                             }
                         }
                     }
@@ -101,6 +104,9 @@ struct QuickRecognitionView: View {
         }
         .onDisappear {
             viewModel.stop()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .eyePalRequestQuickCapture)) { _ in
+            viewModel.takePhoto()
         }
     }
 

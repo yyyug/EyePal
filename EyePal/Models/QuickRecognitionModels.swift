@@ -167,7 +167,7 @@ enum QuickCustomQueryPreset {
 
 enum DetailsCustomQueryPreset {
     static let defaultTitle = "Custom"
-    static let defaultPrompt = "Describe this image for a blind user. Focus on people, objects, visible text, layout, hazards, and orientation cues. Be concise but specific. Do not use markdown or double asterisks."
+    static let defaultPrompt = "For a blind user, first read visible text exactly. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks."
 }
 
 enum DetailsQueryPreset {

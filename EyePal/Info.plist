@@ -46,7 +46,7 @@
     <key>NSMotionUsageDescription</key>
     <string>EyePal uses motion data from your device to track heading and orientation for accurate spatial audio and navigation.</string>
     <key>NSSiriUsageDescription</key>
-    <string>EyePal uses Siri Shortcuts so you can quickly trigger navigation actions hands-free.</string>
+    <string>EyePal uses Siri Shortcuts so you can open features and trigger descriptions hands-free.</string>
     <key>NSUserActivityTypes</key>
     <array>
         <string>com.eyepal.activity.my-location</string>
@@ -56,6 +56,8 @@
         <string>com.eyepal.activity.search</string>
         <string>com.eyepal.activity.street-preview</string>
         <string>com.eyepal.activity.save-marker</string>
+        <string>com.eyepal.activity.quick-description</string>
+        <string>com.eyepal.activity.details-description</string>
     </array>
     <key>UIBackgroundModes</key>
     <array>

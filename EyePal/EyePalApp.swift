@@ -9,6 +9,8 @@ enum EyePalUserActivityType {
     static let search = "com.eyepal.activity.search"
     static let streetPreview = "com.eyepal.activity.street-preview"
     static let saveMarker = "com.eyepal.activity.save-marker"
+    static let quickDescription = "com.eyepal.activity.quick-description"
+    static let detailsDescription = "com.eyepal.activity.details-description"
 
     static let all = [
         myLocation,
@@ -18,6 +20,8 @@ enum EyePalUserActivityType {
         search,
         streetPreview,
         saveMarker,
+        quickDescription,
+        detailsDescription,
     ]
 }
 
@@ -40,17 +44,33 @@ struct EyePalDeepLinkValidationResult: Identifiable, Hashable {
     let detail: String
 }
 
+enum EyePalTabAction: Equatable {
+    case quickDescription
+    case detailsDescription
+}
+
 @MainActor
 final class EyePalAppActionCenter: ObservableObject {
     @Published var pendingMapAction: EyePalMapAction?
+    @Published var pendingTabAction: EyePalTabAction?
 
     func enqueue(_ action: EyePalMapAction) {
         pendingMapAction = action
     }
 
+    func enqueue(_ action: EyePalTabAction) {
+        pendingTabAction = action
+    }
+
     func consumeMapAction() -> EyePalMapAction? {
         let action = pendingMapAction
         pendingMapAction = nil
+        return action
+    }
+
+    func consumeTabAction() -> EyePalTabAction? {
+        let action = pendingTabAction
+        pendingTabAction = nil
         return action
     }
 
@@ -77,6 +97,10 @@ final class EyePalAppActionCenter: ObservableObject {
             enqueue(.streetPreview)
         case EyePalUserActivityType.saveMarker:
             enqueue(.saveMarker)
+        case EyePalUserActivityType.quickDescription:
+            enqueue(.quickDescription)
+        case EyePalUserActivityType.detailsDescription:
+            enqueue(.detailsDescription)
         default:
             break
         }
@@ -95,23 +119,25 @@ final class EyePalAppActionCenter: ObservableObject {
     }
 
     func donateCoreShortcuts() {
-        let definitions: [(String, String)] = [
-            (EyePalUserActivityType.myLocation, "My Location"),
-            (EyePalUserActivityType.aroundMe, "Around Me"),
-            (EyePalUserActivityType.aheadOfMe, "Ahead of Me"),
-            (EyePalUserActivityType.nearbyMarkers, "Nearby Markers"),
-            (EyePalUserActivityType.search, "Search"),
-            (EyePalUserActivityType.streetPreview, "Street Preview"),
-            (EyePalUserActivityType.saveMarker, "Save Marker"),
+        let definitions: [(type: String, title: String, phrase: String)] = [
+            (EyePalUserActivityType.myLocation, "My Location", "EyePal my location"),
+            (EyePalUserActivityType.aroundMe, "Around Me", "EyePal around me"),
+            (EyePalUserActivityType.aheadOfMe, "Ahead of Me", "EyePal ahead of me"),
+            (EyePalUserActivityType.nearbyMarkers, "Nearby Markers", "EyePal nearby markers"),
+            (EyePalUserActivityType.search, "Search", "EyePal search"),
+            (EyePalUserActivityType.streetPreview, "Street Preview", "EyePal street preview"),
+            (EyePalUserActivityType.saveMarker, "Save Marker", "EyePal save marker"),
+            (EyePalUserActivityType.quickDescription, "Quick Description", "EyePal quick description"),
+            (EyePalUserActivityType.detailsDescription, "Detail Description", "EyePal detail description"),
         ]
 
-        let shortcuts: [INShortcut] = definitions.compactMap { type, title in
-            let activity = NSUserActivity(activityType: type)
-            activity.title = title
+        let shortcuts: [INShortcut] = definitions.compactMap { definition in
+            let activity = NSUserActivity(activityType: definition.type)
+            activity.title = definition.title
             activity.isEligibleForSearch = true
             activity.isEligibleForPrediction = true
             activity.isEligibleForPublicIndexing = false
-            activity.suggestedInvocationPhrase = title
+            activity.suggestedInvocationPhrase = definition.phrase
             return INShortcut(userActivity: activity)
         }
         INVoiceShortcutCenter.shared.setShortcutSuggestions(shortcuts)
@@ -224,6 +250,17 @@ struct EyePalApp: App {
                 .onContinueUserActivity(EyePalUserActivityType.saveMarker) { activity in
                     appActionCenter.handleContinuationActivity(activity)
                 }
+                .onContinueUserActivity(EyePalUserActivityType.quickDescription) { activity in
+                    appActionCenter.handleContinuationActivity(activity)
+                }
+                .onContinueUserActivity(EyePalUserActivityType.detailsDescription) { activity in
+                    appActionCenter.handleContinuationActivity(activity)
+                }
         }
     }
+}
+
+extension Notification.Name {
+    static let eyePalRequestQuickCapture = Notification.Name("com.eyepal.notification.quick-capture")
+    static let eyePalRequestDetailsCapture = Notification.Name("com.eyepal.notification.details-capture")
 }

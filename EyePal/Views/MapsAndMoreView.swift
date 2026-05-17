@@ -4101,7 +4101,6 @@ struct RealtimeChatView: View {
     @AppStorage("chatTranslateTargetLanguage") private var translateTargetLanguage = "English"
     @StateObject private var speech = SpeechInputController()
     @State private var mode: ChatMode = .voiceAgent
-    @State private var input = ""
     @State private var messages: [DetailsDescriptionTurn] = []
     @State private var isSending = false
     private let service = RealtimeChatService()
@@ -4139,7 +4138,7 @@ struct RealtimeChatView: View {
 
             Section("Conversation") {
                 if messages.isEmpty {
-                    Text("Start speaking or type a message.")
+                    Text("Start speaking to chat. Conversation is voice-first with transcript feedback.")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(messages) { turn in
@@ -4154,41 +4153,36 @@ struct RealtimeChatView: View {
             }
 
             Section("Input") {
-                TextField("Type here", text: $input)
                 HStack {
                     Button(speech.isListening ? "Stop Listening" : "Start Listening") {
                         if speech.isListening {
                             speech.stopListening()
-                            input = speech.transcript
+                            let transcript = speech.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+                            speech.transcript = ""
+                            guard !transcript.isEmpty else { return }
+                            Task { await sendCurrentInput(transcript) }
                         } else {
                             speech.startListening()
                         }
                     }
                     .buttonStyle(.bordered)
+                }
 
-                    Button(isSending ? "Sending..." : "Send") {
-                        Task { await sendCurrentInput() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isSending || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !openAIStore.isSignedIn)
+                if isSending {
+                    Text("Sending voice transcript...")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
         .navigationTitle("Chat")
-        .onChange(of: speech.transcript) { transcript in
-            if speech.isListening {
-                input = transcript
-            }
-        }
     }
 
-    private func sendCurrentInput() async {
-        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func sendCurrentInput(_ text: String) async {
         guard !text.isEmpty else { return }
 
         isSending = true
         messages.append(DetailsDescriptionTurn(role: .user, text: text))
-        input = ""
 
         do {
             let credentials = try await openAIStore.activeCredentials()

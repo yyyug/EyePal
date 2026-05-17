@@ -2,9 +2,34 @@ import SwiftUI
 import WebKit
 
 struct DetailsDescriptionView: View {
+    private enum ActionChoice: Hashable {
+        case takePhoto
+        case preset(RecognitionButtonSlot)
+    }
+
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var viewModel = DetailsDescriptionViewModel()
+    @State private var selectedActionIndex = 0
+    @State private var showPromptComposer = false
+    @State private var promptText = ""
+
+    private var detailsPresetEntries: [(slot: RecognitionButtonSlot, preset: QuickQueryPreset)] {
+        RecognitionButtonSlot.allCases
+            .map { slot in (slot: slot, preset: settingsStore.detailsPreset(for: slot)) }
+            .sorted { lhs, rhs in
+                let lhsIsProduct = lhs.preset.title.caseInsensitiveCompare("Product") == .orderedSame
+                let rhsIsProduct = rhs.preset.title.caseInsensitiveCompare("Product") == .orderedSame
+                if lhsIsProduct != rhsIsProduct {
+                    return lhsIsProduct
+                }
+                return lhs.slot.rawValue < rhs.slot.rawValue
+            }
+    }
+
+    private var actionChoices: [ActionChoice] {
+        [.takePhoto] + detailsPresetEntries.map { .preset($0.slot) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -13,9 +38,6 @@ struct DetailsDescriptionView: View {
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(viewModel.statusText)
-                        .font(.headline)
-
                     if !openAIStore.isSignedIn {
                         Text("Sign in with ChatGPT to use scene description.")
                             .font(.subheadline)
@@ -26,6 +48,8 @@ struct DetailsDescriptionView: View {
                         }
                         .buttonStyle(.borderedProminent)
                     } else {
+                        actionSelectorButton
+
                         if !viewModel.descriptionText.isEmpty {
                             ScrollView {
                                 Text(viewModel.descriptionText)
@@ -33,39 +57,8 @@ struct DetailsDescriptionView: View {
                             }
                             .frame(maxHeight: 160)
                             .accessibilityLabel("Scene description")
-                        }
+                            .accessibilitySortPriority(3)
 
-                        HStack(spacing: 12) {
-                            Button {
-                                if viewModel.descriptionText.isEmpty {
-                                    viewModel.capturePhoto()
-                                } else {
-                                    viewModel.retake()
-                                }
-                            } label: {
-                                Label(
-                                    viewModel.descriptionText.isEmpty ? (viewModel.isProcessing ? "Working..." : "Take Photo") : "Retake Photo",
-                                    systemImage: viewModel.descriptionText.isEmpty ? "camera" : "arrow.clockwise"
-                                )
-                                .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(viewModel.isProcessing)
-                        }
-
-                        HStack(spacing: 12) {
-                            ForEach(RecognitionButtonSlot.allCases) { slot in
-                                let preset = settingsStore.detailsPreset(for: slot)
-                                detailsPresetButton(
-                                    title: preset.title,
-                                    systemImage: preset.systemImageName
-                                ) {
-                                    viewModel.capturePresetPhoto(preset)
-                                }
-                            }
-                        }
-
-                        if !viewModel.descriptionText.isEmpty {
                             HStack(spacing: 8) {
                                 TextField("Ask a follow-up question", text: $viewModel.followUpQuestion)
                                     .textFieldStyle(.roundedBorder)
@@ -73,12 +66,14 @@ struct DetailsDescriptionView: View {
                                     .onSubmit {
                                         viewModel.submitFollowUp()
                                     }
+                                    .accessibilitySortPriority(2)
 
                                 Button("Send") {
                                     viewModel.submitFollowUp()
                                 }
                                 .buttonStyle(.bordered)
                                 .disabled(viewModel.isProcessing || viewModel.followUpQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                .accessibilitySortPriority(1)
                             }
                         }
                     }
@@ -125,10 +120,23 @@ struct DetailsDescriptionView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
+            .alert("Take Photo With Prompt", isPresented: $showPromptComposer) {
+                TextField("Prompt", text: $promptText)
+                Button("Send") {
+                    viewModel.capturePhotoWithPrompt(promptText)
+                    promptText = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    promptText = ""
+                }
+            } message: {
+                Text("Enter a custom prompt and send it with a new photo.")
+            }
         }
         .onAppear {
             viewModel.bind(openAIStore: openAIStore)
             viewModel.start()
+            selectedActionIndex = min(selectedActionIndex, max(actionChoices.count - 1, 0))
         }
         .onDisappear {
             viewModel.stop()
@@ -138,28 +146,83 @@ struct DetailsDescriptionView: View {
                 viewModel.retake()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .eyePalRequestDetailsCapture)) { _ in
+            selectedActionIndex = 0
+            performSelectedAction()
+        }
+        .onChange(of: detailsPresetEntries.map { $0.slot.rawValue }) { _ in
+            selectedActionIndex = min(selectedActionIndex, max(actionChoices.count - 1, 0))
+        }
     }
 
-    @ViewBuilder
-    private func detailsPresetButton(
-        title: String,
-        systemImage: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.title3)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .multilineTextAlignment(.center)
-            }
+    private var actionSelectorButton: some View {
+        Button {
+            performSelectedAction()
+        } label: {
+            Label(
+                viewModel.isProcessing ? "Working..." : selectedActionTitle,
+                systemImage: selectedActionSymbol
+            )
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 12)
             .padding(.vertical, 14)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.borderedProminent)
         .disabled(viewModel.isProcessing)
+        .accessibilityLabel("Capture action")
+        .accessibilityValue(selectedActionTitle)
+        .accessibilityHint("Swipe up or down to choose an action. Double tap to run the selected action.")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                selectedActionIndex = min(selectedActionIndex + 1, actionChoices.count - 1)
+            case .decrement:
+                selectedActionIndex = max(selectedActionIndex - 1, 0)
+            @unknown default:
+                break
+            }
+        }
+        .accessibilityAction(named: Text("Take Photo With Prompt")) {
+            selectedActionIndex = 0
+            showPromptComposer = true
+        }
+        .onLongPressGesture(minimumDuration: 0.8) {
+            guard selectedAction == .takePhoto else { return }
+            showPromptComposer = true
+        }
+        .accessibilitySortPriority(5)
+    }
+
+    private var selectedAction: ActionChoice {
+        guard !actionChoices.isEmpty else { return .takePhoto }
+        let clampedIndex = min(max(selectedActionIndex, 0), actionChoices.count - 1)
+        return actionChoices[clampedIndex]
+    }
+
+    private var selectedActionTitle: String {
+        switch selectedAction {
+        case .takePhoto:
+            return "Take Photo"
+        case .preset(let slot):
+            return settingsStore.detailsPreset(for: slot).title
+        }
+    }
+
+    private var selectedActionSymbol: String {
+        switch selectedAction {
+        case .takePhoto:
+            return "camera"
+        case .preset(let slot):
+            return settingsStore.detailsPreset(for: slot).systemImageName
+        }
+    }
+
+    private func performSelectedAction() {
+        switch selectedAction {
+        case .takePhoto:
+            viewModel.capturePhoto()
+        case .preset(let slot):
+            viewModel.capturePresetPhoto(settingsStore.detailsPreset(for: slot))
+        }
     }
 }
 

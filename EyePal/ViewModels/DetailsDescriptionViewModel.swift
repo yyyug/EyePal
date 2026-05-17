@@ -4,7 +4,7 @@ import UIKit
 @MainActor
 final class DetailsDescriptionViewModel: ObservableObject {
     private static let helperInstruction = "Take a photo to describe the scene."
-    private static let defaultDescriptionPrompt = "Describe this image for a blind user. Focus on people, objects, visible text, layout, hazards, and orientation cues. Be concise but specific. Do not use markdown or double asterisks."
+    private static let defaultDescriptionPrompt = "For a blind user, first read visible text exactly. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks."
 
     @Published var statusText = helperInstruction
     @Published var descriptionText = ""
@@ -35,11 +35,17 @@ final class DetailsDescriptionViewModel: ObservableObject {
     }
 
     func capturePhoto() {
-        capturePhoto(usingPrompt: Self.defaultDescriptionPrompt)
+        capturePhotoWithPrompt(Self.defaultDescriptionPrompt)
     }
 
     func capturePresetPhoto(_ preset: QuickQueryPreset) {
-        capturePhoto(usingPrompt: preset.prompt)
+        capturePhotoWithPrompt(preset.prompt)
+    }
+
+    func capturePhotoWithPrompt(_ prompt: String) {
+        let cleaned = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalPrompt = cleaned.isEmpty ? Self.defaultDescriptionPrompt : cleaned
+        capturePhoto(usingPrompt: finalPrompt)
     }
 
     private func capturePhoto(usingPrompt prompt: String) {
@@ -59,7 +65,6 @@ final class DetailsDescriptionViewModel: ObservableObject {
 
         isProcessing = true
         statusText = "Describing the photo."
-        camera.stop()
         capturedPreview = image
 
         Task {
@@ -82,7 +87,7 @@ final class DetailsDescriptionViewModel: ObservableObject {
                 conversation.append(DetailsDescriptionTurn(role: .assistant, text: response))
                 descriptionText = response
                 statusText = "Photo details are ready."
-                announcer.announce(response, minimumInterval: 0)
+                announcer.announce(response, minimumInterval: 0.25)
                 isProcessing = false
             } catch {
                 errorMessage = error.localizedDescription
@@ -122,7 +127,7 @@ final class DetailsDescriptionViewModel: ObservableObject {
                 conversation.append(DetailsDescriptionTurn(role: .assistant, text: response))
                 descriptionText = response
                 statusText = "Follow-up answer is ready."
-                announcer.announce(response, minimumInterval: 0)
+                announcer.announce(response, minimumInterval: 0.25)
                 isProcessing = false
             } catch {
                 errorMessage = error.localizedDescription
