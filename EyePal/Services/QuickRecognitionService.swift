@@ -35,14 +35,18 @@ final class QuickRecognitionService {
         self.session = session
     }
 
-    func prepareImageDataURL(from image: UIImage) throws -> String {
-        let maximumDimension: CGFloat = 320
+    func prepareImageDataURL(
+        from image: UIImage,
+        maximumDimension: CGFloat? = 320,
+        compressionQuality: CGFloat = 0.5
+    ) throws -> String {
         let originalSize = image.size
         guard originalSize.width > 0, originalSize.height > 0 else {
             throw QuickRecognitionError.imageEncodingFailed
         }
 
-        let scale = min(1, maximumDimension / max(originalSize.width, originalSize.height))
+        let resolvedMaxDimension = maximumDimension ?? max(originalSize.width, originalSize.height)
+        let scale = min(1, resolvedMaxDimension / max(originalSize.width, originalSize.height))
         let targetSize = CGSize(width: originalSize.width * scale, height: originalSize.height * scale)
 
         let format = UIGraphicsImageRendererFormat.default()
@@ -52,7 +56,7 @@ final class QuickRecognitionService {
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
 
-        guard let jpegData = resizedImage.jpegData(compressionQuality: 0.5) else {
+        guard let jpegData = resizedImage.jpegData(compressionQuality: compressionQuality) else {
             throw QuickRecognitionError.imageEncodingFailed
         }
 

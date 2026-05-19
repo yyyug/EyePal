@@ -19,6 +19,8 @@ final class DetailsDescriptionViewModel: ObservableObject {
     private let announcer = AccessibilityAnnouncementCenter()
     private var conversation: [DetailsDescriptionTurn] = []
     private var imageData: Data?
+    private var latestCapturedImage: UIImage?
+    private var latestPrompt = defaultDescriptionPrompt
     private var openAIStore: OpenAISubscriptionStore?
 
     func bind(openAIStore: OpenAISubscriptionStore) {
@@ -49,6 +51,16 @@ final class DetailsDescriptionViewModel: ObservableObject {
     }
 
     private func capturePhoto(usingPrompt prompt: String) {
+        capturePhoto(usingPrompt: prompt, sourceImage: nil, useFullResolution: false)
+    }
+
+    func resendCapturedPhotoInFullResolution() {
+        guard !isProcessing else { return }
+        guard let latestCapturedImage else { return }
+        capturePhoto(usingPrompt: latestPrompt, sourceImage: latestCapturedImage, useFullResolution: true)
+    }
+
+    private func capturePhoto(usingPrompt prompt: String, sourceImage: UIImage?, useFullResolution: Bool) {
         guard !isProcessing else { return }
         guard let openAIStore else {
             errorMessage = OpenAISubscriptionError.notSignedIn.localizedDescription
@@ -58,18 +70,24 @@ final class DetailsDescriptionViewModel: ObservableObject {
             errorMessage = OpenAISubscriptionError.notSignedIn.localizedDescription
             return
         }
-        guard let image = camera.currentFrameImage() else {
+        guard let image = sourceImage ?? camera.currentFrameImage() else {
             statusText = "No camera frame is ready yet."
             return
         }
 
         isProcessing = true
         statusText = "Describing the photo."
-        capturedPreview = image
+        latestCapturedImage = image
+        latestPrompt = prompt
+        capturedPreview = makePreviewImage(from: image)
 
         Task {
             do {
-                let preparedImageData = try descriptionService.prepareImageData(from: image)
+                let preparedImageData = try descriptionService.prepareImageData(
+                    from: image,
+                    maximumDimension: useFullResolution ? nil : 640,
+                    compressionQuality: useFullResolution ? 0.82 : 0.72
+                )
                 imageData = preparedImageData
                 conversation = [
                     DetailsDescriptionTurn(
@@ -147,5 +165,20 @@ final class DetailsDescriptionViewModel: ObservableObject {
         errorMessage = nil
         statusText = Self.helperInstruction
         camera.start()
+    }
+
+    private func makePreviewImage(from image: UIImage) -> UIImage {
+        let maximumDimension: CGFloat = 280
+        let originalSize = image.size
+        guard originalSize.width > 0, originalSize.height > 0 else { return image }
+
+        let scale = min(1, maximumDimension / max(originalSize.width, originalSize.height))
+        let targetSize = CGSize(width: originalSize.width * scale, height: originalSize.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 }

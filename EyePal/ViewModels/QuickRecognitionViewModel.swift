@@ -16,6 +16,7 @@ final class QuickRecognitionViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var isContinuousCapture = false
     @Published var errorMessage: String?
+    @Published var capturedPreview: UIImage?
 #if canImport(Translation)
     @Published var translationRequest: QuickTranslationRequest?
     #endif
@@ -26,6 +27,8 @@ final class QuickRecognitionViewModel: ObservableObject {
     private let announcer = AccessibilityAnnouncementCenter()
     private weak var settingsStore: SettingsStore?
     private var continuousTask: Task<Void, Never>?
+    private var latestCapturedImage: UIImage?
+    private var latestRequestKind: RequestKind?
 
     func bind(settings: SettingsStore) {
         settingsStore = settings
@@ -80,6 +83,20 @@ final class QuickRecognitionViewModel: ObservableObject {
         presentResponse(finalText)
     }
 
+    func resendCapturedPhotoInFullResolution() {
+        guard !isProcessing else { return }
+        guard let latestCapturedImage, let latestRequestKind else { return }
+
+        Task {
+            await performCapture(
+                latestRequestKind,
+                status: "Resending full-resolution image.",
+                sourceImage: latestCapturedImage,
+                useFullResolution: true
+            )
+        }
+    }
+
     private func captureForContinuousMode() async {
         guard !isProcessing else { return }
         await performCapture(.caption(.short), status: "Analyzing scene.")
@@ -93,7 +110,12 @@ final class QuickRecognitionViewModel: ObservableObject {
         }
     }
 
-    private func performCapture(_ request: RequestKind, status: String) async {
+    private func performCapture(
+        _ request: RequestKind,
+        status: String,
+        sourceImage: UIImage? = nil,
+        useFullResolution: Bool = false
+    ) async {
         guard let settingsStore else {
             errorMessage = "Quick Recognition settings are unavailable."
             return
@@ -105,10 +127,14 @@ final class QuickRecognitionViewModel: ObservableObject {
             return
         }
 
-        guard let image = camera.currentFrameImage() else {
+        guard let image = sourceImage ?? camera.currentFrameImage() else {
             statusText = "No camera frame is ready yet."
             return
         }
+
+        latestCapturedImage = image
+        latestRequestKind = request
+        capturedPreview = makePreviewImage(from: image)
 
         isProcessing = true
         statusText = status
@@ -117,7 +143,11 @@ final class QuickRecognitionViewModel: ObservableObject {
         #endif
 
         do {
-            let imageDataURL = try service.prepareImageDataURL(from: image)
+            let imageDataURL = try service.prepareImageDataURL(
+                from: image,
+                maximumDimension: useFullResolution ? nil : 320,
+                compressionQuality: useFullResolution ? 0.8 : 0.5
+            )
             let response: String
 
             switch request {
@@ -188,6 +218,21 @@ final class QuickRecognitionViewModel: ObservableObject {
         QuickContinuousCaptureInterval(
             rawValue: settingsStore?.quickContinuousCaptureInterval ?? QuickContinuousCaptureInterval.defaultInterval.rawValue
         ) ?? .defaultInterval
+    }
+
+    private func makePreviewImage(from image: UIImage) -> UIImage {
+        let maximumDimension: CGFloat = 260
+        let originalSize = image.size
+        guard originalSize.width > 0, originalSize.height > 0 else { return image }
+
+        let scale = min(1, maximumDimension / max(originalSize.width, originalSize.height))
+        let targetSize = CGSize(width: originalSize.width * scale, height: originalSize.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 }
 

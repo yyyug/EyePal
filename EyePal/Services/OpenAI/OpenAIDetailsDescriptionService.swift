@@ -42,14 +42,18 @@ final class OpenAIDetailsDescriptionService {
         self.session = session
     }
 
-    func prepareImageData(from image: UIImage) throws -> Data {
-        let maximumDimension: CGFloat = 640
+    func prepareImageData(
+        from image: UIImage,
+        maximumDimension: CGFloat? = 640,
+        compressionQuality: CGFloat = 0.72
+    ) throws -> Data {
         let originalSize = image.size
         guard originalSize.width > 0, originalSize.height > 0 else {
             throw OpenAIDetailsDescriptionError.missingImage
         }
 
-        let scale = min(1, maximumDimension / max(originalSize.width, originalSize.height))
+        let resolvedMaxDimension = maximumDimension ?? max(originalSize.width, originalSize.height)
+        let scale = min(1, resolvedMaxDimension / max(originalSize.width, originalSize.height))
         let targetSize = CGSize(width: originalSize.width * scale, height: originalSize.height * scale)
 
         let format = UIGraphicsImageRendererFormat.default()
@@ -59,7 +63,7 @@ final class OpenAIDetailsDescriptionService {
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
 
-        guard let jpegData = resizedImage.jpegData(compressionQuality: 0.72) else {
+        guard let jpegData = resizedImage.jpegData(compressionQuality: compressionQuality) else {
             throw OpenAIDetailsDescriptionError.invalidResponse
         }
 

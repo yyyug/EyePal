@@ -4,7 +4,6 @@ import AVFoundation
 import MapKit
 import Combine
 import Network
-import Speech
 import CryptoKit
 
 private let alaViaBaseURL = URL(string: "https://via.inclu.si")!
@@ -4091,7 +4090,7 @@ private struct GuidedTourSheet: View {
 
 struct RealtimeChatView: View {
     private enum ChatMode: String, CaseIterable, Identifiable {
-        case voiceAgent = "Voice Agent"
+        case voiceAssistant = "Voice Assistant"
         case translate = "Translate"
 
         var id: String { rawValue }
@@ -4099,17 +4098,13 @@ struct RealtimeChatView: View {
 
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @AppStorage("chatTranslateTargetLanguage") private var translateTargetLanguage = "English"
-    @StateObject private var speech = SpeechInputController()
-    @State private var mode: ChatMode = .voiceAgent
-    @State private var messages: [DetailsDescriptionTurn] = []
-    @State private var isSending = false
-    private let service = RealtimeChatService()
-    private let speaker = AVSpeechSynthesizer()
+    @State private var mode: ChatMode = .voiceAssistant
+    @StateObject private var controller = RealtimeVoiceChatController()
 
     var body: some View {
         List {
             Section("Model") {
-                Text("gpt-realtime-2")
+                Text("gpt-realtime")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 if openAIStore.isSignedIn {
@@ -4123,8 +4118,8 @@ struct RealtimeChatView: View {
                 }
             }
 
-            Section("Mode") {
-                Picker("Mode", selection: $mode) {
+            Section("Chat") {
+                Picker("Chat", selection: $mode) {
                     ForEach(ChatMode.allCases) { entry in
                         Text(entry.rawValue).tag(entry)
                     }
@@ -4134,117 +4129,113 @@ struct RealtimeChatView: View {
                 if mode == .translate {
                     TextField("Target Language", text: $translateTargetLanguage)
                 }
-            }
 
-            Section("Conversation") {
-                if messages.isEmpty {
-                    Text("Start speaking to chat. Conversation is voice-first with transcript feedback.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(messages) { turn in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(turn.role == .user ? "You" : "Assistant")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(turn.text)
-                        }
+                Button(controller.isStreamingAudio ? "Stop and Respond" : "Start Voice Chat") {
+                    if controller.isStreamingAudio {
+                        controller.stopAndGenerateResponse()
+                    } else {
+                        beginVoiceChat()
                     }
                 }
-            }
+                .buttonStyle(.borderedProminent)
+                .disabled(!openAIStore.isSignedIn || controller.isGeneratingResponse)
 
-            Section("Input") {
-                HStack {
-                    Button(speech.isListening ? "Stop Listening" : "Start Listening") {
-                        if speech.isListening {
-                            speech.stopListening()
-                            let transcript = speech.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-                            speech.transcript = ""
-                            guard !transcript.isEmpty else { return }
-                            Task { await sendCurrentInput(transcript) }
-                        } else {
-                            speech.startListening()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                if isSending {
-                    Text("Sending voice transcript...")
+                if controller.isStreamingAudio || controller.isGeneratingResponse {
+                    Text(controller.statusText)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                if !controller.latestResponse.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Assistant")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: .constant(controller.latestResponse))
+                            .frame(minHeight: 120, maxHeight: 180)
+                            .scrollContentBackground(.hidden)
+                            .padding(8)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
                 }
             }
         }
         .navigationTitle("Chat")
+        .alert(
+            "Chat Error",
+            isPresented: Binding(
+                get: { controller.errorMessage != nil },
+                set: { if !$0 { controller.errorMessage = nil } }
+            )
+        ) {
+            Button("OK") {
+                controller.errorMessage = nil
+            }
+        } message: {
+            Text(controller.errorMessage ?? "")
+        }
     }
 
-    private func sendCurrentInput(_ text: String) async {
-        guard !text.isEmpty else { return }
-
-        isSending = true
-        messages.append(DetailsDescriptionTurn(role: .user, text: text))
-
-        do {
-            let credentials = try await openAIStore.activeCredentials()
-            let response = try await service.generate(
-                accessToken: credentials.accessToken,
-                model: "gpt-realtime-2",
-                mode: mode.rawValue,
-                targetLanguage: translateTargetLanguage,
-                userText: text
-            )
-            messages.append(DetailsDescriptionTurn(role: .assistant, text: response))
-            let utterance = AVSpeechUtterance(string: response)
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-            speaker.speak(utterance)
-        } catch {
-            messages.append(DetailsDescriptionTurn(role: .assistant, text: error.localizedDescription))
+    private func beginVoiceChat() {
+        Task {
+            do {
+                let credentials = try await openAIStore.activeCredentials()
+                controller.startStreaming(
+                    accessToken: credentials.accessToken,
+                    translateModeEnabled: mode == .translate,
+                    targetLanguage: translateTargetLanguage
+                )
+            } catch {
+                await MainActor.run {
+                    controller.errorMessage = error.localizedDescription
+                }
+            }
         }
-
-        isSending = false
     }
 }
 
-private final class RealtimeChatService {
-    func generate(accessToken: String, model: String, mode: String, targetLanguage: String, userText: String) async throws -> String {
+private actor RealtimeVoiceChatService {
+    private var socket: URLSessionWebSocketTask?
+    private var session: URLSession?
+
+    func connect(accessToken: String, model: String, instructions: String) async throws {
         let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? model
         var request = URLRequest(url: URL(string: "wss://api.openai.com/v1/realtime?model=\(encodedModel)")!)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
 
-        let instructions: String
-        if mode == "Translate" {
-            instructions = "You are a real-time translator. Translate the user input into \(targetLanguage). Preserve meaning and tone. Keep output concise."
-        } else {
-            instructions = "You are a low-latency voice assistant for visually impaired users. Be concise, clear, and actionable."
-        }
-
         let session = URLSession(configuration: .default)
         let socket = session.webSocketTask(with: request)
+        self.session = session
+        self.socket = socket
         socket.resume()
-        defer {
-            socket.cancel(with: .goingAway, reason: nil)
-        }
 
         try await send(socket, payload: [
             "type": "session.update",
             "session": [
                 "instructions": instructions,
+                "input_audio_format": "pcm16",
+                "output_audio_format": "pcm16",
+                "turn_detection": ["type": "none"],
             ],
         ])
+    }
+
+    func appendInputAudioChunk(_ chunk: Data) async throws {
+        guard let socket else { return }
+        try await send(socket, payload: [
+            "type": "input_audio_buffer.append",
+            "audio": chunk.base64EncodedString(),
+        ])
+    }
+
+    func commitAndGenerateResponse() async throws -> String {
+        guard let socket else {
+            throw RealtimeVoiceChatError(message: "Realtime session is not connected.")
+        }
 
         try await send(socket, payload: [
-            "type": "conversation.item.create",
-            "item": [
-                "type": "message",
-                "role": "user",
-                "content": [
-                    [
-                        "type": "input_text",
-                        "text": userText,
-                    ],
-                ],
-            ],
+            "type": "input_audio_buffer.commit",
         ])
 
         try await send(socket, payload: [
@@ -4275,7 +4266,7 @@ private final class RealtimeChatService {
             let type = object["type"] as? String ?? ""
 
             if type == "error" {
-                throw CurrentLocationProviderError(errorDescription: errorMessage(from: object))
+                throw RealtimeVoiceChatError(message: errorMessage(from: object))
             }
 
             if type == "response.output_text.delta" || type == "response.text.delta" {
@@ -4295,9 +4286,15 @@ private final class RealtimeChatService {
                 if !outputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     return outputText
                 }
-                throw CurrentLocationProviderError(errorDescription: "No response text returned.")
+                throw RealtimeVoiceChatError(message: "No response text returned.")
             }
         }
+    }
+
+    func disconnect() {
+        socket?.cancel(with: .goingAway, reason: nil)
+        socket = nil
+        session = nil
     }
 
     private func send(_ socket: URLSessionWebSocketTask, payload: [String: Any]) async throws {
@@ -4345,65 +4342,139 @@ private final class RealtimeChatService {
 }
 
 @MainActor
-private final class SpeechInputController: NSObject, ObservableObject {
-    @Published var transcript = ""
-    @Published var isListening = false
+private final class RealtimeVoiceChatController: NSObject, ObservableObject {
+    @Published var isStreamingAudio = false
+    @Published var isGeneratingResponse = false
+    @Published var statusText = "Ready"
+    @Published var latestResponse = ""
+    @Published var errorMessage: String?
 
+    private let service = RealtimeVoiceChatService()
+    private let speaker = AVSpeechSynthesizer()
     private let audioEngine = AVAudioEngine()
-    private var request: SFSpeechAudioBufferRecognitionRequest?
-    private var task: SFSpeechRecognitionTask?
-    private let recognizer = SFSpeechRecognizer()
+    private let model = "gpt-realtime"
 
-    func startListening() {
-        guard !isListening else { return }
-        SFSpeechRecognizer.requestAuthorization { [weak self] status in
-            guard status == .authorized else { return }
-            Task { @MainActor in
-                self?.beginAudioCapture()
+    func startStreaming(accessToken: String, translateModeEnabled: Bool, targetLanguage: String) {
+        guard !isStreamingAudio else { return }
+
+        let instructions: String
+        if translateModeEnabled {
+            instructions = "You are a realtime translator. Translate the user's speech into \(targetLanguage). Keep meaning and tone, and keep output concise."
+        } else {
+            instructions = "You are a low-latency voice assistant for blind users. Speak clearly, concretely, and keep answers concise."
+        }
+
+        latestResponse = ""
+        errorMessage = nil
+        statusText = "Starting microphone stream."
+
+        Task {
+            do {
+                try await service.connect(accessToken: accessToken, model: model, instructions: instructions)
+                try await MainActor.run {
+                    try configureAndStartAudioTap()
+                    isStreamingAudio = true
+                    statusText = "Listening. Tap Stop and Respond when done."
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.statusText = "Could not start realtime voice chat."
+                    self.isStreamingAudio = false
+                }
+                await service.disconnect()
             }
         }
     }
 
-    func stopListening() {
-        guard isListening else { return }
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
-        request?.endAudio()
-        task?.cancel()
-        task = nil
-        request = nil
-        isListening = false
+    func stopAndGenerateResponse() {
+        guard isStreamingAudio else { return }
+        stopAudioTap()
+        isStreamingAudio = false
+        isGeneratingResponse = true
+        statusText = "Generating response."
+
+        Task {
+            defer {
+                Task { @MainActor in
+                    self.isGeneratingResponse = false
+                }
+            }
+
+            do {
+                let response = try await service.commitAndGenerateResponse()
+                await MainActor.run {
+                    latestResponse = response
+                    statusText = "Response ready."
+                    speak(response)
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    statusText = "Realtime chat failed."
+                }
+            }
+
+            await service.disconnect()
+        }
     }
 
-    private func beginAudioCapture() {
-        transcript = ""
-        request = SFSpeechAudioBufferRecognitionRequest()
-        guard let request else { return }
-        request.shouldReportPartialResults = true
+    private func configureAndStartAudioTap() throws {
+        let inputNode = audioEngine.inputNode
+        let inputFormat = inputNode.outputFormat(forBus: 0)
 
-        let node = audioEngine.inputNode
-        let format = node.outputFormat(forBus: 0)
-        node.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.request?.append(buffer)
+        inputNode.removeTap(onBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
+            guard let self else { return }
+            guard let pcmData = self.makePCM16Data(from: buffer) else { return }
+            Task {
+                try? await self.service.appendInputAudioChunk(pcmData)
+            }
         }
 
         audioEngine.prepare()
-        try? audioEngine.start()
-        isListening = true
+        try audioEngine.start()
+    }
 
-        task = recognizer?.recognitionTask(with: request) { [weak self] result, error in
-            guard let self else { return }
-            if let result {
-                Task { @MainActor in
-                    self.transcript = result.bestTranscription.formattedString
-                }
+    private func stopAudioTap() {
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+    }
+
+    private func makePCM16Data(from buffer: AVAudioPCMBuffer) -> Data? {
+        guard let channelData = buffer.floatChannelData else { return nil }
+        let channelCount = Int(buffer.format.channelCount)
+        let frameLength = Int(buffer.frameLength)
+        guard channelCount > 0, frameLength > 0 else { return nil }
+
+        var samples = [Int16](repeating: 0, count: frameLength)
+        for frame in 0..<frameLength {
+            var mixed: Float = 0
+            for channel in 0..<channelCount {
+                mixed += channelData[channel][frame]
             }
-            if error != nil {
-                Task { @MainActor in
-                    self.stopListening()
-                }
-            }
+            mixed /= Float(channelCount)
+            let clamped = max(-1, min(1, mixed))
+            samples[frame] = Int16(clamped * Float(Int16.max))
         }
+
+        return samples.withUnsafeBufferPointer { pointer in
+            Data(buffer: pointer)
+        }
+    }
+
+    private func speak(_ text: String) {
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        speaker.speak(utterance)
+    }
+}
+
+private struct RealtimeVoiceChatError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? {
+        message
     }
 }
 

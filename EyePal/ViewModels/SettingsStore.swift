@@ -10,6 +10,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
     @AppStorage("quickContinuousCaptureInterval") var quickContinuousCaptureInterval = QuickContinuousCaptureInterval.defaultInterval.rawValue
+    @AppStorage("quickActionControlStyle") var quickActionControlStyle = RecognitionActionControlStyle.onScreenButtons.rawValue
     @AppStorage("quickCaptionTranslationEnabled") var quickCaptionTranslationEnabled = false
     @AppStorage("quickCaptionTranslationTargetLanguage") var quickCaptionTranslationTargetLanguage = ""
     @AppStorage("mapsMaxDistanceMeters") var mapsMaxDistanceMeters = 100.0
@@ -69,6 +70,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("detailsButton4PresetKind") var detailsButton4PresetKind = RecognitionButtonSlot.fourth.defaultPresetKind.rawValue
     @AppStorage("detailsButton4CustomTitle") var detailsButton4CustomTitle = DetailsCustomQueryPreset.defaultTitle
     @AppStorage("detailsButton4CustomPrompt") var detailsButton4CustomPrompt = DetailsCustomQueryPreset.defaultPrompt
+    @AppStorage("detailsActionControlStyle") var detailsActionControlStyle = RecognitionActionControlStyle.singleAdjustableControl.rawValue
 
     var orderedFeatures: [AppFeature] {
         get {

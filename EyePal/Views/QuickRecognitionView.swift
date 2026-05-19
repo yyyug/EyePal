@@ -4,8 +4,35 @@ import Translation
 #endif
 
 struct QuickRecognitionView: View {
+    private enum ActionChoice: Hashable {
+        case takePhoto
+        case preset(RecognitionButtonSlot)
+    }
+
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = QuickRecognitionViewModel()
+    @State private var selectedActionIndex = 0
+
+    private var quickPresetEntries: [(slot: RecognitionButtonSlot, preset: QuickQueryPreset)] {
+        RecognitionButtonSlot.allCases
+            .map { slot in (slot: slot, preset: settingsStore.quickPreset(for: slot)) }
+            .sorted { lhs, rhs in
+                let lhsIsProduct = lhs.preset.title.caseInsensitiveCompare("Product") == .orderedSame
+                let rhsIsProduct = rhs.preset.title.caseInsensitiveCompare("Product") == .orderedSame
+                if lhsIsProduct != rhsIsProduct {
+                    return lhsIsProduct
+                }
+                return lhs.slot.rawValue < rhs.slot.rawValue
+            }
+    }
+
+    private var actionChoices: [ActionChoice] {
+        [.takePhoto] + quickPresetEntries.map { .preset($0.slot) }
+    }
+
+    private var selectedActionControlStyle: RecognitionActionControlStyle {
+        RecognitionActionControlStyle(rawValue: settingsStore.quickActionControlStyle) ?? .onScreenButtons
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,60 +47,27 @@ struct QuickRecognitionView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if !viewModel.responseText.isEmpty {
-                        ScrollView {
-                            Text(viewModel.responseText)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .frame(maxHeight: 160)
-                        .accessibilityLabel("Quick recognition result")
-                        .accessibilitySortPriority(2)
-                    }
+                    resultPanel
 
                     VStack(spacing: 12) {
-                        HStack(spacing: 12) {
-                            Button {
-                                viewModel.takePhoto()
-                            } label: {
-                                Label(viewModel.isProcessing ? "Working..." : "Take Photo", systemImage: "camera")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(viewModel.isProcessing || viewModel.isContinuousCapture)
-                            .accessibilitySortPriority(5)
+                        controlPanel
 
-                            Button {
-                                if viewModel.isContinuousCapture {
-                                    viewModel.stopContinuousMode()
-                                } else {
-                                    viewModel.startContinuousMode()
-                                }
-                            } label: {
-                                Label(
-                                    viewModel.isContinuousCapture ? "Stop" : "Continuous",
-                                    systemImage: viewModel.isContinuousCapture ? "stop.circle" : "play.circle"
-                                )
-                                .frame(maxWidth: .infinity)
+                        Button {
+                            if viewModel.isContinuousCapture {
+                                viewModel.stopContinuousMode()
+                            } else {
+                                viewModel.startContinuousMode()
                             }
-                            .buttonStyle(.bordered)
-                            .disabled(viewModel.isProcessing && !viewModel.isContinuousCapture)
-                            .accessibilitySortPriority(1)
+                        } label: {
+                            Label(
+                                viewModel.isContinuousCapture ? "Stop" : "Continuous",
+                                systemImage: viewModel.isContinuousCapture ? "stop.circle" : "play.circle"
+                            )
+                            .frame(maxWidth: .infinity)
                         }
-
-                        HStack(spacing: 12) {
-                            ForEach(RecognitionButtonSlot.allCases) { slot in
-                                let preset = settingsStore.quickPreset(for: slot)
-                                quickPresetButton(
-                                    title: preset.title,
-                                    systemImage: preset.systemImageName
-                                ) {
-                                    viewModel.takePresetPhoto(preset)
-                                }
-                                .accessibilitySortPriority(
-                                    preset.title.caseInsensitiveCompare("Product") == .orderedSame ? 4 : 3
-                                )
-                            }
-                        }
+                        .buttonStyle(.bordered)
+                        .disabled(viewModel.isProcessing && !viewModel.isContinuousCapture)
+                        .accessibilitySortPriority(1)
                     }
                 }
                 .padding()
@@ -101,12 +95,148 @@ struct QuickRecognitionView: View {
         .onAppear {
             viewModel.bind(settings: settingsStore)
             viewModel.start()
+            selectedActionIndex = min(selectedActionIndex, max(actionChoices.count - 1, 0))
         }
         .onDisappear {
             viewModel.stop()
         }
         .onReceive(NotificationCenter.default.publisher(for: .eyePalRequestQuickCapture)) { _ in
             viewModel.takePhoto()
+        }
+        .onChange(of: quickPresetEntries.map { $0.slot.rawValue }) { _ in
+            selectedActionIndex = min(selectedActionIndex, max(actionChoices.count - 1, 0))
+        }
+    }
+
+    @ViewBuilder
+    private var resultPanel: some View {
+        if viewModel.capturedPreview != nil || !viewModel.responseText.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                if let capturedPreview = viewModel.capturedPreview {
+                    Button {
+                        viewModel.resendCapturedPhotoInFullResolution()
+                    } label: {
+                        Image(uiImage: capturedPreview)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Captured image, tap to resend in full resolution")
+                    .disabled(viewModel.isProcessing)
+                }
+
+                if !viewModel.responseText.isEmpty {
+                    TextEditor(text: .constant(viewModel.responseText))
+                        .frame(minHeight: 120, maxHeight: 180)
+                        .scrollContentBackground(.hidden)
+                        .padding(8)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .accessibilityLabel("Quick recognition result")
+                        .accessibilitySortPriority(2)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var controlPanel: some View {
+        switch selectedActionControlStyle {
+        case .onScreenButtons:
+            quickButtonGrid
+        case .singleAdjustableControl:
+            adjustableActionButton
+        }
+    }
+
+    private var quickButtonGrid: some View {
+        VStack(spacing: 12) {
+            Button {
+                viewModel.takePhoto()
+            } label: {
+                Label(viewModel.isProcessing ? "Working..." : "Take Photo", systemImage: "camera")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(viewModel.isProcessing || viewModel.isContinuousCapture)
+            .accessibilitySortPriority(5)
+
+            HStack(spacing: 12) {
+                ForEach(quickPresetEntries, id: \.slot) { entry in
+                    quickPresetButton(
+                        title: entry.preset.title,
+                        systemImage: entry.preset.systemImageName
+                    ) {
+                        viewModel.takePresetPhoto(entry.preset)
+                    }
+                    .accessibilitySortPriority(
+                        entry.preset.title.caseInsensitiveCompare("Product") == .orderedSame ? 4 : 3
+                    )
+                }
+            }
+        }
+    }
+
+    private var adjustableActionButton: some View {
+        Button {
+            performSelectedAction()
+        } label: {
+            Label(
+                viewModel.isProcessing ? "Working..." : selectedActionTitle,
+                systemImage: selectedActionSymbol
+            )
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(viewModel.isProcessing || viewModel.isContinuousCapture)
+        .accessibilityLabel("Capture action")
+        .accessibilityValue(selectedActionTitle)
+        .accessibilityHint("Swipe up or down to choose an action. Double tap to run the selected action.")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                selectedActionIndex = min(selectedActionIndex + 1, actionChoices.count - 1)
+            case .decrement:
+                selectedActionIndex = max(selectedActionIndex - 1, 0)
+            @unknown default:
+                break
+            }
+        }
+        .accessibilitySortPriority(5)
+    }
+
+    private var selectedAction: ActionChoice {
+        guard !actionChoices.isEmpty else { return .takePhoto }
+        let clampedIndex = min(max(selectedActionIndex, 0), actionChoices.count - 1)
+        return actionChoices[clampedIndex]
+    }
+
+    private var selectedActionTitle: String {
+        switch selectedAction {
+        case .takePhoto:
+            return "Take Photo"
+        case .preset(let slot):
+            return settingsStore.quickPreset(for: slot).title
+        }
+    }
+
+    private var selectedActionSymbol: String {
+        switch selectedAction {
+        case .takePhoto:
+            return "camera"
+        case .preset(let slot):
+            return settingsStore.quickPreset(for: slot).systemImageName
+        }
+    }
+
+    private func performSelectedAction() {
+        switch selectedAction {
+        case .takePhoto:
+            viewModel.takePhoto()
+        case .preset(let slot):
+            viewModel.takePresetPhoto(settingsStore.quickPreset(for: slot))
         }
     }
 

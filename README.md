@@ -20,6 +20,16 @@ EyePal is an accessibility-first native iOS app for blind and low-vision users. 
 3. Download `arcface_fresh.onnx` into `tools/face_model/models/` before building locally.
 4. Build and run on a physical iPhone because the app depends on the camera.
 
+## Download Latest IPA
+
+To pull the latest successful unsigned IPA from GitHub Actions into `artifacts-ipa/`, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\download_latest_ipa.ps1
+```
+
+The script downloads the `EyePal-unsigned-ipa` artifact from the latest successful `ios-unsigned-build.yml` run on `main` and updates both `artifacts-ipa/latest-run/` and `artifacts-ipa/latest-success/`.
+
 ## Face Model Prep
 
 The face-model tooling now uses the verified ONNX model already in the repo:

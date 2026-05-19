@@ -460,8 +460,25 @@ private struct DetailsDescriptionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
 
+    private var selectedActionControlStyle: Binding<RecognitionActionControlStyle> {
+        Binding(
+            get: {
+                RecognitionActionControlStyle(rawValue: settingsStore.detailsActionControlStyle) ?? .singleAdjustableControl
+            },
+            set: { settingsStore.detailsActionControlStyle = $0.rawValue }
+        )
+    }
+
     var body: some View {
         Form {
+            Section("Action Controls") {
+                Picker("Control Style", selection: selectedActionControlStyle) {
+                    ForEach(RecognitionActionControlStyle.allCases) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+            }
+
             Section("Details Buttons") {
                 ForEach(RecognitionButtonSlot.allCases) { slot in
                     NavigationLink {
@@ -566,6 +583,13 @@ private struct QuickRecognitionSettingsView: View {
         )
     }
 
+    private var selectedActionControlStyle: Binding<RecognitionActionControlStyle> {
+        Binding(
+            get: { RecognitionActionControlStyle(rawValue: settingsStore.quickActionControlStyle) ?? .onScreenButtons },
+            set: { settingsStore.quickActionControlStyle = $0.rawValue }
+        )
+    }
+
     var body: some View {
         Form {
             Section {
@@ -599,6 +623,12 @@ private struct QuickRecognitionSettingsView: View {
             }
 
             Section("Quick Buttons") {
+                Picker("Control Style", selection: selectedActionControlStyle) {
+                    ForEach(RecognitionActionControlStyle.allCases) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+
                 ForEach(RecognitionButtonSlot.allCases) { slot in
                     NavigationLink {
                         RecognitionButtonSettingsEditor(
