@@ -4104,7 +4104,7 @@ struct RealtimeChatView: View {
 
     var body: some View {
         List {
-            Section {
+            Section("Chat") {
                 Picker("Mode", selection: $mode) {
                     ForEach(ChatMode.allCases) { entry in
                         Text(entry.rawValue).tag(entry)
@@ -4146,6 +4146,7 @@ struct RealtimeChatView: View {
             }
         }
         .navigationTitle("Chat")
+        .navigationBarTitleDisplayMode(.inline)
         .alert(
             "Chat Error",
             isPresented: Binding(
@@ -4364,7 +4365,6 @@ extension RTCRealtimeChatController: RTCDataChannelDelegate {
                     self.sendEvent([
                         "type": "session.update",
                         "session": [
-                            "type": "translation",
                             "audio": [
                                 "output": [
                                     "language": self.pendingTargetLanguage,
@@ -4377,7 +4377,7 @@ extension RTCRealtimeChatController: RTCDataChannelDelegate {
                     self.sendEvent([
                         "type": "session.update",
                         "session": [
-                            "type": "conversation",
+                            "type": "realtime",
                             "instructions": self.pendingInstructions,
                             "input_audio_transcription": ["model": "whisper-1"],
                             "turn_detection": [
