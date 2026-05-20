@@ -3,6 +3,7 @@ platform :ios, '17.0'
 target 'EyePal' do
   use_frameworks!
 
+  pod 'GoogleWebRTC'
   pod 'GoogleMLKit/TextRecognition', '8.0.0'
   pod 'GoogleMLKit/TextRecognitionChinese', '8.0.0'
   pod 'GoogleMLKit/TextRecognitionDevanagari', '8.0.0'
