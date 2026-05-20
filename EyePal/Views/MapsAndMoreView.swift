@@ -4421,7 +4421,7 @@ private final class RealtimeChatWebRTCService: NSObject {
     }
 
     func sendUserText(_ text: String, mode: RealtimeChatViewModel.ChatMode) async throws {
-        guard let dataChannel, dataChannel.state == .open else {
+        guard let dataChannel, dataChannel.readyState == .open else {
             throw NSError(domain: "RealtimeChatWebRTCService", code: -1, userInfo: [NSLocalizedDescriptionKey: "WebRTC data channel is not open."])
         }
 
@@ -4462,7 +4462,7 @@ private final class RealtimeChatWebRTCService: NSObject {
     }
 
     private func createOffer(for connection: RTCPeerConnection, constraints: RTCMediaConstraints) async throws -> RTCSessionDescription {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<RTCSessionDescription, Error>) in
             connection.offer(for: constraints) { offer, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -4480,7 +4480,7 @@ private final class RealtimeChatWebRTCService: NSObject {
     }
 
     private func setLocalDescription(_ description: RTCSessionDescription, on connection: RTCPeerConnection) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             connection.setLocalDescription(description) { error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -4492,7 +4492,7 @@ private final class RealtimeChatWebRTCService: NSObject {
     }
 
     private func setRemoteDescription(_ description: RTCSessionDescription, on connection: RTCPeerConnection) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             connection.setRemoteDescription(description) { error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -4504,11 +4504,11 @@ private final class RealtimeChatWebRTCService: NSObject {
     }
 
     private func waitForDataChannelOpen() async throws {
-        if dataChannel?.state == .open {
+        if dataChannel?.readyState == .open {
             return
         }
 
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             dataChannelOpenContinuation = continuation
         }
     }
@@ -4662,7 +4662,7 @@ extension RealtimeChatWebRTCService: RTCPeerConnectionDelegate {
     func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
         self.dataChannel = dataChannel
         self.dataChannel?.delegate = self
-        if dataChannel.state == .open {
+        if dataChannel.readyState == .open {
             dataChannelOpenContinuation?.resume(returning: ())
             dataChannelOpenContinuation = nil
         }
@@ -4671,7 +4671,7 @@ extension RealtimeChatWebRTCService: RTCPeerConnectionDelegate {
 
 extension RealtimeChatWebRTCService: RTCDataChannelDelegate {
     func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        if dataChannel.state == .open {
+        if dataChannel.readyState == .open {
             dataChannelOpenContinuation?.resume(returning: ())
             dataChannelOpenContinuation = nil
         }
