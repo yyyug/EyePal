@@ -55,21 +55,23 @@ struct DetailsDescriptionView: View {
                         controlPanel
                         descriptionPanel
 
-                        HStack(spacing: 8) {
-                            TextField("Ask a follow-up question", text: $viewModel.followUpQuestion)
-                                .textFieldStyle(.roundedBorder)
-                                .submitLabel(.send)
-                                .onSubmit {
+                        if !viewModel.descriptionText.isEmpty {
+                            HStack(spacing: 8) {
+                                TextField("Ask a follow-up question", text: $viewModel.followUpQuestion)
+                                    .textFieldStyle(.roundedBorder)
+                                    .submitLabel(.send)
+                                    .onSubmit {
+                                        viewModel.submitFollowUp()
+                                    }
+                                    .accessibilitySortPriority(2)
+
+                                Button("Send") {
                                     viewModel.submitFollowUp()
                                 }
-                                .accessibilitySortPriority(2)
-
-                            Button("Send") {
-                                viewModel.submitFollowUp()
+                                .buttonStyle(.bordered)
+                                .disabled(viewModel.isProcessing || viewModel.followUpQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                .accessibilitySortPriority(1)
                             }
-                            .buttonStyle(.bordered)
-                            .disabled(viewModel.isProcessing || viewModel.followUpQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            .accessibilitySortPriority(1)
                         }
                     }
                 }
@@ -163,32 +165,35 @@ struct DetailsDescriptionView: View {
     @ViewBuilder
     private var descriptionPanel: some View {
         if viewModel.capturedPreview != nil || !viewModel.descriptionText.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                if let preview = viewModel.capturedPreview {
-                    Button {
-                        viewModel.resendCapturedPhotoInFullResolution()
-                    } label: {
-                        Image(uiImage: preview)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let preview = viewModel.capturedPreview {
+                        Button {
+                            viewModel.resendCapturedPhotoInFullResolution()
+                        } label: {
+                            Image(uiImage: preview)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(viewModel.isProcessing)
+                        .accessibilityLabel("Captured image, tap to resend in full resolution")
                     }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isProcessing)
-                    .accessibilityLabel("Captured image, tap to resend in full resolution")
-                }
 
-                if !viewModel.descriptionText.isEmpty {
-                    TextEditor(text: .constant(viewModel.descriptionText))
-                        .frame(minHeight: 120, maxHeight: 180)
-                        .scrollContentBackground(.hidden)
-                        .padding(8)
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .accessibilityLabel("Scene description")
-                        .accessibilitySortPriority(3)
+                    if !viewModel.descriptionText.isEmpty {
+                        Text(viewModel.descriptionText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                            .accessibilityLabel("Scene description")
+                            .accessibilitySortPriority(3)
+                    }
                 }
             }
+            .frame(maxHeight: 220)
+            .padding(8)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 

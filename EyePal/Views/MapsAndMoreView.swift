@@ -4103,10 +4103,11 @@ struct RealtimeChatView: View {
 
     var body: some View {
         List {
-            Section("Model") {
-                Text("gpt-realtime")
+            Section("Chat") {
+                Text("Model: gpt-realtime")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+
                 if openAIStore.isSignedIn {
                     Text("Using existing ChatGPT login from Details Description")
                         .font(.footnote)
@@ -4116,9 +4117,7 @@ struct RealtimeChatView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-            }
 
-            Section("Chat") {
                 Picker("Chat", selection: $mode) {
                     ForEach(ChatMode.allCases) { entry in
                         Text(entry.rawValue).tag(entry)
@@ -4197,6 +4196,7 @@ struct RealtimeChatView: View {
 private actor RealtimeVoiceChatService {
     private var socket: URLSessionWebSocketTask?
     private var session: URLSession?
+    private var connected = false
 
     func connect(accessToken: String, model: String, instructions: String) async throws {
         let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? model
@@ -4208,6 +4208,7 @@ private actor RealtimeVoiceChatService {
         let socket = session.webSocketTask(with: request)
         self.session = session
         self.socket = socket
+        self.connected = false
         socket.resume()
 
         try await send(socket, payload: [
@@ -4219,10 +4220,12 @@ private actor RealtimeVoiceChatService {
                 "turn_detection": ["type": "none"],
             ],
         ])
+
+        connected = true
     }
 
     func appendInputAudioChunk(_ chunk: Data) async throws {
-        guard let socket else { return }
+        guard connected, let socket else { return }
         try await send(socket, payload: [
             "type": "input_audio_buffer.append",
             "audio": chunk.base64EncodedString(),
@@ -4230,7 +4233,7 @@ private actor RealtimeVoiceChatService {
     }
 
     func commitAndGenerateResponse() async throws -> String {
-        guard let socket else {
+        guard connected, let socket else {
             throw RealtimeVoiceChatError(message: "Realtime session is not connected.")
         }
 
@@ -4295,6 +4298,7 @@ private actor RealtimeVoiceChatService {
         socket?.cancel(with: .goingAway, reason: nil)
         socket = nil
         session = nil
+        connected = false
     }
 
     private func send(_ socket: URLSessionWebSocketTask, payload: [String: Any]) async throws {
@@ -4353,9 +4357,11 @@ private final class RealtimeVoiceChatController: NSObject, ObservableObject {
     private let speaker = AVSpeechSynthesizer()
     private let audioEngine = AVAudioEngine()
     private let model = "gpt-realtime"
+    private var streamStartTask: Task<Void, Never>?
 
     func startStreaming(accessToken: String, translateModeEnabled: Bool, targetLanguage: String) {
         guard !isStreamingAudio else { return }
+        streamStartTask?.cancel()
 
         let instructions: String
         if translateModeEnabled {
@@ -4368,7 +4374,7 @@ private final class RealtimeVoiceChatController: NSObject, ObservableObject {
         errorMessage = nil
         statusText = "Starting microphone stream."
 
-        Task {
+        streamStartTask = Task {
             do {
                 try await service.connect(accessToken: accessToken, model: model, instructions: instructions)
                 try await MainActor.run {
@@ -4384,11 +4390,17 @@ private final class RealtimeVoiceChatController: NSObject, ObservableObject {
                 }
                 await service.disconnect()
             }
+
+            await MainActor.run {
+                self.streamStartTask = nil
+            }
         }
     }
 
     func stopAndGenerateResponse() {
         guard isStreamingAudio else { return }
+        streamStartTask?.cancel()
+        streamStartTask = nil
         stopAudioTap()
         isStreamingAudio = false
         isGeneratingResponse = true
@@ -4420,6 +4432,10 @@ private final class RealtimeVoiceChatController: NSObject, ObservableObject {
     }
 
     private func configureAndStartAudioTap() throws {
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
+        try audioSession.setActive(true)
+
         let inputNode = audioEngine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
 
@@ -4439,6 +4455,7 @@ private final class RealtimeVoiceChatController: NSObject, ObservableObject {
     private func stopAudioTap() {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func makePCM16Data(from buffer: AVAudioPCMBuffer) -> Data? {

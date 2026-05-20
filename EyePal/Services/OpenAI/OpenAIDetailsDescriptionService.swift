@@ -179,8 +179,12 @@ final class OpenAIDetailsDescriptionService {
                 streamedErrorMessage = errorMessage
             }
 
-            if let chunk = extractTextChunk(from: lineData) {
-                streamedText += chunk
+            if let event = jsonObject(from: lineData),
+               let eventType = event["type"] as? String,
+               (eventType == "response.output_text.delta" || eventType == "response.text.delta"),
+               let delta = event["delta"] as? String,
+               !delta.isEmpty {
+                streamedText += delta
             }
         }
 
@@ -237,6 +241,10 @@ final class OpenAIDetailsDescriptionService {
         }
 
         return extractTextChunk(from: object)
+    }
+
+    private func jsonObject(from data: Data) -> [String: Any]? {
+        try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
     private func extractErrorMessage(from data: Data) -> String? {
