@@ -4252,9 +4252,7 @@ private final class RTCRealtimeChatController: NSObject, ObservableObject {
             mandatoryConstraints: nil,
             optionalConstraints: ["DtlsSrtpKeyAgreement": "true"]
         )
-        guard let pc = factory.peerConnection(with: config, constraints: pcConstraints, delegate: self) else {
-            throw RTCChatError(message: "Failed to create peer connection.")
-        }
+        let pc = factory.peerConnection(with: config, constraints: pcConstraints, delegate: self)
         self.peerConnection = pc
 
         // Add microphone audio track so the model receives user speech
