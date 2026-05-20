@@ -4165,16 +4165,14 @@ struct RealtimeChatView: View {
     }
 
     private func beginVoiceChat() {
-        let instructions: String
-        if mode == .translate {
-            instructions = "You are a realtime translator. Translate the user's speech into \(translateTargetLanguage). Keep meaning and tone, keep output concise. Respond in audio."
-        } else {
-            instructions = "You are a helpful voice assistant for blind users. Respond concisely and clearly in audio."
-        }
         Task {
             do {
                 let credentials = try await openAIStore.activeCredentials()
-                await controller.start(accessToken: credentials.accessToken, instructions: instructions)
+                await controller.start(
+                    accessToken: credentials.accessToken,
+                    translateMode: mode == .translate,
+                    targetLanguage: translateTargetLanguage
+                )
             } catch {
                 await MainActor.run {
                     controller.errorMessage = error.localizedDescription
@@ -4195,6 +4193,8 @@ private final class RTCRealtimeChatController: NSObject, ObservableObject {
     private var peerConnection: RTCPeerConnection?
     private var dataChannel: RTCDataChannel?
     private let factory: RTCPeerConnectionFactory
+    private var isTranslateMode = false
+    private var pendingTargetLanguage = ""
     private var pendingInstructions = ""
 
     override init() {
@@ -4206,14 +4206,19 @@ private final class RTCRealtimeChatController: NSObject, ObservableObject {
         super.init()
     }
 
-    func start(accessToken: String, instructions: String) async {
+    func start(accessToken: String, translateMode: Bool, targetLanguage: String) async {
         guard !isConnected, !isConnecting else { return }
         isConnecting = true
+        isTranslateMode = translateMode
+        pendingTargetLanguage = targetLanguage
+        pendingInstructions = translateMode
+            ? ""
+            : "You are a helpful voice assistant for blind users. Respond concisely and clearly in audio."
         statusText = "Connecting..."
         latestTranscript = ""
         errorMessage = nil
         do {
-            try await connect(accessToken: accessToken, instructions: instructions)
+            try await connect(accessToken: accessToken)
         } catch {
             errorMessage = error.localizedDescription
             statusText = "Connection failed."
@@ -4227,6 +4232,10 @@ private final class RTCRealtimeChatController: NSObject, ObservableObject {
     }
 
     func stop() {
+        // Translation sessions require a graceful session.close before socket disconnect
+        if isTranslateMode {
+            sendEvent(["type": "session.close"])
+        }
         dataChannel?.close()
         peerConnection?.close()
         peerConnection = nil
@@ -4237,9 +4246,7 @@ private final class RTCRealtimeChatController: NSObject, ObservableObject {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    private func connect(accessToken: String, instructions: String) async throws {
-        pendingInstructions = instructions
-
+    private func connect(accessToken: String) async throws {
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
         try audioSession.setActive(true)
@@ -4284,12 +4291,17 @@ private final class RTCRealtimeChatController: NSObject, ObservableObject {
             }
         }
 
-        // Exchange SDP with OpenAI Realtime WebRTC endpoint
-        var req = URLRequest(url: URL(string: "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview")!)
+        // Exchange SDP with the correct OpenAI Realtime WebRTC endpoint (GA interface)
+        let sdpURL: String
+        if isTranslateMode {
+            sdpURL = "https://api.openai.com/v1/realtime/translations/calls?model=gpt-realtime-translate"
+        } else {
+            sdpURL = "https://api.openai.com/v1/realtime/calls?model=gpt-realtime-2"
+        }
+        var req = URLRequest(url: URL(string: sdpURL)!)
         req.httpMethod = "POST"
         req.setValue("application/sdp", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        req.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
         req.httpBody = offer.sdp.data(using: .utf8)
 
         let (answerData, httpResp) = try await URLSession.shared.data(for: req)
@@ -4347,18 +4359,35 @@ extension RTCRealtimeChatController: RTCDataChannelDelegate {
     nonisolated func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
         if dataChannel.readyState == .open {
             Task { @MainActor in
-                self.sendEvent([
-                    "type": "session.update",
-                    "session": [
-                        "instructions": self.pendingInstructions,
-                        "input_audio_transcription": ["model": "whisper-1"],
-                        "turn_detection": [
-                            "type": "server_vad",
-                            "threshold": 0.5,
-                            "silence_duration_ms": 500,
+                if self.isTranslateMode {
+                    // Translation session: configure output language only
+                    self.sendEvent([
+                        "type": "session.update",
+                        "session": [
+                            "type": "translation",
+                            "audio": [
+                                "output": [
+                                    "language": self.pendingTargetLanguage,
+                                ],
+                            ],
                         ],
-                    ],
-                ])
+                    ])
+                } else {
+                    // Voice-agent session: configure instructions and server VAD
+                    self.sendEvent([
+                        "type": "session.update",
+                        "session": [
+                            "type": "conversation",
+                            "instructions": self.pendingInstructions,
+                            "input_audio_transcription": ["model": "whisper-1"],
+                            "turn_detection": [
+                                "type": "server_vad",
+                                "threshold": 0.5,
+                                "silence_duration_ms": 500,
+                            ],
+                        ],
+                    ])
+                }
                 self.statusText = "Listening. Speak now."
             }
         }
@@ -4369,7 +4398,8 @@ extension RTCRealtimeChatController: RTCDataChannelDelegate {
         let eventType = object["type"] as? String ?? ""
 
         switch eventType {
-        case "response.audio_transcript.done":
+        // ── Voice-agent events ──
+        case "response.output_audio_transcript.done":
             let t = (object["transcript"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if !t.isEmpty {
                 Task { @MainActor in
@@ -4382,6 +4412,25 @@ extension RTCRealtimeChatController: RTCDataChannelDelegate {
             if !t.isEmpty {
                 Task { @MainActor in self.statusText = "You: \(t)" }
             }
+        // ── Translation events ──
+        case "session.output_transcript.delta":
+            let delta = (object["delta"] as? String) ?? ""
+            if !delta.isEmpty {
+                Task { @MainActor in self.latestTranscript += delta }
+            }
+        case "session.output_transcript.done":
+            Task { @MainActor in self.statusText = "Listening. Speak now." }
+        case "session.input_transcript.delta":
+            let delta = (object["delta"] as? String) ?? ""
+            if !delta.isEmpty {
+                Task { @MainActor in self.statusText = "\(delta)" }
+            }
+        case "session.closed":
+            Task { @MainActor in
+                self.isConnected = false
+                self.statusText = "Session ended."
+            }
+        // ── Shared error event ──
         case "error":
             let msg = ((object["error"] as? [String: Any])?["message"] as? String) ?? "Unknown realtime error"
             Task { @MainActor in self.errorMessage = msg }
