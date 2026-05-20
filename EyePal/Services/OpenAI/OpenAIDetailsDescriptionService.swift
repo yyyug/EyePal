@@ -42,18 +42,14 @@ final class OpenAIDetailsDescriptionService {
         self.session = session
     }
 
-    func prepareImageData(
-        from image: UIImage,
-        maximumDimension: CGFloat? = 640,
-        compressionQuality: CGFloat = 0.72
-    ) throws -> Data {
+    func prepareImageData(from image: UIImage) throws -> Data {
+        let maximumDimension: CGFloat = 640
         let originalSize = image.size
         guard originalSize.width > 0, originalSize.height > 0 else {
             throw OpenAIDetailsDescriptionError.missingImage
         }
 
-        let resolvedMaxDimension = maximumDimension ?? max(originalSize.width, originalSize.height)
-        let scale = min(1, resolvedMaxDimension / max(originalSize.width, originalSize.height))
+        let scale = min(1, maximumDimension / max(originalSize.width, originalSize.height))
         let targetSize = CGSize(width: originalSize.width * scale, height: originalSize.height * scale)
 
         let format = UIGraphicsImageRendererFormat.default()
@@ -63,7 +59,7 @@ final class OpenAIDetailsDescriptionService {
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
 
-        guard let jpegData = resizedImage.jpegData(compressionQuality: compressionQuality) else {
+        guard let jpegData = resizedImage.jpegData(compressionQuality: 0.72) else {
             throw OpenAIDetailsDescriptionError.invalidResponse
         }
 
@@ -179,12 +175,8 @@ final class OpenAIDetailsDescriptionService {
                 streamedErrorMessage = errorMessage
             }
 
-            if let event = jsonObject(from: lineData),
-               let eventType = event["type"] as? String,
-               (eventType == "response.output_text.delta" || eventType == "response.text.delta"),
-               let delta = event["delta"] as? String,
-               !delta.isEmpty {
-                streamedText += delta
+            if let chunk = extractTextChunk(from: lineData) {
+                streamedText += chunk
             }
         }
 
@@ -241,10 +233,6 @@ final class OpenAIDetailsDescriptionService {
         }
 
         return extractTextChunk(from: object)
-    }
-
-    private func jsonObject(from data: Data) -> [String: Any]? {
-        try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
     private func extractErrorMessage(from data: Data) -> String? {

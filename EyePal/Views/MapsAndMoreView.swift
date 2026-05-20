@@ -4,7 +4,6 @@ import AVFoundation
 import MapKit
 import Combine
 import Network
-import Speech
 import CryptoKit
 import WebRTC
 
@@ -4091,659 +4090,314 @@ private struct GuidedTourSheet: View {
 }
 
 struct RealtimeChatView: View {
-    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
-    @AppStorage("chatTranslateTargetLanguage") private var translateTargetLanguage = "English"
-    @StateObject private var viewModel = RealtimeChatViewModel()
-
-    var body: some View {
-        List {
-            Section("Model") {
-                Text("gpt-realtime-2")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                Text(viewModel.connectionStatusText)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                if openAIStore.isSignedIn {
-                    Text("Using existing ChatGPT login from Details Description")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Sign in with ChatGPT from Details Description first.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section("Mode") {
-                Picker("Mode", selection: $viewModel.mode) {
-                    ForEach(RealtimeChatViewModel.ChatMode.allCases) { entry in
-                        Text(entry.rawValue).tag(entry)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                if viewModel.mode == .translate {
-                    TextField("Target Language", text: $translateTargetLanguage)
-                }
-            }
-
-            Section("Conversation") {
-                if viewModel.messages.isEmpty {
-                    Text("Start speaking to chat. This tab uses a WebRTC realtime session for voice replies.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(viewModel.messages) { turn in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(turn.role == .user ? "You" : "Assistant")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(turn.text)
-                        }
-                    }
-                }
-            }
-
-            Section("Input") {
-                HStack {
-                    Button(viewModel.speech.isListening ? "Stop Listening" : "Start Listening") {
-                        Task {
-                            if viewModel.speech.isListening {
-                                await viewModel.stopListeningAndSend(targetLanguage: translateTargetLanguage)
-                            } else {
-                                await viewModel.ensureConnected(
-                                    openAIStore: openAIStore,
-                                    targetLanguage: translateTargetLanguage
-                                )
-                                viewModel.startListening()
-                            }
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.isConnecting || (!openAIStore.isSignedIn && !viewModel.speech.isListening))
-                }
-
-                if viewModel.isSending {
-                    Text("Sending voice transcript...")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                if !viewModel.lastTranscript.isEmpty {
-                    Text("Transcript: \(viewModel.lastTranscript)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Current transcript")
-                }
-            }
-        }
-        .navigationTitle("Chat")
-        .onAppear {
-            viewModel.bind(openAIStore: openAIStore)
-            viewModel.updateTargetLanguage(translateTargetLanguage)
-            Task {
-                await viewModel.ensureConnected(openAIStore: openAIStore, targetLanguage: translateTargetLanguage)
-            }
-        }
-        .onDisappear {
-            viewModel.stop()
-        }
-        .onChange(of: translateTargetLanguage) { newValue in
-            viewModel.updateTargetLanguage(newValue)
-            viewModel.reconnect(openAIStore: openAIStore, targetLanguage: newValue)
-        }
-        .onChange(of: viewModel.mode) { _ in
-            viewModel.reconnect(openAIStore: openAIStore, targetLanguage: translateTargetLanguage)
-        }
-        .alert(
-            "Chat Error",
-            isPresented: Binding(
-                get: { viewModel.errorMessage != nil },
-                set: { if !$0 { viewModel.errorMessage = nil } }
-            )
-        ) {
-            Button("OK") {
-                viewModel.errorMessage = nil
-            }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
-        }
-    }
-}
-
-@MainActor
-private final class RealtimeChatViewModel: ObservableObject {
-    enum ChatMode: String, CaseIterable, Identifiable {
-        case voiceAgent = "Voice Agent"
+    private enum ChatMode: String, CaseIterable, Identifiable {
+        case voiceAssistant = "Voice Assistant"
         case translate = "Translate"
 
         var id: String { rawValue }
     }
 
-    @Published var mode: ChatMode = .voiceAgent
-    @Published var messages: [DetailsDescriptionTurn] = []
-    @Published var isConnecting = false
-    @Published var isConnected = false
-    @Published var isSending = false
-    @Published var errorMessage: String?
-    @Published var connectionStatusText = "Connecting to WebRTC realtime session..."
-    @Published var lastTranscript = ""
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @AppStorage("chatTranslateTargetLanguage") private var translateTargetLanguage = "English"
+    @State private var mode: ChatMode = .voiceAssistant
+    @StateObject private var controller = RTCRealtimeChatController()
 
-    let speech = SpeechInputController()
-
-    private let service = RealtimeChatWebRTCService()
-    private weak var openAIStore: OpenAISubscriptionStore?
-
-    func bind(openAIStore: OpenAISubscriptionStore) {
-        self.openAIStore = openAIStore
-    }
-
-    func updateTargetLanguage(_ language: String) {
-        service.targetLanguage = language
-    }
-
-    func ensureConnected(openAIStore: OpenAISubscriptionStore, targetLanguage: String) async {
-        guard !isConnected && !isConnecting else { return }
-        guard openAIStore.isSignedIn else {
-            connectionStatusText = "Sign in with ChatGPT before connecting."
-            return
-        }
-
-        isConnecting = true
-        connectionStatusText = "Connecting to WebRTC realtime session..."
-
-        do {
-            let credentials = try await openAIStore.activeCredentials()
-            try await service.connect(
-                accessToken: credentials.accessToken,
-                accountID: credentials.accountID,
-                mode: mode,
-                targetLanguage: targetLanguage,
-                onEvent: { [weak self] event in
-                    Task { @MainActor in
-                        self?.handle(event: event)
+    var body: some View {
+        List {
+            Section {
+                Picker("Mode", selection: $mode) {
+                    ForEach(ChatMode.allCases) { entry in
+                        Text(entry.rawValue).tag(entry)
                     }
                 }
+                .pickerStyle(.segmented)
+
+                if mode == .translate {
+                    TextField("Target Language", text: $translateTargetLanguage)
+                }
+
+                Button(controller.isConnected ? "Stop" : "Start Voice Chat") {
+                    if controller.isConnected {
+                        controller.stop()
+                    } else {
+                        beginVoiceChat()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!openAIStore.isSignedIn || controller.isConnecting)
+
+                if !openAIStore.isSignedIn {
+                    Text("Sign in with ChatGPT from Details Description first.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(controller.statusText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if !controller.latestTranscript.isEmpty {
+                    Text(controller.latestTranscript)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                        .padding(8)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
+        }
+        .navigationTitle("Chat")
+        .alert(
+            "Chat Error",
+            isPresented: Binding(
+                get: { controller.errorMessage != nil },
+                set: { if !$0 { controller.errorMessage = nil } }
             )
-            isConnected = true
-            connectionStatusText = "Connected to WebRTC realtime session."
-        } catch {
-            errorMessage = error.localizedDescription
-            connectionStatusText = "Realtime connection failed."
-            isConnected = false
-        }
-
-        isConnecting = false
-    }
-
-    func reconnect(openAIStore: OpenAISubscriptionStore, targetLanguage: String) {
-        stop()
-        Task {
-            await ensureConnected(openAIStore: openAIStore, targetLanguage: targetLanguage)
-        }
-    }
-
-    func stop() {
-        speech.stopListening()
-        service.disconnect()
-        isConnected = false
-        isConnecting = false
-        isSending = false
-        connectionStatusText = "WebRTC session disconnected."
-    }
-
-    func startListening() {
-        speech.startListening()
-    }
-
-    func stopListeningAndSend(targetLanguage: String) async {
-        speech.stopListening()
-        let transcript = speech.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        speech.transcript = ""
-        lastTranscript = transcript
-
-        guard !transcript.isEmpty else { return }
-
-        if !isConnected, let openAIStore {
-            await ensureConnected(openAIStore: openAIStore, targetLanguage: targetLanguage)
-        }
-
-        guard isConnected else {
-            errorMessage = "WebRTC chat is not connected."
-            return
-        }
-
-        isSending = true
-        messages.append(DetailsDescriptionTurn(role: .user, text: transcript))
-
-        do {
-            try await service.sendUserText(transcript, mode: mode)
-        } catch {
-            errorMessage = error.localizedDescription
-            isSending = false
-        }
-    }
-
-    private func handle(event: RealtimeChatServiceEvent) {
-        switch event {
-        case .connected:
-            isConnected = true
-            connectionStatusText = "Connected to WebRTC realtime session."
-        case .disconnected:
-            isConnected = false
-            connectionStatusText = "WebRTC session disconnected."
-        case .assistantDelta(let delta):
-            if let index = messages.indices.last, messages[index].role == .assistant {
-                messages[index] = DetailsDescriptionTurn(role: .assistant, text: messages[index].text + delta)
-            } else {
-                messages.append(DetailsDescriptionTurn(role: .assistant, text: delta))
+        ) {
+            Button("OK") {
+                controller.errorMessage = nil
             }
-            isSending = false
-        case .responseCompleted:
-            isSending = false
-        case .error(let message):
-            errorMessage = message
-            isSending = false
-            connectionStatusText = "Realtime chat failed."
+        } message: {
+            Text(controller.errorMessage ?? "")
         }
-    }
-}
-
-private enum RealtimeChatServiceEvent {
-    case connected
-    case disconnected
-    case assistantDelta(String)
-    case responseCompleted
-    case error(String)
-}
-
-private final class RealtimeChatWebRTCService: NSObject {
-    var targetLanguage = "English"
-
-    private var peerConnectionFactory: RTCPeerConnectionFactory?
-    private var peerConnection: RTCPeerConnection?
-    private var dataChannel: RTCDataChannel?
-    private var dataChannelOpenContinuation: CheckedContinuation<Void, Error>?
-    private var onEvent: ((RealtimeChatServiceEvent) -> Void)?
-
-    override init() {
-        super.init()
-        RTCInitializeSSL()
-    }
-
-    func connect(
-        accessToken: String,
-        accountID: String?,
-        mode: RealtimeChatViewModel.ChatMode,
-        targetLanguage: String,
-        onEvent: @escaping (RealtimeChatServiceEvent) -> Void
-    ) async throws {
-        disconnect()
-        self.onEvent = onEvent
-
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
-        try audioSession.setActive(true)
-
-        let factory = RTCPeerConnectionFactory()
-        peerConnectionFactory = factory
-
-        let configuration = RTCConfiguration()
-        configuration.sdpSemantics = .unifiedPlan
-        configuration.iceServers = [RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"])]
-
-        let constraints = RTCMediaConstraints(mandatoryConstraints: ["OfferToReceiveAudio": "true"], optionalConstraints: nil)
-        let connection = factory.peerConnection(with: configuration, constraints: constraints, delegate: self)
-        peerConnection = connection
-
-        let channelConfig = RTCDataChannelConfiguration()
-        channelConfig.isOrdered = true
-        let channel = connection.dataChannel(forLabel: "oai-events", configuration: channelConfig)
-        channel?.delegate = self
-        dataChannel = channel
-
-        let offer = try await createOffer(for: connection, constraints: constraints)
-        try await setLocalDescription(offer, on: connection)
-
-        let sessionConfig = try makeSessionConfigJSON(mode: mode, targetLanguage: targetLanguage)
-        let answerSdp = try await postSession(
-            sdp: offer.sdp,
-            sessionConfigJSON: sessionConfig,
-            accessToken: accessToken,
-            safetyIdentifier: makeSafetyIdentifier(accountID: accountID)
-        )
-
-        try await setRemoteDescription(RTCSessionDescription(type: .answer, sdp: answerSdp), on: connection)
-        try await waitForDataChannelOpen()
-        onEvent(.connected)
-    }
-
-    func sendUserText(_ text: String, mode: RealtimeChatViewModel.ChatMode) async throws {
-        guard let dataChannel, dataChannel.readyState == .open else {
-            throw NSError(domain: "RealtimeChatWebRTCService", code: -1, userInfo: [NSLocalizedDescriptionKey: "WebRTC data channel is not open."])
-        }
-
-        let userEvent: [String: Any] = [
-            "type": "conversation.item.create",
-            "item": [
-                "type": "message",
-                "role": "user",
-                "content": [
-                    [
-                        "type": "input_text",
-                        "text": text,
-                    ],
-                ],
-            ],
-        ]
-
-        let responseEvent: [String: Any] = [
-            "type": "response.create",
-            "response": [
-                "modalities": ["audio", "text"],
-            ],
-        ]
-
-        try sendJSON(userEvent, via: dataChannel)
-        try sendJSON(responseEvent, via: dataChannel)
-    }
-
-    func disconnect() {
-        dataChannelOpenContinuation?.resume(throwing: CancellationError())
-        dataChannelOpenContinuation = nil
-        dataChannel?.delegate = nil
-        dataChannel = nil
-        peerConnection?.close()
-        peerConnection = nil
-        peerConnectionFactory = nil
-        onEvent?(.disconnected)
-    }
-
-    private func createOffer(for connection: RTCPeerConnection, constraints: RTCMediaConstraints) async throws -> RTCSessionDescription {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<RTCSessionDescription, Error>) in
-            connection.offer(for: constraints) { offer, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                guard let offer else {
-                    continuation.resume(throwing: NSError(domain: "RealtimeChatWebRTCService", code: -2, userInfo: [NSLocalizedDescriptionKey: "Unable to create WebRTC offer."]))
-                    return
-                }
-
-                continuation.resume(returning: offer)
-            }
+        .onDisappear {
+            controller.stop()
         }
     }
 
-    private func setLocalDescription(_ description: RTCSessionDescription, on connection: RTCPeerConnection) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            connection.setLocalDescription(description) { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: ())
-                }
-            }
-        }
-    }
-
-    private func setRemoteDescription(_ description: RTCSessionDescription, on connection: RTCPeerConnection) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            connection.setRemoteDescription(description) { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: ())
-                }
-            }
-        }
-    }
-
-    private func waitForDataChannelOpen() async throws {
-        if dataChannel?.readyState == .open {
-            return
-        }
-
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            dataChannelOpenContinuation = continuation
-        }
-    }
-
-    private func makeSessionConfigJSON(mode: RealtimeChatViewModel.ChatMode, targetLanguage: String) throws -> String {
+    private func beginVoiceChat() {
         let instructions: String
-        switch mode {
-        case .voiceAgent:
-            instructions = "You are a concise voice assistant for visually impaired users. Keep replies short, clear, and actionable."
-        case .translate:
-            instructions = "You are a real-time voice translator. Translate the user's speech into \(targetLanguage) with accurate meaning, clear phrasing, and concise output."
+        if mode == .translate {
+            instructions = "You are a realtime translator. Translate the user's speech into \(translateTargetLanguage). Keep meaning and tone, keep output concise. Respond in audio."
+        } else {
+            instructions = "You are a helpful voice assistant for blind users. Respond concisely and clearly in audio."
         }
-
-        let session: [String: Any] = [
-            "type": "realtime",
-            "model": "gpt-realtime-2",
-            "instructions": instructions,
-            "audio": [
-                "output": [
-                    "voice": "marin"
-                ]
-            ]
-        ]
-
-        let data = try JSONSerialization.data(withJSONObject: session, options: [])
-        guard let json = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "RealtimeChatWebRTCService", code: -3, userInfo: [NSLocalizedDescriptionKey: "Unable to encode WebRTC session configuration."])
-        }
-        return json
-    }
-
-    private func postSession(sdp: String, sessionConfigJSON: String, accessToken: String, safetyIdentifier: String?) async throws -> String {
-        let boundary = "Boundary-\(UUID().uuidString)"
-        var body = Data()
-
-        func append(_ string: String) {
-            body.append(Data(string.utf8))
-        }
-
-        append("--\(boundary)\r\n")
-        append("Content-Disposition: form-data; name=\"sdp\"\r\n\r\n")
-        append(sdp)
-        append("\r\n")
-
-        append("--\(boundary)\r\n")
-        append("Content-Disposition: form-data; name=\"session\"\r\n\r\n")
-        append(sessionConfigJSON)
-        append("\r\n")
-
-        append("--\(boundary)--\r\n")
-
-        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/realtime/calls")!)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue("text/plain", forHTTPHeaderField: "Accept")
-        if let safetyIdentifier {
-            request.setValue(safetyIdentifier, forHTTPHeaderField: "OpenAI-Safety-Identifier")
-        }
-        request.httpBody = body
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NSError(domain: "RealtimeChatWebRTCService", code: -4, userInfo: [NSLocalizedDescriptionKey: "Realtime session request returned no HTTP response."])
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
-            throw NSError(domain: "RealtimeChatWebRTCService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: message])
-        }
-
-        guard let answer = String(data: data, encoding: .utf8), !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw NSError(domain: "RealtimeChatWebRTCService", code: -5, userInfo: [NSLocalizedDescriptionKey: "Realtime session returned an empty SDP answer."])
-        }
-
-        return answer
-    }
-
-    private func makeSafetyIdentifier(accountID: String?) -> String? {
-        guard let accountID, !accountID.isEmpty else { return nil }
-        let digest = SHA256.hash(data: Data(accountID.utf8))
-        return digest.compactMap { String(format: "%02x", $0) }.joined()
-    }
-
-    private func sendJSON(_ object: [String: Any], via dataChannel: RTCDataChannel) throws {
-        let data = try JSONSerialization.data(withJSONObject: object, options: [])
-        let buffer = RTCDataBuffer(data: data, isBinary: false)
-        guard dataChannel.sendData(buffer) else {
-            throw NSError(domain: "RealtimeChatWebRTCService", code: -6, userInfo: [NSLocalizedDescriptionKey: "Unable to send data channel message."])
-        }
-    }
-
-    private func handleServerEvent(data: Data) {
-        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let type = object["type"] as? String else {
-            return
-        }
-
-        switch type {
-        case "response.output_text.delta", "response.output_audio_transcript.delta":
-            if let delta = object["delta"] as? String, !delta.isEmpty {
-                onEvent?(.assistantDelta(delta))
-            }
-        case "response.done":
-            onEvent?(.responseCompleted)
-        case "error":
-            onEvent?(.error(errorMessage(from: object)))
-        default:
-            break
-        }
-    }
-
-    private func errorMessage(from event: [String: Any]) -> String {
-        if let error = event["error"] as? [String: Any] {
-            let message = error["message"] as? String
-            let code = error["code"] as? String
-            if let message, !message.isEmpty {
-                return code.map { "\($0): \(message)" } ?? message
+        Task {
+            do {
+                let credentials = try await openAIStore.activeCredentials()
+                await controller.start(accessToken: credentials.accessToken, instructions: instructions)
+            } catch {
+                await MainActor.run {
+                    controller.errorMessage = error.localizedDescription
+                }
             }
         }
-        return "Realtime chat request failed."
-    }
-}
-
-extension RealtimeChatWebRTCService: RTCPeerConnectionDelegate {
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
-
-    func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
-
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
-
-    func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
-
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
-        switch newState {
-        case .connected:
-            onEvent?(.connected)
-        case .disconnected, .failed, .closed:
-            onEvent?(.disconnected)
-        default:
-            break
-        }
-    }
-
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {}
-
-    func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {}
-
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
-
-    func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
-        self.dataChannel = dataChannel
-        self.dataChannel?.delegate = self
-        if dataChannel.readyState == .open {
-            dataChannelOpenContinuation?.resume(returning: ())
-            dataChannelOpenContinuation = nil
-        }
-    }
-}
-
-extension RealtimeChatWebRTCService: RTCDataChannelDelegate {
-    func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        if dataChannel.readyState == .open {
-            dataChannelOpenContinuation?.resume(returning: ())
-            dataChannelOpenContinuation = nil
-        }
-    }
-
-    func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
-        handleServerEvent(data: buffer.data)
     }
 }
 
 @MainActor
-private final class SpeechInputController: NSObject, ObservableObject {
-    @Published var transcript = ""
-    @Published var isListening = false
+private final class RTCRealtimeChatController: NSObject, ObservableObject {
+    @Published var isConnected = false
+    @Published var isConnecting = false
+    @Published var statusText = "Ready"
+    @Published var latestTranscript = ""
+    @Published var errorMessage: String?
 
-    private let audioEngine = AVAudioEngine()
-    private var request: SFSpeechAudioBufferRecognitionRequest?
-    private var task: SFSpeechRecognitionTask?
-    private let recognizer = SFSpeechRecognizer()
+    private var peerConnection: RTCPeerConnection?
+    private var dataChannel: RTCDataChannel?
+    private let factory: RTCPeerConnectionFactory
+    private var pendingInstructions = ""
 
-    func startListening() {
-        guard !isListening else { return }
-        SFSpeechRecognizer.requestAuthorization { [weak self] status in
-            guard status == .authorized else { return }
+    override init() {
+        RTCInitializeSSL()
+        factory = RTCPeerConnectionFactory(
+            encoderFactory: RTCDefaultVideoEncoderFactory(),
+            decoderFactory: RTCDefaultVideoDecoderFactory()
+        )
+        super.init()
+    }
+
+    func start(accessToken: String, instructions: String) async {
+        guard !isConnected, !isConnecting else { return }
+        isConnecting = true
+        statusText = "Connecting..."
+        latestTranscript = ""
+        errorMessage = nil
+        do {
+            try await connect(accessToken: accessToken, instructions: instructions)
+        } catch {
+            errorMessage = error.localizedDescription
+            statusText = "Connection failed."
+            isConnecting = false
+            isConnected = false
+            peerConnection?.close()
+            peerConnection = nil
+            dataChannel = nil
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+
+    func stop() {
+        dataChannel?.close()
+        peerConnection?.close()
+        peerConnection = nil
+        dataChannel = nil
+        isConnected = false
+        isConnecting = false
+        statusText = "Ready"
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func connect(accessToken: String, instructions: String) async throws {
+        pendingInstructions = instructions
+
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
+        try audioSession.setActive(true)
+
+        let config = RTCConfiguration()
+        config.iceServers = []
+        config.sdpSemantics = .unifiedPlan
+
+        let pcConstraints = RTCMediaConstraints(
+            mandatoryConstraints: nil,
+            optionalConstraints: ["DtlsSrtpKeyAgreement": "true"]
+        )
+        guard let pc = factory.peerConnection(with: config, constraints: pcConstraints, delegate: self) else {
+            throw RTCChatError(message: "Failed to create peer connection.")
+        }
+        self.peerConnection = pc
+
+        // Add microphone audio track so the model receives user speech
+        let audioSource = factory.audioSource(with: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil))
+        let audioTrack = factory.audioTrack(with: audioSource, trackId: "mic0")
+        pc.add(audioTrack, streamIds: ["local"])
+
+        // Create ordered data channel for Realtime API events (must be before offer)
+        let dcConfig = RTCDataChannelConfiguration()
+        dcConfig.isOrdered = true
+        let dc = pc.dataChannel(forLabel: "oai-events", configuration: dcConfig)
+        dc?.delegate = self
+        self.dataChannel = dc
+
+        // Build SDP offer
+        let offerConstraints = RTCMediaConstraints(
+            mandatoryConstraints: ["OfferToReceiveAudio": "true"],
+            optionalConstraints: nil
+        )
+        let offer = try await withCheckedThrowingContinuation { (c: CheckedContinuation<RTCSessionDescription, Error>) in
+            pc.offer(for: offerConstraints) { sdp, error in
+                if let sdp { c.resume(returning: sdp) }
+                else { c.resume(throwing: error ?? RTCChatError(message: "Offer generation failed.")) }
+            }
+        }
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+            pc.setLocalDescription(offer) { error in
+                if let error { c.resume(throwing: error) } else { c.resume(returning: ()) }
+            }
+        }
+
+        // Exchange SDP with OpenAI Realtime WebRTC endpoint
+        var req = URLRequest(url: URL(string: "https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview")!)
+        req.httpMethod = "POST"
+        req.setValue("application/sdp", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        req.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")
+        req.httpBody = offer.sdp.data(using: .utf8)
+
+        let (answerData, httpResp) = try await URLSession.shared.data(for: req)
+        guard let httpResponse = httpResp as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
+            let body = String(data: answerData, encoding: .utf8) ?? "Unknown"
+            throw RTCChatError(message: "SDP exchange failed: \(body)")
+        }
+        guard let answerSDP = String(data: answerData, encoding: .utf8) else {
+            throw RTCChatError(message: "Invalid SDP answer from server.")
+        }
+
+        let answer = RTCSessionDescription(type: .answer, sdp: answerSDP)
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+            pc.setRemoteDescription(answer) { error in
+                if let error { c.resume(throwing: error) } else { c.resume(returning: ()) }
+            }
+        }
+
+        // Session configuration is sent once the data channel opens (see delegate)
+        statusText = "Establishing audio..."
+        isConnecting = false
+        isConnected = true
+    }
+
+    fileprivate func sendEvent(_ dict: [String: Any]) {
+        guard let dc = dataChannel, dc.readyState == .open,
+              let data = try? JSONSerialization.data(withJSONObject: dict) else { return }
+        dc.sendData(RTCDataBuffer(data: data, isBinary: false))
+    }
+}
+
+extension RTCRealtimeChatController: RTCPeerConnectionDelegate {
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
+    nonisolated func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+        switch newState {
+        case .failed, .disconnected, .closed:
             Task { @MainActor in
-                self?.beginAudioCapture()
+                self.isConnected = false
+                self.statusText = "Disconnected."
+            }
+        default:
+            break
+        }
+    }
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
+    nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {}
+}
+
+extension RTCRealtimeChatController: RTCDataChannelDelegate {
+    nonisolated func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
+        if dataChannel.readyState == .open {
+            Task { @MainActor in
+                self.sendEvent([
+                    "type": "session.update",
+                    "session": [
+                        "instructions": self.pendingInstructions,
+                        "input_audio_transcription": ["model": "whisper-1"],
+                        "turn_detection": [
+                            "type": "server_vad",
+                            "threshold": 0.5,
+                            "silence_duration_ms": 500,
+                        ],
+                    ],
+                ])
+                self.statusText = "Listening. Speak now."
             }
         }
     }
 
-    func stopListening() {
-        guard isListening else { return }
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
-        request?.endAudio()
-        task?.cancel()
-        task = nil
-        request = nil
-        isListening = false
-    }
+    nonisolated func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
+        guard let object = try? JSONSerialization.jsonObject(with: buffer.data) as? [String: Any] else { return }
+        let eventType = object["type"] as? String ?? ""
 
-    private func beginAudioCapture() {
-        transcript = ""
-        request = SFSpeechAudioBufferRecognitionRequest()
-        guard let request else { return }
-        request.shouldReportPartialResults = true
-
-        let node = audioEngine.inputNode
-        let format = node.outputFormat(forBus: 0)
-        node.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.request?.append(buffer)
-        }
-
-        audioEngine.prepare()
-        try? audioEngine.start()
-        isListening = true
-
-        task = recognizer?.recognitionTask(with: request) { [weak self] result, error in
-            guard let self else { return }
-            if let result {
+        switch eventType {
+        case "response.audio_transcript.done":
+            let t = (object["transcript"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !t.isEmpty {
                 Task { @MainActor in
-                    self.transcript = result.bestTranscription.formattedString
+                    self.latestTranscript = t
+                    self.statusText = "Listening. Speak now."
                 }
             }
-            if error != nil {
-                Task { @MainActor in
-                    self.stopListening()
-                }
+        case "conversation.item.input_audio_transcription.completed":
+            let t = (object["transcript"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !t.isEmpty {
+                Task { @MainActor in self.statusText = "You: \(t)" }
             }
+        case "error":
+            let msg = ((object["error"] as? [String: Any])?["message"] as? String) ?? "Unknown realtime error"
+            Task { @MainActor in self.errorMessage = msg }
+        default:
+            break
         }
     }
 }
+
+private struct RTCChatError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+}
+
 
 @MainActor
 private final class GuidedTourStore: ObservableObject {

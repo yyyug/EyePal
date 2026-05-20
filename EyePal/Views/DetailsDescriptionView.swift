@@ -31,10 +31,6 @@ struct DetailsDescriptionView: View {
         [.takePhoto] + detailsPresetEntries.map { .preset($0.slot) }
     }
 
-    private var selectedActionControlStyle: RecognitionActionControlStyle {
-        RecognitionActionControlStyle(rawValue: settingsStore.detailsActionControlStyle) ?? .singleAdjustableControl
-    }
-
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
@@ -52,10 +48,17 @@ struct DetailsDescriptionView: View {
                         }
                         .buttonStyle(.borderedProminent)
                     } else {
-                        controlPanel
-                        descriptionPanel
+                        actionSelectorButton
 
                         if !viewModel.descriptionText.isEmpty {
+                            ScrollView {
+                                Text(viewModel.descriptionText)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .frame(maxHeight: 160)
+                            .accessibilityLabel("Scene description")
+                            .accessibilitySortPriority(3)
+
                             HStack(spacing: 8) {
                                 TextField("Ask a follow-up question", text: $viewModel.followUpQuestion)
                                     .textFieldStyle(.roundedBorder)
@@ -152,83 +155,6 @@ struct DetailsDescriptionView: View {
         }
     }
 
-    @ViewBuilder
-    private var controlPanel: some View {
-        switch selectedActionControlStyle {
-        case .onScreenButtons:
-            buttonGrid
-        case .singleAdjustableControl:
-            actionSelectorButton
-        }
-    }
-
-    @ViewBuilder
-    private var descriptionPanel: some View {
-        if viewModel.capturedPreview != nil || !viewModel.descriptionText.isEmpty {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let preview = viewModel.capturedPreview {
-                        Button {
-                            viewModel.resendCapturedPhotoInFullResolution()
-                        } label: {
-                            Image(uiImage: preview)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(viewModel.isProcessing)
-                        .accessibilityLabel("Captured image, tap to resend in full resolution")
-                    }
-
-                    if !viewModel.descriptionText.isEmpty {
-                        Text(viewModel.descriptionText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                            .accessibilityLabel("Scene description")
-                            .accessibilitySortPriority(3)
-                    }
-                }
-            }
-            .frame(maxHeight: 220)
-            .padding(8)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-    }
-
-    private var buttonGrid: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                Button {
-                    viewModel.capturePhoto()
-                } label: {
-                    Label(viewModel.isProcessing ? "Working..." : "Take Photo", systemImage: "camera")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isProcessing)
-
-                Button("Prompt") {
-                    showPromptComposer = true
-                }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isProcessing)
-            }
-
-            HStack(spacing: 12) {
-                ForEach(detailsPresetEntries, id: \.slot) { entry in
-                    quickPresetButton(
-                        title: entry.preset.title,
-                        systemImage: entry.preset.systemImageName
-                    ) {
-                        viewModel.capturePresetPhoto(entry.preset)
-                    }
-                }
-            }
-        }
-    }
-
     private var actionSelectorButton: some View {
         Button {
             performSelectedAction()
@@ -264,28 +190,6 @@ struct DetailsDescriptionView: View {
             showPromptComposer = true
         }
         .accessibilitySortPriority(5)
-    }
-
-    @ViewBuilder
-    private func quickPresetButton(
-        title: String,
-        systemImage: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.title3)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 14)
-        }
-        .buttonStyle(.bordered)
-        .disabled(viewModel.isProcessing)
     }
 
     private var selectedAction: ActionChoice {
