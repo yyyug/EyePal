@@ -105,6 +105,22 @@ enum QuickContinuousCaptureInterval: Double, CaseIterable, Identifiable {
     }
 }
 
+enum RecognitionActionControlStyle: String, CaseIterable, Identifiable {
+    case onScreenButtons
+    case singleAdjustableControl
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .onScreenButtons:
+            return "On-screen button layout"
+        case .singleAdjustableControl:
+            return "Single control (swipe up/down to choose)"
+        }
+    }
+}
+
 struct QuickQueryPreset: Identifiable, Equatable {
     let title: String
     let prompt: String
