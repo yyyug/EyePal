@@ -4,7 +4,6 @@ enum AppFeature: String, CaseIterable, Identifiable {
     case floorDetection
     case chat
     case faces
-    case maps
     case quickRecognition
     case detailsRecognition
     case readText
@@ -13,7 +12,6 @@ enum AppFeature: String, CaseIterable, Identifiable {
         .floorDetection,
         .chat,
         .faces,
-        .maps,
         .quickRecognition,
         .detailsRecognition,
         .readText,
@@ -30,8 +28,6 @@ enum AppFeature: String, CaseIterable, Identifiable {
             return "Chat"
         case .faces:
             return "Faces"
-        case .maps:
-            return "Maps"
         case .quickRecognition:
             return "Quick Recognition"
         case .detailsRecognition:
@@ -49,8 +45,6 @@ enum AppFeature: String, CaseIterable, Identifiable {
             return "Chat"
         case .faces:
             return "Faces"
-        case .maps:
-            return "Maps"
         case .quickRecognition:
             return "Quick"
         case .detailsRecognition:
@@ -68,8 +62,6 @@ enum AppFeature: String, CaseIterable, Identifiable {
             return "waveform.and.mic"
         case .faces:
             return "person.crop.rectangle"
-        case .maps:
-            return "map"
         case .quickRecognition:
             return "camera.viewfinder"
         case .detailsRecognition:

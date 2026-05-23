@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import UIKit
+import Vision
 
 @MainActor
 final class ReadTextViewModel: ObservableObject {
@@ -15,6 +16,7 @@ final class ReadTextViewModel: ObservableObject {
     @Published var cameraStateDescription = "Preparing camera..."
     @Published var capturedResult: CapturedTextResult?
     @Published var isCapturingPhoto = false
+    @Published var isDocumentDetectionEnabled = false
 
     let camera = CameraPipeline()
 
@@ -32,6 +34,12 @@ final class ReadTextViewModel: ObservableObject {
     private var pendingAnnouncementCount = 0
     private var lastSpokenNormalizedText = ""
     private var isPresentingCapturedResult = false
+    private let documentQueue = DispatchQueue(label: "com.eyepals.readtext.document-detection")
+    private var isProcessingDocumentFrame = false
+    private var consecutiveRectangleDetections = 0
+    private var nextAutoCaptureAllowedAt = Date.distantPast
+    private let requiredRectangleDetections = 3
+    private let autoCaptureCooldown: TimeInterval = 2.0
 
     init() {
         camera.onSampleBuffer = { [weak self] sampleBuffer in
@@ -53,7 +61,21 @@ final class ReadTextViewModel: ObservableObject {
         camera.stop()
     }
 
+    func toggleDocumentDetection() {
+        isDocumentDetectionEnabled.toggle()
+        if isDocumentDetectionEnabled {
+            cameraStateDescription = "Document detection on. Auto-capture is enabled."
+        } else {
+            cameraStateDescription = "Document detection off."
+            consecutiveRectangleDetections = 0
+        }
+    }
+
     func capturePhoto() {
+        capturePhoto(triggeredAutomatically: false)
+    }
+
+    private func capturePhoto(triggeredAutomatically: Bool) {
         guard !isCapturingPhoto else { return }
         guard let image = camera.currentFrameImage() else {
             cameraStateDescription = "No camera frame is ready yet."
@@ -63,7 +85,7 @@ final class ReadTextViewModel: ObservableObject {
         isCapturingPhoto = true
         isPresentingCapturedResult = true
         camera.stop()
-        cameraStateDescription = "Reading captured photo."
+        cameraStateDescription = triggeredAutomatically ? "Document detected. Capturing photo." : "Reading captured photo."
 
         textRecognitionService.process(image: image) { [weak self] observation in
             guard let self else { return }
@@ -75,6 +97,8 @@ final class ReadTextViewModel: ObservableObject {
             )
             self.isCapturingPhoto = false
             self.cameraStateDescription = "Captured text is ready."
+            self.consecutiveRectangleDetections = 0
+            self.nextAutoCaptureAllowedAt = Date().addingTimeInterval(self.autoCaptureCooldown)
         }
     }
 
@@ -90,6 +114,10 @@ final class ReadTextViewModel: ObservableObject {
 
     private func handle(sampleBuffer: CMSampleBuffer) {
         guard !isPresentingCapturedResult else { return }
+
+        if isDocumentDetectionEnabled {
+            processDocumentDetection(sampleBuffer: sampleBuffer)
+        }
 
         textRecognitionService.process(sampleBuffer: sampleBuffer) { [weak self] observation in
             guard let self, let observation else { return }
@@ -140,7 +168,58 @@ final class ReadTextViewModel: ObservableObject {
 
         lastSpokenNormalizedText = pendingAnnouncementText
         detectedLanguage = pendingAnnouncementLanguage
-        announcer.announce(pendingAnnouncementSpokenText, minimumInterval: settingsStore?.speechCooldown ?? 2.5)
+        announcer.announce(pendingAnnouncementSpokenText, minimumInterval: settingsStore?.readTextSpeechCooldown ?? 2.5)
+    }
+
+    private func processDocumentDetection(sampleBuffer: CMSampleBuffer) {
+        guard !isCapturingPhoto, !isPresentingCapturedResult else { return }
+        guard Date() >= nextAutoCaptureAllowedAt else { return }
+
+        documentQueue.async { [weak self] in
+            guard let self else { return }
+            guard !self.isProcessingDocumentFrame else { return }
+            self.isProcessingDocumentFrame = true
+
+            let request = VNDetectRectanglesRequest()
+            request.maximumObservations = 1
+            request.minimumConfidence = 0.65
+            request.minimumAspectRatio = 0.4
+            request.minimumSize = 0.2
+            request.quadratureTolerance = 20
+
+            do {
+                let handler = VNImageRequestHandler(cmSampleBuffer: sampleBuffer, orientation: .right)
+                try handler.perform([request])
+                let hasRectangle = !(request.results ?? []).isEmpty
+
+                Task { @MainActor in
+                    self.handleDocumentDetectionResult(hasRectangle)
+                }
+            } catch {
+                Task { @MainActor in
+                    self.consecutiveRectangleDetections = 0
+                }
+            }
+
+            self.isProcessingDocumentFrame = false
+        }
+    }
+
+    @MainActor
+    private func handleDocumentDetectionResult(_ hasRectangle: Bool) {
+        guard isDocumentDetectionEnabled else {
+            consecutiveRectangleDetections = 0
+            return
+        }
+
+        if hasRectangle {
+            consecutiveRectangleDetections += 1
+            if consecutiveRectangleDetections >= requiredRectangleDetections {
+                capturePhoto(triggeredAutomatically: true)
+            }
+        } else {
+            consecutiveRectangleDetections = 0
+        }
     }
 
     private func normalizeForAnnouncement(_ text: String) -> String {

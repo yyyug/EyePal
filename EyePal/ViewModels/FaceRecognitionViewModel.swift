@@ -70,7 +70,7 @@ final class FaceRecognitionViewModel: ObservableObject {
                 pendingSuggestion = nil
                 recognizedName = match.name
                 statusText = "Recognized \(match.name)."
-                announcer.announce(match.name, minimumInterval: settingsStore?.speechCooldown ?? 2.5)
+                announcer.announce(match.name, minimumInterval: settingsStore?.faceSpeechCooldown ?? 2.5)
             } else {
                 recognizedName = nil
                 statusText = "Scanning for known faces."

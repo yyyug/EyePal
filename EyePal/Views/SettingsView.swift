@@ -11,20 +11,10 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Navigation") {
+            Section {
                 NavigationLink("Feature Order") {
                     FeatureOrderSettingsView()
                         .environmentObject(settingsStore)
-                }
-            }
-
-            Section("Speech") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Speech delay")
-                    Slider(value: $settingsStore.speechCooldown, in: 1...6, step: 0.5)
-                    Text("\(settingsStore.speechCooldown.formatted(.number.precision(.fractionLength(1)))) seconds")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -40,13 +30,13 @@ struct SettingsView: View {
                         .environmentObject(settingsStore)
                 }
 
-                NavigationLink("Faces") {
-                    FaceRecognitionSettingsView()
+                NavigationLink("Text Recognition") {
+                    ReadTextRecognitionSettingsView()
                         .environmentObject(settingsStore)
                 }
 
-                NavigationLink("Maps") {
-                    MapsSettingsView()
+                NavigationLink("Faces") {
+                    FaceRecognitionSettingsView()
                         .environmentObject(settingsStore)
                 }
             }
@@ -833,6 +823,16 @@ private struct FaceRecognitionSettingsView: View {
 
     var body: some View {
         Form {
+            Section("Speech") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Speech delay")
+                    Slider(value: $settingsStore.faceSpeechCooldown, in: 1...6, step: 0.5)
+                    Text("\(settingsStore.faceSpeechCooldown.formatted(.number.precision(.fractionLength(1)))) seconds")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Recognition") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Match sensitivity")
@@ -858,6 +858,25 @@ private struct FaceRecognitionSettingsView: View {
             }
         }
         .navigationTitle("Face Recognition")
+    }
+}
+
+private struct ReadTextRecognitionSettingsView: View {
+    @EnvironmentObject private var settingsStore: SettingsStore
+
+    var body: some View {
+        Form {
+            Section("Speech") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Speech delay")
+                    Slider(value: $settingsStore.readTextSpeechCooldown, in: 1...6, step: 0.5)
+                    Text("\(settingsStore.readTextSpeechCooldown.formatted(.number.precision(.fractionLength(1)))) seconds")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Text Recognition")
     }
 }
 

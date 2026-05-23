@@ -61,8 +61,6 @@ struct RootTabView: View {
             DetailsDescriptionView()
         case .readText:
             ReadTextView()
-        case .maps:
-            MapsView()
         case .faces:
             FaceRecognitionView()
         }

@@ -3,7 +3,8 @@ import SwiftUI
 
 @MainActor
 final class SettingsStore: ObservableObject {
-    @AppStorage("speechCooldown") var speechCooldown = 2.5
+    @AppStorage("faceSpeechCooldown") var faceSpeechCooldown = 2.5
+    @AppStorage("readTextSpeechCooldown") var readTextSpeechCooldown = 2.5
     @AppStorage("faceMatchThreshold") var faceMatchThreshold = 0.87
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true
     @AppStorage("featureOrderData") private var featureOrderData = Data()
@@ -71,6 +72,29 @@ final class SettingsStore: ObservableObject {
     @AppStorage("detailsButton4CustomTitle") var detailsButton4CustomTitle = DetailsCustomQueryPreset.defaultTitle
     @AppStorage("detailsButton4CustomPrompt") var detailsButton4CustomPrompt = DetailsCustomQueryPreset.defaultPrompt
     @AppStorage("detailsActionControlStyle") var detailsActionControlStyle = RecognitionActionControlStyle.singleAdjustableControl.rawValue
+
+    init() {
+        migrateLegacySpeechCooldownIfNeeded()
+    }
+
+    private func migrateLegacySpeechCooldownIfNeeded() {
+        let defaults = UserDefaults.standard
+        let migrationKey = "featureSpeechCooldownMigration.v1"
+        guard !defaults.bool(forKey: migrationKey) else { return }
+
+        if defaults.object(forKey: "speechCooldown") != nil {
+            let legacyValue = defaults.double(forKey: "speechCooldown")
+
+            if defaults.object(forKey: "faceSpeechCooldown") == nil {
+                faceSpeechCooldown = legacyValue
+            }
+            if defaults.object(forKey: "readTextSpeechCooldown") == nil {
+                readTextSpeechCooldown = legacyValue
+            }
+        }
+
+        defaults.set(true, forKey: migrationKey)
+    }
 
     var orderedFeatures: [AppFeature] {
         get {

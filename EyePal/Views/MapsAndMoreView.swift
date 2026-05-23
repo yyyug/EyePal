@@ -1030,52 +1030,35 @@ struct MoreView: View {
     @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
     @EnvironmentObject private var floorStore: FloorRecordStore
 
-    private enum MoreDestination: Hashable {
-        case floorDetection
-        case chat
-        case automation
-        case settings
-        case feature(AppFeature)
-    }
-
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     ForEach(settingsStore.moreFeatures) { feature in
-                        NavigationLink(value: MoreDestination.feature(feature)) {
+                        NavigationLink {
+                            moreFeatureView(for: feature)
+                        } label: {
                             Label(feature.displayName, systemImage: feature.systemImageName)
                         }
                     }
 
-                    NavigationLink(value: MoreDestination.automation) {
+                    NavigationLink {
+                        AutomationAndLinksView()
+                            .environmentObject(appActionCenter)
+                    } label: {
                         Label("Automation & Links", systemImage: "bolt.horizontal.circle")
                     }
 
-                    NavigationLink(value: MoreDestination.settings) {
+                    NavigationLink {
+                        SettingsView()
+                            .environmentObject(settingsStore)
+                            .environmentObject(openAIStore)
+                    } label: {
                         Label("Settings", systemImage: "gearshape")
                     }
                 }
             }
-                .navigationTitle("More")
-                .navigationDestination(for: MoreDestination.self) { destination in
-                    switch destination {
-                    case .floorDetection:
-                        FloorDetectionListView()
-                            .environmentObject(floorStore)
-                    case .chat:
-                        RealtimeChatView()
-                    case .automation:
-                        AutomationAndLinksView()
-                            .environmentObject(appActionCenter)
-                    case .settings:
-                        SettingsView()
-                            .environmentObject(settingsStore)
-                            .environmentObject(openAIStore)
-                    case .feature(let feature):
-                        moreFeatureView(for: feature)
-                    }
-                }
+            .navigationTitle("More")
         }
     }
 
@@ -1093,8 +1076,6 @@ struct MoreView: View {
             DetailsDescriptionView()
         case .readText:
             ReadTextView()
-        case .maps:
-            MapsView()
         case .faces:
             FaceRecognitionView()
         }
@@ -1858,7 +1839,6 @@ private final class MapsViewModel: ObservableObject, @preconcurrency UserHeading
 
     func bind(settingsStore: SettingsStore) {
         self.settingsStore = settingsStore
-        speechCooldown = settingsStore.speechCooldown
         autoCalloutsEnabled = settingsStore.mapsAutoCalloutsEnabled
         metricUnits = settingsStore.mapsMetricUnits
         isBeaconAudioEnabled = settingsStore.mapsBeaconAudioEnabled

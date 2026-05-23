@@ -23,6 +23,22 @@ struct ReadTextView: View {
                         .foregroundStyle(.secondary)
 
                     Button {
+                        viewModel.toggleDocumentDetection()
+                    } label: {
+                        Label(
+                            viewModel.isDocumentDetectionEnabled ? "Document Detection [off]" : "Document Detection [on]",
+                            systemImage: viewModel.isDocumentDetectionEnabled ? "doc.text.viewfinder" : "doc.viewfinder"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityHint(
+                        viewModel.isDocumentDetectionEnabled
+                            ? "Turns document detection off."
+                            : "Turns document detection on and enables automatic photo capture when a document rectangle is detected."
+                    )
+
+                    Button {
                         viewModel.capturePhoto()
                     } label: {
                         Label(viewModel.isCapturingPhoto ? "Reading Photo..." : "Take Picture", systemImage: "camera")
