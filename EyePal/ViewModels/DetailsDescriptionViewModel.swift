@@ -4,7 +4,7 @@ import UIKit
 @MainActor
 final class DetailsDescriptionViewModel: ObservableObject {
     private static let helperInstruction = "Take a photo to describe the scene."
-    private static let defaultDescriptionPrompt = "For a blind user, first read visible text exactly. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks."
+    private static let defaultDescriptionPrompt = "For a blind user, if visible text is present, read it exactly. If no text is visible, do not mention text detection. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks."
 
     @Published var statusText = helperInstruction
     @Published var descriptionText = ""

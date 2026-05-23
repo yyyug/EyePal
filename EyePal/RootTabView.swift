@@ -49,8 +49,10 @@ struct RootTabView: View {
     private func rootView(for feature: AppFeature) -> some View {
         switch feature {
         case .floorDetection:
-            FloorDetectionListView()
-                .environmentObject(floorStore)
+            NavigationStack {
+                FloorDetectionListView()
+                    .environmentObject(floorStore)
+            }
         case .chat:
             RealtimeChatView()
         case .quickRecognition:
