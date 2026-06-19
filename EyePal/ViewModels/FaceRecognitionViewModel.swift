@@ -53,6 +53,7 @@ final class FaceRecognitionViewModel: ObservableObject {
                 self.pendingSuggestion = nil
                 statusText = "\(name) was saved with multiple samples for on-device recognition."
                 announcer.announce(statusText, minimumInterval: 0)
+                camera.start()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -61,6 +62,7 @@ final class FaceRecognitionViewModel: ObservableObject {
 
     func dismissSuggestion() {
         pendingSuggestion = nil
+        camera.start()
     }
 
     private func handle(sampleBuffer: CMSampleBuffer) {
@@ -81,6 +83,7 @@ final class FaceRecognitionViewModel: ObservableObject {
             if let suggestion, pendingSuggestion == nil, settingsStore?.suggestUnknownFaces ?? true {
                 pendingSuggestion = suggestion
                 sampleProgress = nil
+                camera.stop()
                 announcer.announce("Unknown face detected. A few samples were captured, and you can add this person.", minimumInterval: 3)
             }
         } onSampleCollected: { [weak self] current, target in
