@@ -45,7 +45,8 @@ final class FaceRecognitionService {
 
     func process(
         sampleBuffer: CMSampleBuffer,
-        completion: @escaping @MainActor (FaceMatch?, FaceSuggestion?) -> Void
+        completion: @escaping @MainActor (FaceMatch?, FaceSuggestion?) -> Void,
+        onSampleCollected: (@MainActor (Int, Int) -> Void)? = nil
     ) {
         processingQueue.async {
             guard !self.isProcessing else { return }
@@ -70,7 +71,8 @@ final class FaceRecognitionService {
                         let suggestion = self.handleUnknownFace(
                             embedding: embedding,
                             faceImage: faceImage,
-                            rankedCandidates: rankedCandidates
+                            rankedCandidates: rankedCandidates,
+                            onSampleCollected: onSampleCollected
                         )
                         await completion(nil, suggestion)
                     }
@@ -189,7 +191,8 @@ final class FaceRecognitionService {
     private func handleUnknownFace(
         embedding: [Float],
         faceImage: CGImage,
-        rankedCandidates: [CandidateMatch]
+        rankedCandidates: [CandidateMatch],
+        onSampleCollected: (@MainActor (Int, Int) -> Void)? = nil
     ) -> FaceSuggestion? {
         pendingKnownMatch = nil
         consecutiveKnownFrames = 0
@@ -202,6 +205,12 @@ final class FaceRecognitionService {
 
         consecutiveUnknownFrames += 1
         collectUnknownSample(embedding: embedding, faceImage: faceImage)
+
+        if let onSampleCollected {
+            let current = pendingUnknownEmbeddings.count
+            let target = enrollmentSampleTarget
+            await onSampleCollected(current, target)
+        }
 
         guard consecutiveUnknownFrames >= suggestionFrameThreshold else {
             return nil

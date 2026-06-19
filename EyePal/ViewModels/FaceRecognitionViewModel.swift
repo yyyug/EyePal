@@ -7,6 +7,7 @@ final class FaceRecognitionViewModel: ObservableObject {
     @Published var recognizedName: String?
     @Published var pendingSuggestion: FaceSuggestion?
     @Published var errorMessage: String?
+    @Published var sampleProgress: String?
 
     let camera = CameraPipeline()
 
@@ -70,6 +71,7 @@ final class FaceRecognitionViewModel: ObservableObject {
                 pendingSuggestion = nil
                 recognizedName = match.name
                 statusText = "Recognized \(match.name)."
+                sampleProgress = nil
                 announcer.announce(match.name, minimumInterval: settingsStore?.faceSpeechCooldown ?? 2.5)
             } else {
                 recognizedName = nil
@@ -78,8 +80,12 @@ final class FaceRecognitionViewModel: ObservableObject {
 
             if let suggestion, pendingSuggestion == nil, settingsStore?.suggestUnknownFaces ?? true {
                 pendingSuggestion = suggestion
+                sampleProgress = nil
                 announcer.announce("Unknown face detected. A few samples were captured, and you can add this person.", minimumInterval: 3)
             }
+        } onSampleCollected: { [weak self] current, target in
+            guard let self else { return }
+            self.sampleProgress = "Capturing samples... \(current)/\(target)"
         }
     }
 }

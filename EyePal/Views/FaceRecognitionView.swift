@@ -12,8 +12,14 @@ struct FaceRecognitionView: View {
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(viewModel.statusText)
-                        .font(.headline)
+                    if let sampleProgress = viewModel.sampleProgress {
+                        Text(sampleProgress)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(viewModel.statusText)
+                            .font(.headline)
+                    }
 
                     if let recognizedName = viewModel.recognizedName {
                         Text(recognizedName)
@@ -26,9 +32,19 @@ struct FaceRecognitionView: View {
                 .padding()
             }
             .navigationTitle("Face Recognition")
-            .sheet(item: $viewModel.pendingSuggestion) { _ in
+            .sheet(item: $viewModel.pendingSuggestion) { suggestion in
                 NavigationStack {
                     Form {
+                        if let jpegData = suggestion.jpegData, let uiImage = UIImage(data: jpegData) {
+                            Section {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: .infinity)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+                        }
+
                         Section("New Face") {
                             TextField("Person's name", text: $suggestedName)
                                 .textInputAutocapitalization(.words)
