@@ -67,7 +67,6 @@ struct QuickRecognitionView: View {
                         }
                         .buttonStyle(.bordered)
                         .disabled(viewModel.isProcessing && !viewModel.isContinuousCapture)
-                        .accessibilitySortPriority(1)
                     }
                 }
                 .padding()
@@ -134,7 +133,6 @@ struct QuickRecognitionView: View {
                         .padding(8)
                         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .accessibilityLabel("Quick recognition result")
-                        .accessibilitySortPriority(2)
                 }
             }
         }
@@ -160,7 +158,6 @@ struct QuickRecognitionView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.isProcessing || viewModel.isContinuousCapture)
-            .accessibilitySortPriority(5)
 
             HStack(spacing: 12) {
                 ForEach(quickPresetEntries, id: \.slot) { entry in
@@ -170,9 +167,7 @@ struct QuickRecognitionView: View {
                     ) {
                         viewModel.takePresetPhoto(entry.preset)
                     }
-                    .accessibilitySortPriority(
-                        entry.preset.title.caseInsensitiveCompare("Product") == .orderedSame ? 4 : 3
-                    )
+
                 }
             }
         }
@@ -204,7 +199,6 @@ struct QuickRecognitionView: View {
                 break
             }
         }
-        .accessibilitySortPriority(5)
     }
 
     private var selectedAction: ActionChoice {

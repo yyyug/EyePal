@@ -132,11 +132,7 @@ final class OpenAIDetailsDescriptionService {
             throw OpenAIDetailsDescriptionError.backendError(fallback)
         }
 
-        if let streamedText = try await readStreamedResponse(from: bytes) {
-            return streamedText
-        }
-
-        throw OpenAIDetailsDescriptionError.emptyResponse
+        return try await readStreamedResponse(from: bytes)
     }
 
     private func makePayload(imageData: Data, conversation: [DetailsDescriptionTurn]) -> [String: Any] {
@@ -149,7 +145,7 @@ final class OpenAIDetailsDescriptionService {
         ]
     }
 
-    private func readStreamedResponse(from bytes: URLSession.AsyncBytes) async throws -> String? {
+    private func readStreamedResponse(from bytes: URLSession.AsyncBytes) async throws -> String {
         var streamedText = ""
         var rawEventData = Data()
         var streamedErrorMessage: String?
@@ -197,15 +193,11 @@ final class OpenAIDetailsDescriptionService {
             return trimmedStreamedText
         }
 
-        if let bufferedErrorMessage = extractErrorMessage(from: rawEventData) {
-            throw OpenAIDetailsDescriptionError.backendError(bufferedErrorMessage)
-        }
-
         if let bufferedText = extractBufferedText(from: rawEventData) {
             return bufferedText
         }
 
-        return nil
+        throw OpenAIDetailsDescriptionError.emptyResponse
     }
 
     private func collectData(from bytes: URLSession.AsyncBytes) async throws -> Data {

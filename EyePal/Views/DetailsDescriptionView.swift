@@ -63,14 +63,13 @@ struct DetailsDescriptionView: View {
                                     .onSubmit {
                                         viewModel.submitFollowUp()
                                     }
-                                    .accessibilitySortPriority(2)
+                                    .accessibilityLabel("Ask a follow-up question")
 
                                 Button("Send") {
                                     viewModel.submitFollowUp()
                                 }
                                 .buttonStyle(.bordered)
-                                .disabled(viewModel.isProcessing || viewModel.followUpQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                .accessibilitySortPriority(1)
+                .disabled(viewModel.isProcessing || viewModel.followUpQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }
                         }
                     }
@@ -186,8 +185,6 @@ struct DetailsDescriptionView: View {
                         Text(viewModel.descriptionText)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
-                            .accessibilityLabel("Scene description")
-                            .accessibilitySortPriority(3)
                     }
                 }
             }
@@ -263,7 +260,6 @@ struct DetailsDescriptionView: View {
             guard selectedAction == .takePhoto else { return }
             showPromptComposer = true
         }
-        .accessibilitySortPriority(5)
     }
 
     @ViewBuilder
