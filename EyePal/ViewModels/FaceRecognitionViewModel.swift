@@ -84,8 +84,9 @@ final class FaceRecognitionViewModel: ObservableObject {
                 announcer.announce("Unknown face detected. A few samples were captured, and you can add this person.", minimumInterval: 3)
             }
         } onSampleCollected: { [weak self] current, target in
-            guard let self else { return }
-            self.sampleProgress = "Capturing samples... \(current)/\(target)"
+            Task { @MainActor in
+                self?.sampleProgress = "Capturing samples... \(current)/\(target)"
+            }
         }
     }
 }
