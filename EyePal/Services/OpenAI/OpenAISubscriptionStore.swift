@@ -149,12 +149,27 @@ final class OpenAISubscriptionStore: ObservableObject {
     }
 
     func signOut() {
+        if let refreshToken = session?.tokens.refreshToken, !refreshToken.isEmpty {
+            Task { await revokeToken(refreshToken: refreshToken) }
+        }
         session = nil
         authRequest = nil
         pendingLogin = nil
         isAuthenticating = false
         authErrorMessage = nil
         keychain.clearSession()
+    }
+
+    private func revokeToken(refreshToken: String) async {
+        guard let url = URL(string: "https://auth.openai.com/oauth/revoke") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = formBody([
+            "token": refreshToken,
+            "client_id": OpenAICodexAuthContract.clientID
+        ])
+        _ = try? await URLSession.shared.data(for: request)
     }
 
     func activeCredentials(forceRefresh: Bool = false) async throws -> OpenAISubscriptionCredentials {

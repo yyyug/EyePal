@@ -449,6 +449,7 @@ private final class MapsDevicesMonitor: NSObject, ObservableObject, CLLocationMa
 private struct DetailsDescriptionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @State private var showSignOutConfirmation = false
 
     private var selectedActionControlStyle: Binding<RecognitionActionControlStyle> {
         Binding(
@@ -494,8 +495,16 @@ private struct DetailsDescriptionSettingsView: View {
             if openAIStore.isSignedIn {
                 Section {
                     Button("Sign Out", role: .destructive) {
+                        showSignOutConfirmation = true
+                    }
+                }
+                .alert("Sign Out", isPresented: $showSignOutConfirmation) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Sign Out", role: .destructive) {
                         openAIStore.signOut()
                     }
+                } message: {
+                    Text("Are you sure you want to sign out of ChatGPT?")
                 }
             } else {
                 Section {
