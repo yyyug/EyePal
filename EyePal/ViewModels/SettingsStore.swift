@@ -19,7 +19,6 @@ final class SettingsStore: ObservableObject {
             faceRecognitionLogs = Array(faceRecognitionLogs.prefix(maxLogEntries))
         }
     }
-
     @AppStorage("featureOrderData") private var featureOrderData = Data()
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
@@ -103,20 +102,8 @@ final class SettingsStore: ObservableObject {
             }
             if defaults.object(forKey: "readTextSpeechCooldown") == nil {
                 readTextSpeechCooldown = legacyValue
-    }
-}
-
-struct FaceRecognitionLogEntry: Identifiable {
-    let id = UUID()
-    let message: String
-    let timestamp = Date()
-
-    var formattedTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: timestamp)
-    }
-}
+            }
+        }
 
         defaults.set(true, forKey: migrationKey)
     }
@@ -281,5 +268,17 @@ struct FaceRecognitionLogEntry: Identifiable {
         case .fourth:
             return detailsButton4CustomPrompt
         }
+    }
+}
+
+struct FaceRecognitionLogEntry: Identifiable {
+    let id = UUID()
+    let message: String
+    let timestamp = Date()
+
+    var formattedTime: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: timestamp)
     }
 }
