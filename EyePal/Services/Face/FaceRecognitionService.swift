@@ -28,12 +28,12 @@ final class FaceRecognitionService {
     private var pendingUnknownEmbeddings: [[Float]] = []
     private var pendingUnknownJPEGData: Data?
 
-    var recognitionThreshold: Float = 0.87
+    var recognitionThreshold: Float = 0.82
     var suggestionFrameThreshold = 6
     var minimumSuggestionInterval: TimeInterval = 10
-    var knownMatchFrameThreshold = 2
-    var minimumTopMatchMargin: Float = 0.015
-    var borderlineKnownThreshold: Float = 0.82
+    var knownMatchFrameThreshold = 1
+    var minimumTopMatchMargin: Float = 0.01
+    var borderlineKnownThreshold: Float = 0.78
     var enrollmentSampleTarget = 4
     var minimumEnrollmentSamples = 3
 
@@ -197,8 +197,9 @@ final class FaceRecognitionService {
         pendingKnownMatch = nil
         consecutiveKnownFrames = 0
 
-        if let bestKnownConfidence = rankedCandidates.first?.confidence,
-           bestKnownConfidence >= borderlineKnownThreshold {
+        if let bestCandidate = rankedCandidates.first,
+           bestCandidate.confidence >= borderlineKnownThreshold {
+            enrichProfile(id: bestCandidate.profile.id, embedding: embedding)
             resetUnknownTracking()
             return nil
         }
@@ -249,6 +250,27 @@ final class FaceRecognitionService {
 
         if pendingUnknownJPEGData == nil {
             pendingUnknownJPEGData = UIImage(cgImage: faceImage).jpegData(compressionQuality: 0.8)
+        }
+    }
+
+    private func enrichProfile(id: UUID, embedding: [Float]) {
+        guard !embedding.isEmpty else { return }
+        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+
+        let isDistinctEnough = profiles[index].sampleEmbeddings.allSatisfy { saved in
+            cosineSimilarity(saved, embedding) < 0.995
+        }
+
+        guard isDistinctEnough else { return }
+
+        profiles[index].sampleEmbeddings.append(embedding)
+        if profiles[index].sampleEmbeddings.count > enrollmentSampleTarget {
+            profiles[index].sampleEmbeddings = Array(profiles[index].sampleEmbeddings.suffix(enrollmentSampleTarget))
+        }
+        profiles[index].updatedAt = .now
+
+        Task {
+            try? await faceStore.saveProfiles(profiles)
         }
     }
 
