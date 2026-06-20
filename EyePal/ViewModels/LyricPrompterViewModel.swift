@@ -80,7 +80,7 @@ final class LyricPrompterViewModel: ObservableObject {
             let response = try await service.searchLyrics(
                 title: title,
                 artist: artist,
-                provider: settings.lyricLLMProvider,
+                provider: LyricLLMProvider(rawValue: settings.lyricLLMProvider) ?? .codex,
                 modelID: settings.lyricModelID,
                 apiKey: settings.lyricAPIKey,
                 baseURL: settings.lyricBaseURL,
