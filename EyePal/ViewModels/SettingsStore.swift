@@ -10,7 +10,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true
     @AppStorage("lyricAdvanceOffset") var lyricAdvanceOffset = 0.0
     @AppStorage("lyricLLMProvider") var lyricLLMProvider = LyricLLMProvider.codex.rawValue
-    @AppStorage("lyricModelID") var lyricModelID = "gpt-4o-mini"
+    @AppStorage("lyricModelID") var lyricModelID = "gpt-5.4-mini"
     @AppStorage("lyricAPIKey") var lyricAPIKey = ""
     @AppStorage("lyricBaseURL") var lyricBaseURL = ""
 

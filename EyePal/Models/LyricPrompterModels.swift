@@ -66,10 +66,11 @@ struct LyricLLMLine: Codable {
 }
 
 struct LyricProviderModels {
-    static let codex = ["gpt-4o-mini"]
+    static let codex = ["gpt-5.4-mini"]
 
     static let gemini = [
         "gemini-2.5-flash-preview-05-20",
+        "gemini-2.5-pro-preview-05-06",
         "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
         "gemini-1.5-flash",
@@ -77,12 +78,13 @@ struct LyricProviderModels {
     ]
 
     static let openai = [
-        "gpt-4o-mini",
-        "gpt-4o",
+        "gpt-5.4-mini",
+        "gpt-5.4",
+        "gpt-5.5",
         "gpt-4.1-mini",
-        "gpt-4.1",
+        "gpt-4.1-nano",
         "o4-mini",
         "o3",
-        "gpt-3.5-turbo"
+        "gpt-4o-mini"
     ]
 }
