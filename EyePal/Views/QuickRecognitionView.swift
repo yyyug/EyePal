@@ -45,6 +45,9 @@ struct QuickRecognitionView: View {
                         Text("Add your Moondream API key in Settings > Quick Recognition.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+
+                        Link("Sign up and get API key", destination: URL(string: "https://moondream.ai/")!)
+                            .font(.subheadline.weight(.semibold))
                     }
 
                     resultPanel
