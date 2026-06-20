@@ -9,6 +9,10 @@ final class SettingsStore: ObservableObject {
     @AppStorage("faceMatchMargin") var faceMatchMargin = 0.015
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true
     @AppStorage("lyricAdvanceOffset") var lyricAdvanceOffset = 0.0
+    @AppStorage("lyricLLMProvider") var lyricLLMProvider = LyricLLMProvider.codex.rawValue
+    @AppStorage("lyricModelID") var lyricModelID = "gpt-4o-mini"
+    @AppStorage("lyricAPIKey") var lyricAPIKey = ""
+    @AppStorage("lyricBaseURL") var lyricBaseURL = ""
 
     @Published var faceRecognitionLogs: [FaceRecognitionLogEntry] = []
     private let maxLogEntries = 50

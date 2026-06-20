@@ -15,11 +15,18 @@ final class LyricPrompterViewModel: ObservableObject {
     private let announcer = AccessibilityAnnouncementCenter()
     private var playbackTask: Task<Void, Never>?
     private var advanceOffset: TimeInterval = 0
+    private weak var settingsStore: SettingsStore?
+    private weak var openAIStore: OpenAISubscriptionStore?
 
     var savedSongsURL: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let base = appSupport.appendingPathComponent("EyePal", isDirectory: true)
         return base.appendingPathComponent("lyrics.json")
+    }
+
+    func bind(settings: SettingsStore, openAIStore: OpenAISubscriptionStore) {
+        self.settingsStore = settings
+        self.openAIStore = openAIStore
     }
 
     func loadSaved() {
@@ -56,10 +63,15 @@ final class LyricPrompterViewModel: ObservableObject {
         artistName = song.artist
     }
 
-    func search(store: OpenAISubscriptionStore) async {
+    func search() async {
         let title = songTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let artist = artistName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
+
+        guard let settings = settingsStore else {
+            errorMessage = "Settings unavailable."
+            return
+        }
 
         isSearching = true
         errorMessage = nil
@@ -68,7 +80,11 @@ final class LyricPrompterViewModel: ObservableObject {
             let response = try await service.searchLyrics(
                 title: title,
                 artist: artist,
-                store: store
+                provider: settings.lyricLLMProvider,
+                modelID: settings.lyricModelID,
+                apiKey: settings.lyricAPIKey,
+                baseURL: settings.lyricBaseURL,
+                codexStore: openAIStore
             )
 
             let lines = response.lines.map { LyricLine(text: $0.text, startTime: $0.startTime) }

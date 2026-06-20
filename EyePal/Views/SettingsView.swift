@@ -43,6 +43,7 @@ struct SettingsView: View {
                 NavigationLink("Lyric Prompter") {
                     LyricPrompterSettingsView()
                         .environmentObject(settingsStore)
+                        .environmentObject(openAIStore)
                 }
             }
         }
@@ -1110,9 +1111,76 @@ private struct TranslationLanguageOption: Identifiable, Equatable {
 
 private struct LyricPrompterSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @State private var availableModels: [String] = []
+    @State private var isLoadingModels = false
+    @State private var modelError: String?
+
+    private var selectedProvider: Binding<LyricLLMProvider> {
+        Binding(
+            get: { LyricLLMProvider(rawValue: settingsStore.lyricLLMProvider) ?? .codex },
+            set: { settingsStore.lyricLLMProvider = $0.rawValue }
+        )
+    }
 
     var body: some View {
         Form {
+            Section("AI Provider") {
+                Picker("Provider", selection: selectedProvider) {
+                    ForEach(LyricLLMProvider.allCases) { provider in
+                        Text(provider.displayName).tag(provider)
+                    }
+                }
+
+                if selectedProvider.wrappedValue == .codex {
+                    if openAIStore.isSignedIn {
+                        Label("Signed in with ChatGPT", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Label("Not signed in", systemImage: "xmark.circle")
+                            .foregroundStyle(.red)
+                    }
+                } else {
+                    TextField("API Key", text: $settingsStore.lyricAPIKey)
+                        .textContentType(.password)
+                        .autocorrectionDisabled()
+
+                    TextField("Base URL (optional)", text: $settingsStore.lyricBaseURL)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+            }
+
+            Section("Model") {
+                if isLoadingModels {
+                    HStack {
+                        ProgressView()
+                        Text("Loading models...")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Picker("Model", selection: $settingsStore.lyricModelID) {
+                        ForEach(availableModels, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                }
+
+                if let modelError {
+                    Text(modelError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Button {
+                    Task { await loadModels() }
+                } label: {
+                    Label("Refresh Models", systemImage: "arrow.clockwise")
+                }
+                .disabled(isLoadingModels)
+            }
+
             Section("Playback") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Advance offset")
@@ -1124,7 +1192,7 @@ private struct LyricPrompterSettingsView: View {
             }
 
             Section("About") {
-                Text("Lyric Prompter uses ChatGPT to search for song lyrics online.")
+                Text("Lyric Prompter uses AI to search for song lyrics online.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text("Timed lyrics (from YouTube captions etc.) enable auto-read mode.")
@@ -1133,5 +1201,88 @@ private struct LyricPrompterSettingsView: View {
             }
         }
         .navigationTitle("Lyric Prompter")
+        .onAppear {
+            availableModels = defaultModels(for: selectedProvider.wrappedValue)
+            if settingsStore.lyricModelID.isEmpty || !availableModels.contains(settingsStore.lyricModelID) {
+                settingsStore.lyricModelID = availableModels.first ?? ""
+            }
+        }
+    }
+
+    private func defaultModels(for provider: LyricLLMProvider) -> [String] {
+        switch provider {
+        case .codex: return LyricProviderModels.codex
+        case .gemini: return LyricProviderModels.gemini
+        case .openai: return LyricProviderModels.openai
+        }
+    }
+
+    private func loadModels() async {
+        isLoadingModels = true
+        modelError = nil
+
+        let provider = selectedProvider.wrappedValue
+
+        switch provider {
+        case .codex:
+            availableModels = LyricProviderModels.codex
+            settingsStore.lyricModelID = availableModels.first ?? ""
+        case .gemini:
+            let key = settingsStore.lyricAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else {
+                modelError = "Enter an API key first."
+                isLoadingModels = false
+                return
+            }
+            let base = settingsStore.lyricBaseURL.isEmpty ? "https://generativelanguage.googleapis.com/v1beta" : settingsStore.lyricBaseURL
+            if let models = try? await fetchGeminiModels(apiKey: key, baseURL: base) {
+                availableModels = models
+                if !models.contains(settingsStore.lyricModelID) {
+                    settingsStore.lyricModelID = models.first ?? ""
+                }
+            } else {
+                availableModels = LyricProviderModels.gemini
+            }
+        case .openai:
+            let key = settingsStore.lyricAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else {
+                modelError = "Enter an API key first."
+                isLoadingModels = false
+                return
+            }
+            let base = settingsStore.lyricBaseURL.isEmpty ? "https://api.openai.com/v1" : settingsStore.lyricBaseURL
+            if let models = try? await fetchOpenAIModels(apiKey: key, baseURL: base) {
+                availableModels = models
+                if !models.contains(settingsStore.lyricModelID) {
+                    settingsStore.lyricModelID = models.first ?? ""
+                }
+            } else {
+                availableModels = LyricProviderModels.openai
+            }
+        }
+
+        isLoadingModels = false
+    }
+
+    private func fetchGeminiModels(apiKey: String, baseURL: String) async throws -> [String] {
+        let urlStr = "\(baseURL)/models?key=\(apiKey)"
+        guard let url = URL(string: urlStr) else { return [] }
+        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let models = json["models"] as? [[String: Any]] else { return [] }
+        return models.compactMap { $0["name"] as? String }
+            .map { $0.replacingOccurrences(of: "models/", with: "") }
+            .sorted()
+    }
+
+    private func fetchOpenAIModels(apiKey: String, baseURL: String) async throws -> [String] {
+        let urlStr = "\(baseURL)/models"
+        guard let url = URL(string: urlStr) else { return [] }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        let (data, _) = try await URLSession.shared.data(for: request)
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let dataArr = json["data"] as? [[String: Any]] else { return [] }
+        return dataArr.compactMap { $0["id"] as? String }.sorted()
     }
 }

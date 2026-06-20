@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LyricPrompterView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = LyricPrompterViewModel()
 
     var body: some View {
@@ -10,8 +11,7 @@ struct LyricPrompterView: View {
                 if let song = viewModel.currentSong {
                     LyricDisplayView(
                         song: song,
-                        viewModel: viewModel,
-                        openAIStore: openAIStore
+                        viewModel: viewModel
                     )
                 } else {
                     songListView
@@ -38,6 +38,7 @@ struct LyricPrompterView: View {
             }
         }
         .onAppear {
+            viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
             viewModel.loadSaved()
         }
     }
@@ -87,11 +88,11 @@ struct LyricPrompterView: View {
                     .textFieldStyle(.roundedBorder)
                     .submitLabel(.search)
                     .onSubmit {
-                        Task { await viewModel.search(store: openAIStore) }
+                        Task { await viewModel.search() }
                     }
 
                 Button {
-                    Task { await viewModel.search(store: openAIStore) }
+                    Task { await viewModel.search() }
                 } label: {
                     Label(
                         viewModel.isSearching ? "Searching..." : "Search Lyrics",
@@ -110,7 +111,6 @@ struct LyricPrompterView: View {
 private struct LyricDisplayView: View {
     let song: LyricSong
     let viewModel: LyricPrompterViewModel
-    let openAIStore: OpenAISubscriptionStore
     @EnvironmentObject private var settingsStore: SettingsStore
 
     private var advanceOffset: TimeInterval {
@@ -135,8 +135,7 @@ private struct LyricDisplayView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(!song.hasTimestamps)
-                    .accessibilityHint(song.hasTimestamps ? "Plays lyrics from the beginning with timing" : "Disabled, no timed lyrics")
+                    .accessibilityHint("Plays lyrics from the beginning with timing")
 
                     Button {
                         if viewModel.isPlaying {
@@ -152,10 +151,18 @@ private struct LyricDisplayView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(!song.hasTimestamps)
-                    .accessibilityHint(song.hasTimestamps ? "Plays lyrics starting from the first line immediately" : "Disabled, no timed lyrics")
+                    .accessibilityHint("Plays lyrics starting from the first line immediately")
                 }
                 .padding(.horizontal)
+                .padding(.vertical, 8)
+            } else {
+                HStack {
+                    Spacer()
+                    Text("No timed lyrics available")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
                 .padding(.vertical, 8)
             }
 
