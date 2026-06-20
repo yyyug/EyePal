@@ -39,6 +39,11 @@ struct SettingsView: View {
                     FaceRecognitionSettingsView()
                         .environmentObject(settingsStore)
                 }
+
+                NavigationLink("Lyric Prompter") {
+                    LyricPrompterSettingsView()
+                        .environmentObject(settingsStore)
+                }
             }
         }
         .navigationTitle("Settings")
@@ -926,15 +931,26 @@ private struct SavedFacesView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(viewModel.profiles) { profile in
-                    HStack {
-                        Text(profile.name)
-                        Spacer()
-                        Button("Rename") {
+                    Text(profile.name)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                viewModel.deleteFaces(at: IndexSet(integer: viewModel.profiles.firstIndex(where: { $0.id == profile.id }) ?? 0))
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .contextMenu {
+                            Button {
+                                draftName = profile.name
+                                renamingProfile = profile
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                        }
+                        .accessibilityAction(named: Text("Rename \(profile.name)")) {
                             draftName = profile.name
                             renamingProfile = profile
                         }
-                        .buttonStyle(.borderless)
-                    }
                 }
                 .onDelete(perform: viewModel.deleteFaces)
             }
@@ -1091,3 +1107,31 @@ private struct TranslationLanguageOption: Identifiable, Equatable {
     }
 }
 #endif
+
+private struct LyricPrompterSettingsView: View {
+    @EnvironmentObject private var settingsStore: SettingsStore
+
+    var body: some View {
+        Form {
+            Section("Playback") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Advance offset")
+                    Slider(value: $settingsStore.lyricAdvanceOffset, in: 0...5, step: 0.5)
+                    Text("\(settingsStore.lyricAdvanceOffset.formatted(.number.precision(.fractionLength(1)))) seconds before lyric time")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("About") {
+                Text("Lyric Prompter uses ChatGPT to search for song lyrics online.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text("Timed lyrics (from YouTube captions etc.) enable auto-read mode.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Lyric Prompter")
+    }
+}

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootTabView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+    @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @EnvironmentObject private var appActionCenter: EyePalAppActionCenter
     @StateObject private var floorStore = FloorRecordStore()
     @State private var selectedTabIdentifier = ""
@@ -63,6 +64,9 @@ struct RootTabView: View {
             ReadTextView()
         case .faces:
             FaceRecognitionView()
+        case .lyricPrompter:
+            LyricPrompterView()
+                .environmentObject(openAIStore)
         }
     }
 }

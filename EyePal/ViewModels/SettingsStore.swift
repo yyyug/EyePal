@@ -8,6 +8,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("faceMatchThreshold") var faceMatchThreshold = 0.87
     @AppStorage("faceMatchMargin") var faceMatchMargin = 0.015
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true
+    @AppStorage("lyricAdvanceOffset") var lyricAdvanceOffset = 0.0
 
     @Published var faceRecognitionLogs: [FaceRecognitionLogEntry] = []
     private let maxLogEntries = 50

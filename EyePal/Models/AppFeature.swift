@@ -7,6 +7,7 @@ enum AppFeature: String, CaseIterable, Identifiable {
     case quickRecognition
     case detailsRecognition
     case readText
+    case lyricPrompter
 
     static let defaultOrder: [AppFeature] = [
         .floorDetection,
@@ -15,6 +16,7 @@ enum AppFeature: String, CaseIterable, Identifiable {
         .quickRecognition,
         .detailsRecognition,
         .readText,
+        .lyricPrompter,
     ]
     static let maxTabFeatureCount = 4
 
@@ -34,6 +36,8 @@ enum AppFeature: String, CaseIterable, Identifiable {
             return "Details Recognition"
         case .readText:
             return "Read Text"
+        case .lyricPrompter:
+            return "Lyric Prompter"
         }
     }
 
@@ -51,6 +55,8 @@ enum AppFeature: String, CaseIterable, Identifiable {
             return "Details"
         case .readText:
             return "Read Text"
+        case .lyricPrompter:
+            return "Lyrics"
         }
     }
 
@@ -68,6 +74,8 @@ enum AppFeature: String, CaseIterable, Identifiable {
             return "sparkles.rectangle.stack"
         case .readText:
             return "text.viewfinder"
+        case .lyricPrompter:
+            return "music.note.list"
         }
     }
 
