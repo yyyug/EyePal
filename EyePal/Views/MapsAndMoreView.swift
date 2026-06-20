@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 import CoreLocation
 import AVFoundation
 import MapKit
@@ -1078,6 +1078,9 @@ struct MoreView: View {
             ReadTextView()
         case .faces:
             FaceRecognitionView()
+        case .lyricPrompter:
+            LyricPrompterView()
+                .environmentObject(openAIStore)
         }
     }
 }
