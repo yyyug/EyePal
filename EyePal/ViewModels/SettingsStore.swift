@@ -19,7 +19,7 @@ final class SettingsStore: ObservableObject {
             faceRecognitionLogs = Array(faceRecognitionLogs.prefix(maxLogEntries))
         }
     }
-}
+
     @AppStorage("featureOrderData") private var featureOrderData = Data()
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
