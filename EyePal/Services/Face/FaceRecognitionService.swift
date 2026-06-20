@@ -46,7 +46,8 @@ final class FaceRecognitionService {
     func process(
         sampleBuffer: CMSampleBuffer,
         completion: @escaping @MainActor (FaceMatch?, FaceSuggestion?) -> Void,
-        onSampleCollected: ((Int, Int) -> Void)? = nil
+        onSampleCollected: ((Int, Int) -> Void)? = nil,
+        onLog: ((String) -> Void)? = nil
     ) {
         processingQueue.async {
             guard !self.isProcessing else { return }
@@ -68,6 +69,17 @@ final class FaceRecognitionService {
                         self.resetUnknownTracking()
                         await completion(match, nil)
                     } else {
+                        if let best = rankedCandidates.first {
+                            let second = rankedCandidates.count > 1 ? rankedCandidates[1].confidence : 0
+                            let margin = best.confidence - second
+                            let reason = best.confidence < self.recognitionThreshold
+                                ? "below threshold"
+                                : (rankedCandidates.count > 1 && margin < self.minimumTopMatchMargin
+                                    ? "margin too small (\(String(format: "%.3f", margin)) < \(String(format: "%.3f", self.minimumTopMatchMargin)))"
+                                    : "frame threshold")
+                            let msg = "No match: \(best.profile.name) \(String(format: "%.3f", best.confidence)) [\(reason)]"
+                            await MainActor.run { onLog?(msg) }
+                        }
                         let suggestion = self.handleUnknownFace(
                             embedding: embedding,
                             faceImage: faceImage,

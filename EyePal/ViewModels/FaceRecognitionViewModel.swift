@@ -24,6 +24,7 @@ final class FaceRecognitionViewModel: ObservableObject {
     func bind(settings: SettingsStore) {
         settingsStore = settings
         recognitionService.recognitionThreshold = max(Float(settings.faceMatchThreshold), 0.78)
+        recognitionService.minimumTopMatchMargin = max(Float(settings.faceMatchMargin), 0.005)
     }
 
     func start() {
@@ -90,6 +91,8 @@ final class FaceRecognitionViewModel: ObservableObject {
             Task { @MainActor in
                 self?.sampleProgress = "Capturing samples... \(current)/\(target)"
             }
+        } onLog: { [weak self] message in
+            self?.settingsStore?.appendFaceLog(message)
         }
     }
 }

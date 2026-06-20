@@ -6,7 +6,20 @@ final class SettingsStore: ObservableObject {
     @AppStorage("faceSpeechCooldown") var faceSpeechCooldown = 2.5
     @AppStorage("readTextSpeechCooldown") var readTextSpeechCooldown = 2.5
     @AppStorage("faceMatchThreshold") var faceMatchThreshold = 0.87
+    @AppStorage("faceMatchMargin") var faceMatchMargin = 0.015
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true
+
+    @Published var faceRecognitionLogs: [FaceRecognitionLogEntry] = []
+    private let maxLogEntries = 50
+
+    func appendFaceLog(_ message: String) {
+        let entry = FaceRecognitionLogEntry(message: message)
+        faceRecognitionLogs.insert(entry, at: 0)
+        if faceRecognitionLogs.count > maxLogEntries {
+            faceRecognitionLogs = Array(faceRecognitionLogs.prefix(maxLogEntries))
+        }
+    }
+}
     @AppStorage("featureOrderData") private var featureOrderData = Data()
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
@@ -90,8 +103,20 @@ final class SettingsStore: ObservableObject {
             }
             if defaults.object(forKey: "readTextSpeechCooldown") == nil {
                 readTextSpeechCooldown = legacyValue
-            }
-        }
+    }
+}
+
+struct FaceRecognitionLogEntry: Identifiable {
+    let id = UUID()
+    let message: String
+    let timestamp = Date()
+
+    var formattedTime: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: timestamp)
+    }
+}
 
         defaults.set(true, forKey: migrationKey)
     }

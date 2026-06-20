@@ -845,8 +845,16 @@ private struct FaceRecognitionSettingsView: View {
             Section("Recognition") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Match sensitivity")
-                    Slider(value: $settingsStore.faceMatchThreshold, in: 0.84...0.98, step: 0.01)
+                    Slider(value: $settingsStore.faceMatchThreshold, in: 0.78...0.98, step: 0.01)
                     Text(settingsStore.faceMatchThreshold.formatted(.percent.precision(.fractionLength(0))))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Top match margin")
+                    Slider(value: $settingsStore.faceMatchMargin, in: 0.005...0.05, step: 0.005)
+                    Text("Min gap between best and 2nd-best: \(settingsStore.faceMatchMargin, specifier: "%.3f")")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -857,6 +865,23 @@ private struct FaceRecognitionSettingsView: View {
             Section("Saved Faces") {
                 NavigationLink("Manage Saved Faces") {
                     SavedFacesView()
+                }
+            }
+
+            Section("Recognition Log") {
+                if settingsStore.faceRecognitionLogs.isEmpty {
+                    Text("No log entries yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(settingsStore.faceRecognitionLogs) { entry in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.formattedTime)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(entry.message)
+                                .font(.caption)
+                        }
+                    }
                 }
             }
 
