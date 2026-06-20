@@ -67,9 +67,12 @@ final class FaceRecognitionService {
 
                     if let match = self.confirmedMatch(for: rankedCandidates) {
                         self.resetUnknownTracking()
+                        await MainActor.run { onLog?("Matched: \(match.name) \(String(format: "%.3f", match.confidence))") }
                         await completion(match, nil)
                     } else {
-                        if let best = rankedCandidates.first {
+                        if rankedCandidates.isEmpty {
+                            await MainActor.run { onLog?("Face detected, no saved profiles to match") }
+                        } else if let best = rankedCandidates.first {
                             let second = rankedCandidates.count > 1 ? rankedCandidates[1].confidence : 0
                             let margin = best.confidence - second
                             let reason = best.confidence < self.recognitionThreshold

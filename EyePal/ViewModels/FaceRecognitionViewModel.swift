@@ -90,6 +90,7 @@ final class FaceRecognitionViewModel: ObservableObject {
         } onSampleCollected: { [weak self] current, target in
             Task { @MainActor in
                 self?.sampleProgress = "Capturing samples... \(current)/\(target)"
+                self?.settingsStore?.appendFaceLog("Sample collected: \(current)/\(target)")
             }
         } onLog: { [weak self] message in
             self?.settingsStore?.appendFaceLog(message)
