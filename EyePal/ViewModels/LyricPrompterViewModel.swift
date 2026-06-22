@@ -3,8 +3,7 @@ import UIKit
 
 @MainActor
 final class LyricPrompterViewModel: ObservableObject {
-    @Published var songTitle = ""
-    @Published var artistName = ""
+    @Published var searchText = ""
     @Published var savedSongs: [LyricSong] = []
     @Published var currentSong: LyricSong?
     @Published var isSearching = false
@@ -59,14 +58,14 @@ final class LyricPrompterViewModel: ObservableObject {
 
     func selectSong(_ song: LyricSong) {
         currentSong = song
-        songTitle = song.title
-        artistName = song.artist
+        searchText = "\(song.title) - \(song.artist)"
     }
 
     func search() async {
-        let title = songTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let artist = artistName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
+        let input = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
+
+        let (title, artist) = parseSearchInput(input)
 
         guard let settings = settingsStore else {
             errorMessage = "Settings unavailable."
@@ -175,6 +174,23 @@ final class LyricPrompterViewModel: ObservableObject {
 
     private func nextTimestamp(after time: Double, in lines: [LyricLine]) -> Double? {
         lines.first { $0.startTime! > time }?.startTime
+    }
+
+    private func parseSearchInput(_ input: String) -> (title: String, artist: String) {
+        let separators = [" - ", " – ", " — ", " by ", " / "]
+        for sep in separators {
+            if let range = input.range(of: sep) {
+                let title = String(input[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let artist = String(input[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !title.isEmpty && !artist.isEmpty {
+                    return (title, artist)
+                }
+                if !title.isEmpty {
+                    return (title, "")
+                }
+            }
+        }
+        return (input, "")
     }
 
     private func persistSongs() {

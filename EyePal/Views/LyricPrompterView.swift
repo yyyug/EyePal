@@ -80,11 +80,7 @@ struct LyricPrompterView: View {
             }
 
             VStack(spacing: 12) {
-                TextField("Song title", text: $viewModel.songTitle)
-                    .textFieldStyle(.roundedBorder)
-                    .submitLabel(.next)
-
-                TextField("Artist", text: $viewModel.artistName)
+                TextField("Song title or \"Song - Artist\"", text: $viewModel.searchText)
                     .textFieldStyle(.roundedBorder)
                     .submitLabel(.search)
                     .onSubmit {
@@ -101,7 +97,7 @@ struct LyricPrompterView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isSearching || viewModel.songTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(viewModel.isSearching || viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding()
         }
