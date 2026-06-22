@@ -102,6 +102,10 @@ final class LyricPrompterService {
             "instructions": makeInstructions(),
             "store": false,
             "stream": true,
+            "tools": [
+                ["type": "web_search"]
+            ],
+            "tool_choice": "auto",
             "input": [
                 [
                     "role": "user",

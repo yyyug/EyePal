@@ -66,7 +66,7 @@ struct LyricLLMLine: Codable {
 }
 
 struct LyricProviderModels {
-    static let codex = ["gpt-5.4-mini"]
+    static let codex = ["gpt-5.4-mini", "gpt-5.4"]
 
     static let gemini = [
         "gemini-2.5-flash-preview-05-20",
