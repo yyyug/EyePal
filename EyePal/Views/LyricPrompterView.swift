@@ -9,10 +9,9 @@ struct LyricPrompterView: View {
         NavigationStack {
             Group {
                 if let song = viewModel.currentSong {
-                    LyricDisplayView(
-                        song: song,
-                        viewModel: viewModel
-                    )
+                    LyricDisplayView(song: song, viewModel: viewModel)
+                } else if !viewModel.searchResults.isEmpty {
+                    resultsListView
                 } else {
                     songListView
                 }
@@ -52,11 +51,8 @@ struct LyricPrompterView: View {
                             viewModel.selectSong(song)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(song.title)
-                                    .font(.headline)
-                                Text(song.artist)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                Text(song.title).font(.headline)
+                                Text(song.artist).font(.subheadline).foregroundStyle(.secondary)
                             }
                         }
                         .swipeActions(edge: .trailing) {
@@ -74,8 +70,7 @@ struct LyricPrompterView: View {
                 .listStyle(.plain)
             } else {
                 Spacer()
-                Text("No saved lyrics yet.")
-                    .foregroundStyle(.secondary)
+                Text("No saved lyrics yet.").foregroundStyle(.secondary)
                 Spacer()
             }
 
@@ -83,23 +78,79 @@ struct LyricPrompterView: View {
                 TextField("Song title or \"Song - Artist\"", text: $viewModel.searchText)
                     .textFieldStyle(.roundedBorder)
                     .submitLabel(.search)
-                    .onSubmit {
-                        Task { await viewModel.search() }
-                    }
+                    .onSubmit { Task { await viewModel.search() } }
 
                 Button {
                     Task { await viewModel.search() }
                 } label: {
-                    Label(
-                        viewModel.isSearching ? "Searching..." : "Search Lyrics",
-                        systemImage: "magnifyingglass"
-                    )
-                    .frame(maxWidth: .infinity)
+                    Label(viewModel.isSearching ? "Searching..." : "Search Lyrics", systemImage: "magnifyingglass")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isSearching || viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding()
+        }
+    }
+
+    private var resultsListView: some View {
+        List {
+            Section {
+                ForEach(viewModel.searchResults) { result in
+                    Button {
+                        viewModel.loadSelectedResult(result)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(result.trackName).font(.headline)
+                                Spacer()
+                                sourceTag(result.source)
+                            }
+                            Text(result.artistName).font(.subheadline).foregroundStyle(.secondary)
+                            if let album = result.albumName {
+                                Text(album).font(.caption).foregroundStyle(.secondary)
+                            }
+                            HStack(spacing: 8) {
+                                if result.hasSyncedLyrics {
+                                    Label("Synced", systemImage: "waveform")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                }
+                                Label("Plain", systemImage: "text.alignleft")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .accessibilityHint(result.hasSyncedLyrics ? "Has timed lyrics" : "Plain text lyrics only")
+                }
+            } header: {
+                Text("\(viewModel.searchResults.count) results found")
+            }
+        }
+        .listStyle(.plain)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { viewModel.dismissResults() }
+            }
+        }
+    }
+
+    private func sourceTag(_ source: LyricSearchSource) -> some View {
+        Text(source.rawValue.uppercased())
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(sourceColor(source).opacity(0.2))
+            .foregroundStyle(sourceColor(source))
+            .clipShape(Capsule())
+    }
+
+    private func sourceColor(_ source: LyricSearchSource) -> Color {
+        switch source {
+        case .lrclib: return .blue
+        case .netease: return .red
+        case .llm: return .purple
         }
     }
 }
@@ -109,57 +160,36 @@ private struct LyricDisplayView: View {
     let viewModel: LyricPrompterViewModel
     @EnvironmentObject private var settingsStore: SettingsStore
 
-    private var advanceOffset: TimeInterval {
-        settingsStore.lyricAdvanceOffset
-    }
+    private var advanceOffset: TimeInterval { settingsStore.lyricAdvanceOffset }
 
     var body: some View {
         VStack(spacing: 0) {
             if song.hasTimestamps {
                 HStack(spacing: 12) {
                     Button {
-                        if viewModel.isPlaying {
-                            viewModel.stopPlayback()
-                        } else {
-                            viewModel.playFromStart(offset: advanceOffset)
-                        }
+                        viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromStart(offset: advanceOffset)
                     } label: {
-                        Label(
-                            viewModel.isPlaying ? "Stop" : "Play from Start",
-                            systemImage: viewModel.isPlaying ? "stop.circle" : "play.circle"
-                        )
-                        .frame(maxWidth: .infinity)
+                        Label(viewModel.isPlaying ? "Stop" : "Play from Start", systemImage: viewModel.isPlaying ? "stop.circle" : "play.circle")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .accessibilityHint("Plays lyrics from the beginning with timing")
 
                     Button {
-                        if viewModel.isPlaying {
-                            viewModel.stopPlayback()
-                        } else {
-                            viewModel.playFromNow(offset: advanceOffset)
-                        }
+                        viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromNow(offset: advanceOffset)
                     } label: {
-                        Label(
-                            viewModel.isPlaying ? "Stop" : "Play from Now",
-                            systemImage: viewModel.isPlaying ? "stop.circle" : "forward.circle"
-                        )
-                        .frame(maxWidth: .infinity)
+                        Label(viewModel.isPlaying ? "Stop" : "Play from Now", systemImage: viewModel.isPlaying ? "stop.circle" : "forward.circle")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .accessibilityHint("Plays lyrics starting from the first line immediately")
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
             } else {
                 HStack {
                     Spacer()
-                    Text("No timed lyrics available")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("No timed lyrics available").font(.caption).foregroundStyle(.secondary)
                     Spacer()
-                }
-                .padding(.vertical, 8)
+                }.padding(.vertical, 8)
             }
 
             ScrollView {
@@ -168,14 +198,10 @@ private struct LyricDisplayView: View {
                         HStack(alignment: .top, spacing: 8) {
                             if let time = line.startTime {
                                 Text(formatTime(time))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
+                                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                                     .frame(width: 44, alignment: .trailing)
                             }
-
-                            Text(line.text)
-                                .font(.body)
+                            Text(line.text).font(.body)
                         }
                         .padding(.horizontal)
                     }
@@ -183,11 +209,8 @@ private struct LyricDisplayView: View {
                 .padding(.vertical)
             }
 
-            Button {
-                viewModel.saveCurrentSong()
-            } label: {
-                Label("Save Lyrics", systemImage: "square.and.arrow.down")
-                    .frame(maxWidth: .infinity)
+            Button { viewModel.saveCurrentSong() } label: {
+                Label("Save Lyrics", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .padding()
@@ -195,8 +218,6 @@ private struct LyricDisplayView: View {
     }
 
     private func formatTime(_ seconds: Double) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
+        String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60)
     }
 }

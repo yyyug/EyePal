@@ -6,7 +6,9 @@ final class LyricPrompterViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var savedSongs: [LyricSong] = []
     @Published var currentSong: LyricSong?
+    @Published var searchResults: [LyricSearchResult] = []
     @Published var isSearching = false
+    @Published var isLoadingLyrics = false
     @Published var errorMessage: String?
     @Published var isPlaying = false
 
@@ -50,9 +52,7 @@ final class LyricPrompterViewModel: ObservableObject {
 
     func deleteSong(_ song: LyricSong) {
         savedSongs.removeAll { $0.id == song.id }
-        if currentSong?.id == song.id {
-            currentSong = nil
-        }
+        if currentSong?.id == song.id { currentSong = nil }
         persistSongs()
     }
 
@@ -65,8 +65,6 @@ final class LyricPrompterViewModel: ObservableObject {
         let input = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return }
 
-        let (title, artist) = parseSearchInput(input)
-
         guard let settings = settingsStore else {
             errorMessage = "Settings unavailable."
             return
@@ -74,31 +72,52 @@ final class LyricPrompterViewModel: ObservableObject {
 
         isSearching = true
         errorMessage = nil
+        searchResults = []
 
-        do {
-            let response = try await service.searchLyrics(
-                title: title,
-                artist: artist,
-                provider: LyricLLMProvider(rawValue: settings.lyricLLMProvider) ?? .codex,
-                modelID: settings.lyricModelID,
-                apiKey: settings.lyricAPIKey,
-                baseURL: settings.lyricBaseURL,
-                codexStore: openAIStore
-            )
+        let results = await service.searchAllSources(
+            searchText: input,
+            provider: LyricLLMProvider(rawValue: settings.lyricLLMProvider) ?? .codex,
+            modelID: settings.lyricModelID,
+            apiKey: settings.lyricAPIKey,
+            baseURL: settings.lyricBaseURL,
+            codexStore: openAIStore
+        )
 
-            let lines = response.lines.map { LyricLine(text: $0.text, startTime: $0.startTime) }
-            let song = LyricSong(
-                title: response.title,
-                artist: response.artist,
-                lines: lines,
-                hasTimestamps: response.hasTimestamps
-            )
-            currentSong = song
-            isSearching = false
-        } catch {
-            errorMessage = error.localizedDescription
+        if results.isEmpty {
+            do {
+                let (title, artist) = parseSearchInput(input)
+                let llmResponse = try await service.searchLyricsLLM(
+                    title: title,
+                    artist: artist,
+                    provider: LyricLLMProvider(rawValue: settings.lyricLLMProvider) ?? .codex,
+                    modelID: settings.lyricModelID,
+                    apiKey: settings.lyricAPIKey,
+                    baseURL: settings.lyricBaseURL,
+                    codexStore: openAIStore
+                )
+                let lines = llmResponse.lines.map { LyricLine(text: $0.text, startTime: $0.startTime) }
+                let song = LyricSong(title: llmResponse.title, artist: llmResponse.artist, lines: lines, hasTimestamps: llmResponse.hasTimestamps)
+                currentSong = song
+                isSearching = false
+            } catch {
+                errorMessage = error.localizedDescription
+                isSearching = false
+            }
+        } else {
+            searchResults = results
             isSearching = false
         }
+    }
+
+    func loadSelectedResult(_ result: LyricSearchResult) {
+        isLoadingLyrics = true
+        currentSong = service.loadLyrics(from: result)
+        searchResults = []
+        isLoadingLyrics = false
+    }
+
+    func dismissResults() {
+        searchResults = []
     }
 
     func playFromStart(offset: TimeInterval) {
@@ -114,16 +133,12 @@ final class LyricPrompterViewModel: ObservableObject {
                 await MainActor.run { self.isPlaying = false }
                 return
             }
-
             let waitTime = max(0, firstTime - offset)
             try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
             guard !Task.isCancelled else { return }
-
             for line in linesWithTime {
                 guard !Task.isCancelled else { break }
-                await MainActor.run {
-                    self.announcer.announce(line.text, minimumInterval: 0)
-                }
+                await MainActor.run { self.announcer.announce(line.text, minimumInterval: 0) }
                 if let nextTime = self.nextTimestamp(after: line.startTime!, in: linesWithTime) {
                     let delay = max(0, nextTime - line.startTime! - offset)
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -146,11 +161,7 @@ final class LyricPrompterViewModel: ObservableObject {
                 await MainActor.run { self.isPlaying = false }
                 return
             }
-
-            await MainActor.run {
-                self.announcer.announce(first.text, minimumInterval: 0)
-            }
-
+            await MainActor.run { self.announcer.announce(first.text, minimumInterval: 0) }
             for i in 1..<linesWithTime.count {
                 guard !Task.isCancelled else { break }
                 let prev = linesWithTime[i - 1]
@@ -158,9 +169,7 @@ final class LyricPrompterViewModel: ObservableObject {
                 let delay = max(0, curr.startTime! - prev.startTime! - offset)
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { break }
-                await MainActor.run {
-                    self.announcer.announce(curr.text, minimumInterval: 0)
-                }
+                await MainActor.run { self.announcer.announce(curr.text, minimumInterval: 0) }
             }
             await MainActor.run { self.isPlaying = false }
         }
@@ -182,12 +191,8 @@ final class LyricPrompterViewModel: ObservableObject {
             if let range = input.range(of: sep) {
                 let title = String(input[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let artist = String(input[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !title.isEmpty && !artist.isEmpty {
-                    return (title, artist)
-                }
-                if !title.isEmpty {
-                    return (title, "")
-                }
+                if !title.isEmpty && !artist.isEmpty { return (title, artist) }
+                if !title.isEmpty { return (title, "") }
             }
         }
         return (input, "")

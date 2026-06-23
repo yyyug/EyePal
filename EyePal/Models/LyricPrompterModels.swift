@@ -16,6 +16,23 @@ enum LyricLLMProvider: String, CaseIterable, Identifiable {
     }
 }
 
+enum LyricSearchSource: String, CaseIterable {
+    case lrclib
+    case netease
+    case llm
+}
+
+struct LyricSearchResult: Identifiable, Equatable {
+    let id = UUID()
+    let source: LyricSearchSource
+    let trackName: String
+    let artistName: String
+    let albumName: String?
+    let hasSyncedLyrics: Bool
+    let syncedLyrics: String?
+    let plainLyrics: String?
+}
+
 struct LyricLine: Identifiable, Codable, Equatable {
     let id: UUID
     let text: String
