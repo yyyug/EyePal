@@ -55,13 +55,6 @@ final class LyricPrompterService {
 
         var results = allResults.0 + allResults.1
 
-        let seen = Set(results.map { "\($0.trackName.lowercased())-\($0.artistName.lowercased())" })
-        results = results.filter { result in
-            let key = "\(result.trackName.lowercased())-\($0.artistName.lowercased())"
-            if seen.contains(key) { return true }
-            return true
-        }
-
         var deduplicated: [LyricSearchResult] = []
         var seenKeys: Set<String> = []
         for result in results {
