@@ -18,7 +18,7 @@ enum LyricLLMProvider: String, CaseIterable, Identifiable {
 
 enum LyricSearchSource: String, CaseIterable {
     case lrclib
-    case netease
+    case qqmusic
     case llm
 }
 

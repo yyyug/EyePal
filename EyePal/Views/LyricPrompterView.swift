@@ -152,7 +152,7 @@ struct LyricPrompterView: View {
     private func sourceColor(_ source: LyricSearchSource) -> Color {
         switch source {
         case .lrclib: return .blue
-        case .netease: return .red
+        case .qqmusic: return .green
         case .llm: return .purple
         }
     }
