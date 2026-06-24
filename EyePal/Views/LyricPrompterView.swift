@@ -40,6 +40,9 @@ struct LyricPrompterView: View {
             viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
             viewModel.loadSaved()
         }
+        .onDisappear {
+            viewModel.stopPlayback()
+        }
     }
 
     private var songListView: some View {
@@ -195,15 +198,9 @@ private struct LyricDisplayView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(song.lines) { line in
-                        HStack(alignment: .top, spacing: 8) {
-                            if let time = line.startTime {
-                                Text(formatTime(time))
-                                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                                    .frame(width: 44, alignment: .trailing)
-                            }
-                            Text(line.text).font(.body)
-                        }
-                        .padding(.horizontal)
+                        Text(line.text)
+                            .font(.body)
+                            .padding(.horizontal)
                     }
                 }
                 .padding(.vertical)
@@ -215,9 +212,5 @@ private struct LyricDisplayView: View {
             .buttonStyle(.borderedProminent)
             .padding()
         }
-    }
-
-    private func formatTime(_ seconds: Double) -> String {
-        String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60)
     }
 }
