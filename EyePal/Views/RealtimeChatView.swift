@@ -5,8 +5,8 @@ import WebRTC
 
 struct RealtimeChatView: View {
     enum ChatMode: String, CaseIterable, Identifiable {
-        case voiceAssistant = "Voice Assistant"
         case interpreter = "Interpreter"
+        case voiceAssistant = "Chat"
 
         var id: String { rawValue }
     }

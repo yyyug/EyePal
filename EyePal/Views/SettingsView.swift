@@ -63,11 +63,14 @@ private struct FeatureOrderSettingsView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 24)
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(feature.displayName)
-                            Text(settingsStore.tabFeatures.contains(feature) ? "Tab" : "More")
+                            Text(feature.featureDescription)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            Text(settingsStore.tabFeatures.contains(feature) ? "Tab" : "More")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
                         }
 
                         Spacer()

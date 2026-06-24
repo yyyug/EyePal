@@ -79,6 +79,25 @@ enum AppFeature: String, CaseIterable, Identifiable {
         }
     }
 
+    var featureDescription: String {
+        switch self {
+        case .floorDetection:
+            return "Helps locate which floor you are on"
+        case .chat:
+            return "Real-time voice translation"
+        case .faces:
+            return "Face recognition and memory"
+        case .quickRecognition:
+            return "Snap a photo for instant scene description"
+        case .detailsRecognition:
+            return "Detailed scene description with follow-up chat"
+        case .readText:
+            return "OCR text recognition in multiple languages"
+        case .lyricPrompter:
+            return "Search and listen to song lyrics"
+        }
+    }
+
     static func normalizedOrder(from rawValues: [String]) -> [AppFeature] {
         var unique: [AppFeature] = []
 
