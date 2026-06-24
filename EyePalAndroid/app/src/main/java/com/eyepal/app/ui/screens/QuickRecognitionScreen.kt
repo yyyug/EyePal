@@ -1,11 +1,15 @@
 package com.eyepal.app.ui.screens
 
+import android.view.ViewGroup
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyepal.app.viewmodels.QuickRecognitionViewModel
 
@@ -15,45 +19,58 @@ fun QuickRecognitionScreen(viewModel: QuickRecognitionViewModel = viewModel()) {
     val statusText by viewModel.statusText
     val responseText by viewModel.responseText
     val isProcessing by viewModel.isProcessing
-    val capturedImage by viewModel.capturedImage
     val errorMessage by viewModel.errorMessage
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TopAppBar(title = { Text("Quick Recognition") })
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopCamera() }
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(statusText, style = MaterialTheme.typography.bodyLarge)
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (capturedImage != null) {
-            capturedImage?.let {
-                Image(bitmap = it, contentDescription = "Captured", modifier = Modifier.fillMaxWidth().height(200.dp))
+    Column(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                PreviewView(ctx).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                }
+            },
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            update = { preview ->
+                viewModel.startCamera(preview)
             }
-        }
+        )
 
-        if (responseText.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Text(responseText, modifier = Modifier.padding(16.dp))
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = { viewModel.takePhoto() },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isProcessing
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
         ) {
-            Text(if (isProcessing) "Working..." else "Take Photo")
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(statusText, style = MaterialTheme.typography.bodyLarge)
+
+                if (responseText.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(responseText, style = MaterialTheme.typography.bodyMedium)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = { viewModel.takePhoto() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                ) {
+                    Text(if (isProcessing) "Working..." else "Take Photo")
+                }
+            }
         }
     }
 
     errorMessage?.let {
-        LaunchedEffect(it) {
-            viewModel.clearError()
-        }
+        LaunchedEffect(it) { viewModel.clearError() }
     }
 }
