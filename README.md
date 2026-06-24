@@ -1,64 +1,72 @@
 # EyePal
 
-EyePal is an accessibility-first native iOS app for blind and low-vision users. It provides:
+iOS 視障輔助 App，整合多種 AI 視覺辨識功能，幫助視障用戶理解周遭環境。
 
-- `Read Text`: live OCR with Google ML Kit Text Recognition v2 and VoiceOver announcements.
-- `Face Recognition`: fully on-device face enrollment and matching using Vision plus a bundled Core ML embedding model.
-- `Settings`: speech throttling, sensitivity tuning, and onboarding guidance.
+## 功能
 
-## Requirements
+| 功能 | 說明 |
+|------|------|
+| **Quick Recognition** | 快速拍照描述場景（Moondream AI） |
+| **Details Recognition** | 詳細場景描述 + 連續對話（ChatGPT/Codex API） |
+| **Read Text** | OCR 文字辨識（MLKit，支援中日韓英等多語言） |
+| **Faces** | 人臉辨識與記憶（ArcFace ONNX 模型） |
+| **Floor Detection** | 樓層偵測 + 室内地圖 |
+| **Chat** | 即時語音對話（WebRTC + OpenAI Realtime API） |
+| **Lyric Prompter** | 歌詞搜尋與語音朗讀（LRCLIB + QQ Music + LLM） |
 
-- Xcode 16 or newer
-- iOS 17.0+
-- CocoaPods
-- The ONNX face embedding model `arcface_fresh.onnx`
+## 技術架構
 
-## Setup
+- **Platform**: iOS 17+, Swift 5, SwiftUI
+- **AI/ML**: OpenAI API (Codex Responses), Moondream AI, ArcFace ONNX, MLKit OCR
+- **Audio**: WebRTC (即時語音), AVAudioEngine (HRTF 3D 音效)
+- **Camera**: AVFoundation camera pipeline
+- **Storage**: Keychain (API keys, OAuth tokens), UserDefaults (設定), JSON file (人臉資料)
 
-1. Run `pod install`.
-2. Open `EyePal.xcworkspace`.
-3. Download `arcface_fresh.onnx` into `tools/face_model/models/` before building locally.
-4. Build and run on a physical iPhone because the app depends on the camera.
+## 歌詞資料來源
 
-## Download Latest IPA
+Lyric Prompter 功能從以下來源取得歌詞：
 
-To pull the latest successful unsigned IPA from GitHub Actions into `artifacts-ipa/`, run:
+1. **LRCLIB** (`lrclib.net`) — 開放歌詞資料庫，免費無需 API key，支援 LRC 格式同步歌詞
+2. **QQ Music** (`c.y.qq.com`) — QQ 音樂搜尋 API + QRC 歌詞解密
+3. **LLM Fallback** — 當上述來源找不到時，使用 AI 搜尋（Codex/Gemini/OpenAI API）
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\download_latest_ipa.ps1
+參考項目：[Lyricify-Lyrics-Helper](https://github.com/WXRIW/Lyricify-Lyrics-Helper)（歌詞解析、搜尋、解密邏輯參考）
+
+## 認證
+
+- **ChatGPT/Codex**: OAuth2 + PKCE（透過 ChatGPT 帳號登入）
+- **Moondream**: API Key（用戶自行輸入）
+- **Gemini / OpenAI API**: API Key（用戶自行輸入）
+
+## 建置
+
+```bash
+# 安裝 CocoaPods 依賴
+pod install
+
+# 下載 ArcFace ONNX 模型
+mkdir -p tools/face_model/models
+curl -L "https://huggingface.co/garavv/arcface-onnx/resolve/main/arc.onnx?download=true" \
+  -o tools/face_model/models/arcface_fresh.onnx
+
+# 開啟 Xcode
+open EyePal.xcworkspace
 ```
 
-The script downloads the `EyePal-unsigned-ipa` artifact from the latest successful `ios-unsigned-build.yml` run on `main` and updates both `artifacts-ipa/latest-run/` and `artifacts-ipa/latest-success/`.
+## GitHub Actions
 
-## Face Model Prep
+推送到 `main` 分支會自動觸發 unsigned IPA build。
 
-The face-model tooling now uses the verified ONNX model already in the repo:
+手動觸發：
+```bash
+gh workflow run ios-unsigned-build.yml --ref main
+```
 
-- model: `tools/face_model/models/arcface_fresh.onnx`
-- runtime: ONNX Runtime on iOS
-- validation/package scripts: `tools/face_model`
+下載 IPA：
+```bash
+gh run download <run_id> -n EyePal-unsigned-ipa -D ./artifacts-ipa
+```
 
-The model file is not committed to git because GitHub blocks files over 100 MB. Fetch it locally before building, or let GitHub Actions download it during CI.
+## 授權
 
-Start with: `tools\\face_model\\README.md`
-
-## Face Embedding Model Contract
-
-The app loads `arcface_fresh.onnx` at runtime with ONNX Runtime. The model accepts a single `112x112x3` float tensor input named `input_1` and emits a `512`-D embedding output named `embedding`.
-
-## Experimental Files
-
-The following files may exist locally for past experiments, but they are not part of the shipping build or packaging flow:
-
-- `tools/face_model/models/mobilefacenet_scripted.pt`
-- `tools/face_model/models/model_mobilefacenet.pth`
-
-## Suggested New-Face Flow
-
-When EyePal sees a stable unknown face across several frames, it surfaces a suggestion card instead of auto-saving. The user can:
-
-- name and save the person locally
-- discard the suggestion
-- capture more samples later to improve accuracy
-
-This keeps recognition private, explicit, and fully on-device.
+參見 LICENSE 檔案。
