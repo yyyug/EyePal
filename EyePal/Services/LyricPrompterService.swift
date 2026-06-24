@@ -170,8 +170,11 @@ final class LyricPrompterService {
     static func decryptQRC(_ encrypted: String) -> String? {
         guard let hexData = encrypted.data(using: .ascii) else { return nil }
         let bytes = (0..<hexData.count / 2).compactMap { i -> UInt8? in
-            let range = hexData.startIndex + i * 2 ..< hexData.startIndex + (i + 1) * 2
-            return UInt8(String(hexData[range]), radix: 16)
+            let start = hexData.startIndex + i * 2
+            let end = hexData.startIndex + (i + 1) * 2
+            let byteSlice = hexData[start..<end]
+            guard let str = String(data: byteSlice, encoding: .ascii) else { return nil }
+            return UInt8(str, radix: 16)
         }
         guard bytes.count % 8 == 0, !bytes.isEmpty else { return nil }
         let key: [UInt8] = Array("!@#)(*$%123ZXC!@!@#)(NHL)".utf8)
