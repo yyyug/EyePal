@@ -1,5 +1,7 @@
 package com.eyepal.app.ui.screens
 
+import android.view.ViewGroup
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -7,7 +9,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyepal.app.viewmodels.GoogleGlassViewModel
 
@@ -17,7 +22,8 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
     val isConnected by viewModel.isConnected
     val statusText by viewModel.statusText
     val useGlassCamera by viewModel.useGlassCamera
-    val cameraFrame by viewModel.cameraFrame
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         TopAppBar(title = { Text("Google Glass") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
@@ -31,7 +37,7 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
                 if (isConnected) {
                     Button(onClick = { viewModel.disconnect() }, modifier = Modifier.fillMaxWidth()) { Text("Disconnect") }
                 } else {
-                    Button(onClick = { viewModel.connect() }, modifier = Modifier.fillMaxWidth()) { Text("Connect Audio Glasses") }
+                    Button(onClick = { val activity = context as? android.app.Activity; if (activity != null) viewModel.connect(activity) }, modifier = Modifier.fillMaxWidth()) { Text("Connect Audio Glasses") }
                 }
             }
         }
@@ -40,16 +46,20 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
             Spacer(modifier = Modifier.height(16.dp))
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Glass Camera", style = MaterialTheme.typography.titleMedium)
+                    Text("Glasses Camera", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Use phone camera, display on glasses")
+                        Text("Use glasses camera for recognition")
                         Spacer(modifier = Modifier.weight(1f))
-                        Switch(checked = useGlassCamera, onCheckedChange = { viewModel.toggleGlassCamera() })
+                        Switch(checked = useGlassCamera, onCheckedChange = { viewModel.toggleGlassCamera(lifecycleOwner, PreviewView(context).apply { layoutParams = ViewGroup.LayoutParams(1, 1) }) })
                     }
-                    if (useGlassCamera && cameraFrame != null) {
+                    if (useGlassCamera) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Camera active. Feed displayed on glasses.", color = MaterialTheme.colorScheme.primary)
+                        AndroidView(
+                            factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            update = { preview -> viewModel.toggleGlassCamera(lifecycleOwner, preview) }
+                        )
                     }
                 }
             }
@@ -60,9 +70,7 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("How it works", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("EyePal routes audio descriptions to your glasses via Bluetooth SCO. Enable glass camera to display the phone camera feed on the glasses screen.", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("Pair your glasses in Android Bluetooth settings first, then connect here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                Text("EyePal uses the XR SDK's projected context to access the glasses' camera and microphone. Audio descriptions are routed via Bluetooth SCO. Pair your glasses in Android Bluetooth settings first.", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
