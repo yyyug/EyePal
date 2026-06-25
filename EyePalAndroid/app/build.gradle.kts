@@ -81,7 +81,11 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Google Audio Glass (XR SDK)
-    implementation("androidx.xr.xrcore:core:1.0.0-alpha01")
+    implementation("androidx.xr.runtime:runtime:1.0.0-alpha15")
+    implementation("androidx.xr.glimmer:glimmer:1.0.0-alpha13")
+    implementation("androidx.xr.glimmer:glimmer-google-fonts:1.0.0-alpha13")
+    implementation("androidx.xr.projected:projected:1.0.0-alpha08")
+    implementation("androidx.xr.arcore:arcore:1.0.0-alpha14")
 
     // Accompanist Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")

@@ -34,6 +34,17 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".GlassesProjectedActivity"
+            android:exported="true"
+            android:requiredDisplayCategory="android.hardware.display.category.XR_PROJECTED"
+            android:label="EyePal Glass">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.XR_PROJECTED_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="face" />
