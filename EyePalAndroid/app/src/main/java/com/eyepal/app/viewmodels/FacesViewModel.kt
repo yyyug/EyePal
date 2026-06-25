@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.services.CameraService
-import com.eyepal.app.services.FaceDetectionService
+import com.eyepal.app.services.FaceRecognitionService
 import kotlinx.coroutines.launch
 
 class FacesViewModel(application: Application) : AndroidViewModel(application) {
@@ -14,38 +14,71 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
     val recognizedName = mutableStateOf<String?>(null)
     val isProcessing = mutableStateOf(false)
     val errorMessage = mutableStateOf<String?>(null)
+    val profiles = mutableStateOf<List<FaceRecognitionService.SavedFaceProfile>>(emptyList())
+    val pendingSaveName = mutableStateOf<String?>(null)
+    val pendingEmbedding = mutableStateOf<FloatArray?>(null)
 
     val camera = CameraService(application)
-    private val faceDetection = FaceDetectionService(application)
+    private val faceService = FaceRecognitionService(application)
+
+    init {
+        viewModelScope.launch {
+            faceService.load()
+            profiles.value = faceService.getProfiles()
+        }
+    }
 
     fun startCamera(previewView: android.view.View) {
         val lifecycleOwner = (previewView.context as? androidx.lifecycle.LifecycleOwner) ?: return
-        camera.startCamera(lifecycleOwner, previewView as androidx.camera.view.PreviewView)
+        camera.startCamera(lifecycleOwner, previewView as androidx.camera.view.PreviewView) { bitmap ->
+            processFrame(bitmap)
+        }
     }
 
     fun stopCamera() { camera.stopCamera() }
 
-    fun detectFaces() {
+    private fun processFrame(bitmap: Bitmap) {
         if (isProcessing.value) return
         isProcessing.value = true
         viewModelScope.launch {
             try {
-                val bitmap = camera.capturePhoto() ?: throw Exception("Failed to capture")
-                val faces = faceDetection.detectFaces(bitmap)
-                if (faces.isNotEmpty()) {
-                    statusText.value = "Detected ${faces.size} face(s)."
-                } else {
-                    statusText.value = "No faces detected."
+                val result = faceService.processFrame(bitmap)
+                if (result.match != null) {
+                    recognizedName.value = result.match.name
+                    statusText.value = "Recognized ${result.match.name}."
+                } else if (result.embedding != null) {
+                    recognizedName.value = null
+                    pendingEmbedding.value = result.embedding
+                    pendingSaveName.value = ""
+                    statusText.value = "Unknown face detected. Enter name to save."
                 }
-            } catch (e: Exception) {
-                errorMessage.value = e.message
-            }
+            } catch (_: Exception) {}
             isProcessing.value = false
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        faceDetection.close()
+    fun saveFace(name: String) {
+        val embedding = pendingEmbedding.value ?: return
+        viewModelScope.launch {
+            faceService.saveFace(name, embedding)
+            profiles.value = faceService.getProfiles()
+            pendingSaveName.value = null
+            pendingEmbedding.value = null
+            statusText.value = "$name was saved."
+        }
     }
+
+    fun dismissSave() {
+        pendingSaveName.value = null
+        pendingEmbedding.value = null
+    }
+
+    fun deleteFace(id: String) {
+        viewModelScope.launch {
+            faceService.deleteFace(id)
+            profiles.value = faceService.getProfiles()
+        }
+    }
+
+    override fun onCleared() { super.onCleared(); faceService.close() }
 }

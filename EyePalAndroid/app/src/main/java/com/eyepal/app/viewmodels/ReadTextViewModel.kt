@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyepal.app.services.AccessibilityAnnouncer
 import com.eyepal.app.services.CameraService
 import com.eyepal.app.services.OCRService
 import kotlinx.coroutines.launch
@@ -17,6 +18,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
 
     val camera = CameraService(application)
     private val ocr = OCRService(application)
+    private val announcer = AccessibilityAnnouncer(application)
 
     fun startCamera(previewView: android.view.View) {
         val lifecycleOwner = (previewView.context as? androidx.lifecycle.LifecycleOwner) ?: return
@@ -35,16 +37,11 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
                 val text = ocr.recognizeText(bitmap)
                 recognizedText.value = text
                 statusText.value = "Text recognized."
-            } catch (e: Exception) {
-                errorMessage.value = e.message
-                statusText.value = "Text recognition failed."
-            }
+                announcer.announce(text)
+            } catch (e: Exception) { errorMessage.value = e.message; statusText.value = "Text recognition failed." }
             isProcessing.value = false
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        ocr.close()
-    }
+    override fun onCleared() { super.onCleared(); ocr.close() }
 }
