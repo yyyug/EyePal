@@ -22,6 +22,7 @@ class FaceRecognitionService(private val context: Context) {
     )
     private val embeddingEngine = ArcFaceEmbeddingEngine(context)
     private var profiles: MutableList<SavedFaceProfile> = mutableListOf()
+    var recognitionThreshold: Float = 0.82f
 
     data class SavedFaceProfile(val id: String, val name: String, val embeddings: List<FloatArray>)
     data class FaceMatch(val name: String, val confidence: Float)
@@ -72,7 +73,7 @@ class FaceRecognitionService(private val context: Context) {
             val maxScore = profile.embeddings.maxOfOrNull { embeddingEngine.cosineSimilarity(embedding, it) } ?: continue
             if (maxScore > bestScore) { bestScore = maxScore; bestName = profile.name }
         }
-        return if (bestScore >= 0.82f) FaceMatch(bestName, bestScore) else null
+        return if (bestScore >= recognitionThreshold) FaceMatch(bestName, bestScore) else null
     }
 
     suspend fun saveFace(name: String, embedding: FloatArray) = withContext(Dispatchers.IO) {

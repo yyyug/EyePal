@@ -18,6 +18,8 @@ import com.eyepal.app.viewmodels.ReadTextViewModel
 import com.eyepal.app.viewmodels.FacesViewModel
 import com.eyepal.app.viewmodels.FloorDetectionViewModel
 import com.eyepal.app.viewmodels.ChatViewModel
+import com.eyepal.app.services.OAuthService
+import android.content.Context
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,6 +143,7 @@ fun ChatScreen(viewModel: ChatViewModel = viewModel()) {
     val statusText by viewModel.statusText
     val isConnected by viewModel.isConnected
     val transcript by viewModel.transcript
+    val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         TopAppBar(title = { Text("Chat") })
@@ -161,7 +164,11 @@ fun ChatScreen(viewModel: ChatViewModel = viewModel()) {
         }
 
         Spacer(modifier = Modifier.weight(1f))
-        Button(onClick = { if (isConnected) viewModel.stopChat() else viewModel.startChat("placeholder-api-key") }, modifier = Modifier.fillMaxWidth(), enabled = true) {
+        Button(onClick = {
+            val apiKey = OAuthService.getAccessToken(context)
+            if (apiKey.isEmpty()) { viewModel.statusText.value = "Sign in with ChatGPT first." }
+            else if (isConnected) viewModel.stopChat() else viewModel.startChat(apiKey)
+        }, modifier = Modifier.fillMaxWidth(), enabled = true) {
             Text(if (isConnected) "Stop" else "Start Voice Chat")
         }
     }

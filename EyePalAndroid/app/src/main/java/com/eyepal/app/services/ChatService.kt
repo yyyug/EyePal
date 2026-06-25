@@ -108,11 +108,23 @@ class ChatService(private val context: Context) {
                 }
 
                 val payload = JSONObject().apply {
-                    put("model", "gpt-4o-mini-audio-preview")
+                    put("model", "gpt-4o-audio-preview")
                     put("messages", org.json.JSONArray().apply {
                         put(JSONObject().apply {
+                            put("role", "system")
+                            put("content", instruction)
+                        })
+                        put(JSONObject().apply {
                             put("role", "user")
-                            put("content", "Audio transcription and response needed.")
+                            put("content", org.json.JSONArray().apply {
+                                put(JSONObject().apply {
+                                    put("type", "input_audio")
+                                    put("input_audio", JSONObject().apply {
+                                        put("data", base64Audio)
+                                        put("format", "pcm16")
+                                    })
+                                })
+                            })
                         })
                     })
                     put("max_tokens", 300)
