@@ -3,6 +3,10 @@ package com.eyepal.app.ui.screens
 import android.view.ViewGroup
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -84,22 +88,50 @@ fun FacesScreen(viewModel: FacesViewModel = viewModel(), onNavigateToSavedFaces:
 fun FloorDetectionScreen(viewModel: FloorDetectionViewModel = viewModel()) {
     val currentFloor by viewModel.currentFloor
     val statusText by viewModel.statusText
+    val records by viewModel.records
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var noteText by remember { mutableStateOf("") }
 
     DisposableEffect(Unit) { onDispose { viewModel.stop() } }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         TopAppBar(title = { Text("Floor Detection") })
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text("Floor Level", style = MaterialTheme.typography.headlineLarge)
         Text("$currentFloor", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(statusText, style = MaterialTheme.typography.bodyLarge)
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(onClick = { viewModel.calibrate() }, modifier = Modifier.fillMaxWidth()) { Text("Calibrate") }
         Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = { viewModel.start() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Text("Start Detection") }
+        Text(statusText, style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { viewModel.calibrate() }, modifier = Modifier.weight(1f)) { Text("Calibrate") }
+            Button(onClick = { viewModel.start() }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)) { Text("Start") }
+            Button(onClick = { showSaveDialog = true }, modifier = Modifier.weight(1f)) { Text("Save") }
+        }
+
+        if (records.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Saved Records", style = MaterialTheme.typography.titleMedium)
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(records) { record ->
+                    ListItem(headlineContent = { Text("Floor ${record.floor}") },
+                        supportingContent = { Text(if (record.note.isNotEmpty()) record.note else java.text.SimpleDateFormat("MMM dd, HH:mm").format(java.util.Date(record.timestamp))) },
+                        trailingContent = { IconButton(onClick = { viewModel.deleteRecord(record.id) }) { Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error) } })
+                    HorizontalDivider()
+                }
+            }
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+            Text("No saved records.", color = MaterialTheme.colorScheme.outline)
+        }
+    }
+
+    if (showSaveDialog) {
+        AlertDialog(onDismissRequest = { showSaveDialog = false }, title = { Text("Save Floor Record") },
+            text = { OutlinedTextField(value = noteText, onValueChange = { noteText = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Note (optional)") }) },
+            confirmButton = { TextButton(onClick = { viewModel.saveCurrentFloor(noteText); noteText = ""; showSaveDialog = false }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { noteText = ""; showSaveDialog = false }) { Text("Cancel") } })
     }
 }
 

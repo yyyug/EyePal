@@ -28,6 +28,11 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object FeatureOrder : Screen("featureorder", "Feature Order", Icons.Default.Reorder)
     data object GoogleGlass : Screen("googleglass", "Google Glass", Icons.Default.Visibility)
     data object SavedFaces : Screen("savedfaces", "Saved Faces", Icons.Default.People)
+    data object DetailsSettings : Screen("details_settings", "Details Settings", Icons.Default.Settings)
+    data object QuickSettings : Screen("quick_settings", "Quick Settings", Icons.Default.Settings)
+    data object TextSettings : Screen("text_settings", "Text Settings", Icons.Default.Settings)
+    data object FacesSettings : Screen("faces_settings", "Faces Settings", Icons.Default.Settings)
+    data object LyricsSettings : Screen("lyrics_settings", "Lyrics Settings", Icons.Default.Settings)
 }
 
 val bottomTabs = listOf(
@@ -107,6 +112,11 @@ fun EyePalApp() {
                 SettingsScreen(
                     onNavigateToFeatureOrder = { navController.navigate(Screen.FeatureOrder.route) },
                     onNavigateToGoogleGlass = { navController.navigate(Screen.GoogleGlass.route) },
+                    onNavigateToDetailsSettings = { navController.navigate(Screen.DetailsSettings.route) },
+                    onNavigateToQuickSettings = { navController.navigate(Screen.QuickSettings.route) },
+                    onNavigateToTextSettings = { navController.navigate(Screen.TextSettings.route) },
+                    onNavigateToFacesSettings = { navController.navigate(Screen.FacesSettings.route) },
+                    onNavigateToLyricsSettings = { navController.navigate(Screen.LyricsSettings.route) },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -120,6 +130,11 @@ fun EyePalApp() {
                 val facesViewModel: com.eyepal.app.viewmodels.FacesViewModel = viewModel()
                 SavedFacesScreen(viewModel = facesViewModel, onBack = { navController.popBackStack() })
             }
+            composable(Screen.DetailsSettings.route) { DetailsRecognitionSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(Screen.QuickSettings.route) { QuickRecognitionSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(Screen.TextSettings.route) { TextRecognitionSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(Screen.FacesSettings.route) { FacesSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(Screen.LyricsSettings.route) { LyricPrompterSettingsScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }
