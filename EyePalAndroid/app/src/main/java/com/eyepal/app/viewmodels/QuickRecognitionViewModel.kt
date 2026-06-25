@@ -7,6 +7,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.services.AccessibilityAnnouncer
 import com.eyepal.app.services.CameraService
+import com.eyepal.app.services.GoogleGlassService
+import com.eyepal.app.services.GoogleGlassState
 import com.eyepal.app.services.MoondreamService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,11 +24,13 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
 
     val camera = CameraService(application)
     private val moondream = MoondreamService()
+    private val glassService = GoogleGlassService(application)
     private val announcer = AccessibilityAnnouncer(application)
     private var continuousJob: Job? = null
     private var lastPrompt = "Describe what you see briefly"
 
     fun startCamera(previewView: android.view.View) {
+        if (GoogleGlassState.useGlassCamera.value) return
         val lifecycleOwner = (previewView.context as? androidx.lifecycle.LifecycleOwner) ?: return
         camera.startCamera(lifecycleOwner, previewView as androidx.camera.view.PreviewView)
     }
@@ -42,19 +46,11 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         isContinuousCapture.value = true
         statusText.value = "Continuous mode running."
         continuousJob = viewModelScope.launch {
-            while (isContinuousCapture.value) {
-                capture()
-                delay(3000)
-            }
+            while (isContinuousCapture.value) { capture(); delay(3000) }
         }
     }
 
-    fun stopContinuous() {
-        continuousJob?.cancel()
-        continuousJob = null
-        isContinuousCapture.value = false
-        if (!isProcessing.value) statusText.value = "Quick Recognition ready."
-    }
+    fun stopContinuous() { continuousJob?.cancel(); continuousJob = null; isContinuousCapture.value = false; if (!isProcessing.value) statusText.value = "Ready." }
 
     private fun capture() {
         if (isProcessing.value) return
@@ -62,7 +58,8 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         statusText.value = "Analyzing scene..."
         viewModelScope.launch {
             try {
-                val bitmap = camera.capturePhoto() ?: throw Exception("Failed to capture")
+                val bitmap = if (GoogleGlassState.useGlassCamera.value) glassService.capturePhotoFromGlasses() else camera.capturePhoto()
+                    ?: throw Exception("Failed to capture")
                 capturedImage.value = bitmap
                 val prefs = getApplication<Application>().getSharedPreferences("settings", 0)
                 val apiKey = prefs.getString("moondream_api_key", "") ?: ""

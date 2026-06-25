@@ -49,17 +49,15 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
                     Text("Glasses Camera", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Use glasses camera for recognition")
+                        Text("Use glasses camera in Quick/Details/ReadText")
                         Spacer(modifier = Modifier.weight(1f))
                         Switch(checked = useGlassCamera, onCheckedChange = { viewModel.toggleGlassCamera(lifecycleOwner, PreviewView(context).apply { layoutParams = ViewGroup.LayoutParams(1, 1) }) })
                     }
                     if (useGlassCamera) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        AndroidView(
-                            factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
+                        AndroidView(factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
                             modifier = Modifier.fillMaxWidth().height(200.dp),
-                            update = { preview -> viewModel.toggleGlassCamera(lifecycleOwner, preview) }
-                        )
+                            update = { preview -> viewModel.toggleGlassCamera(lifecycleOwner, preview) })
                     }
                 }
             }
@@ -70,7 +68,7 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("How it works", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("EyePal uses the XR SDK's projected context to access the glasses' camera and microphone. Audio descriptions are routed via Bluetooth SCO. Pair your glasses in Android Bluetooth settings first.", style = MaterialTheme.typography.bodyMedium)
+                Text("Enable 'Use glasses camera' to capture photos from the glasses' camera instead of the phone camera in Quick Recognition, Details Recognition, and Read Text screens.", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

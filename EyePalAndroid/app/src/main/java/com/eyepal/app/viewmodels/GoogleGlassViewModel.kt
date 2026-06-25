@@ -9,6 +9,7 @@ import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 import com.eyepal.app.services.AccessibilityAnnouncer
 import com.eyepal.app.services.GoogleGlassService
+import com.eyepal.app.services.GoogleGlassState
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -22,10 +23,9 @@ class GoogleGlassViewModel(application: android.app.Application) : AndroidViewMo
     private val announcer = AccessibilityAnnouncer(application)
 
     init {
-        viewModelScope.launch { glassService.isConnected.collectLatest { isConnected.value = it } }
-        viewModelScope.launch { glassService.statusText.collectLatest { statusText.value = it } }
-        viewModelScope.launch { glassService.useGlassCamera.collectLatest { useGlassCamera.value = it } }
-        viewModelScope.launch { glassService.cameraFrame.collectLatest { cameraFrame.value = it } }
+        viewModelScope.launch { GoogleGlassState.isConnected.collectLatest { isConnected.value = it; statusText.value = if (it) "Connected to audio glasses" else "No glasses connected." } }
+        viewModelScope.launch { GoogleGlassState.useGlassCamera.collectLatest { useGlassCamera.value = it } }
+        viewModelScope.launch { GoogleGlassState.cameraFrame.collectLatest { cameraFrame.value = it } }
     }
 
     fun connect(activity: Activity) {
@@ -41,11 +41,8 @@ class GoogleGlassViewModel(application: android.app.Application) : AndroidViewMo
 
     fun toggleGlassCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
         val newValue = !useGlassCamera.value
-        glassService.setUseGlassCamera(newValue)
-        if (newValue) {
-            glassService.startGlassCamera(lifecycleOwner, previewView)
-        } else {
-            glassService.stopGlassCamera()
-        }
+        GoogleGlassState.setUseGlassCamera(newValue)
+        if (newValue) { glassService.startGlassCamera(lifecycleOwner, previewView) }
+        else { glassService.stopGlassCamera() }
     }
 }

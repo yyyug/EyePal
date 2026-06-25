@@ -7,9 +7,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.services.AccessibilityAnnouncer
 import com.eyepal.app.services.CameraService
+import com.eyepal.app.services.GoogleGlassService
+import com.eyepal.app.services.GoogleGlassState
 import com.eyepal.app.services.OCRService
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class ReadTextViewModel(application: Application) : AndroidViewModel(application) {
@@ -21,16 +22,16 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
 
     val camera = CameraService(application)
     private val ocr = OCRService(application)
+    private val glassService = GoogleGlassService(application)
     private val announcer = AccessibilityAnnouncer(application)
     private var continuousJob: Job? = null
     private var lastAnnouncedText = ""
 
     fun startCamera(previewView: android.view.View) {
+        if (GoogleGlassState.useGlassCamera.value) return
         val lifecycleOwner = (previewView.context as? androidx.lifecycle.LifecycleOwner) ?: return
         camera.startCamera(lifecycleOwner, previewView as androidx.camera.view.PreviewView) { bitmap ->
-            if (isContinuous.value && !isProcessing.value) {
-                recognizeFrame(bitmap)
-            }
+            if (isContinuous.value && !isProcessing.value) recognizeFrame(bitmap)
         }
     }
 
@@ -42,7 +43,8 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
         statusText.value = "Capturing text..."
         viewModelScope.launch {
             try {
-                val bitmap = camera.capturePhoto() ?: throw Exception("Failed to capture")
+                val bitmap = if (GoogleGlassState.useGlassCamera.value) glassService.capturePhotoFromGlasses() else camera.capturePhoto()
+                    ?: throw Exception("Failed to capture")
                 val text = ocr.recognizeText(bitmap)
                 recognizedText.value = text
                 statusText.value = "Text recognized."
@@ -52,15 +54,9 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun startContinuous() {
-        isContinuous.value = true
-        statusText.value = "Continuous recognition active."
-    }
+    fun startContinuous() { isContinuous.value = true; statusText.value = "Continuous recognition active." }
 
-    fun stopContinuous() {
-        isContinuous.value = false
-        if (!isProcessing.value) statusText.value = "Ready."
-    }
+    fun stopContinuous() { isContinuous.value = false; if (!isProcessing.value) statusText.value = "Ready." }
 
     private fun recognizeFrame(bitmap: Bitmap) {
         if (isProcessing.value) return
@@ -68,11 +64,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val text = ocr.recognizeText(bitmap)
-                if (text.isNotBlank() && text != lastAnnouncedText) {
-                    recognizedText.value = text
-                    lastAnnouncedText = text
-                    announcer.announce(text, minimumInterval = 3000)
-                }
+                if (text.isNotBlank() && text != lastAnnouncedText) { recognizedText.value = text; lastAnnouncedText = text; announcer.announce(text, minimumInterval = 3000) }
             } catch (_: Exception) {}
             isProcessing.value = false
         }

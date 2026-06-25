@@ -7,6 +7,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.services.AccessibilityAnnouncer
 import com.eyepal.app.services.CameraService
+import com.eyepal.app.services.GoogleGlassService
+import com.eyepal.app.services.GoogleGlassState
 import com.eyepal.app.services.OpenAIService
 import kotlinx.coroutines.launch
 
@@ -20,11 +22,13 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
 
     val camera = CameraService(application)
     private val openAI = OpenAIService()
+    private val glassService = GoogleGlassService(application)
     private val announcer = AccessibilityAnnouncer(application)
     private var lastImage: Bitmap? = null
     private var lastPrompt = "For a blind user, read visible text exactly, then describe people, objects, layout, and orientation cues. Be concise."
 
     fun startCamera(previewView: android.view.View) {
+        if (GoogleGlassState.useGlassCamera.value) return
         val lifecycleOwner = (previewView.context as? androidx.lifecycle.LifecycleOwner) ?: return
         camera.startCamera(lifecycleOwner, previewView as androidx.camera.view.PreviewView)
     }
@@ -42,7 +46,8 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
         statusText.value = "Describing the photo..."
         viewModelScope.launch {
             try {
-                val bitmap = camera.capturePhoto() ?: throw Exception("Failed to capture")
+                val bitmap = if (GoogleGlassState.useGlassCamera.value) glassService.capturePhotoFromGlasses() else camera.capturePhoto()
+                    ?: throw Exception("Failed to capture")
                 lastImage = bitmap
                 val prefs = getApplication<Application>().getSharedPreferences("settings", 0)
                 val apiKey = prefs.getString("openai_api_key", "") ?: ""
