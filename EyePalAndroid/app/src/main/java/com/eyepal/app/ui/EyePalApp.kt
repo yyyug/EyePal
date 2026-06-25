@@ -27,6 +27,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     data object FeatureOrder : Screen("featureorder", "Feature Order", Icons.Default.Reorder)
     data object GoogleGlass : Screen("googleglass", "Google Glass", Icons.Default.Visibility)
+    data object SavedFaces : Screen("savedfaces", "Saved Faces", Icons.Default.People)
 }
 
 val bottomTabs = listOf(
@@ -85,7 +86,10 @@ fun EyePalApp() {
             composable(Screen.QuickRecognition.route) { QuickRecognitionScreen() }
             composable(Screen.DetailsRecognition.route) { DetailsRecognitionScreen() }
             composable(Screen.ReadText.route) { ReadTextScreen() }
-            composable(Screen.Faces.route) { FacesScreen() }
+            composable(Screen.Faces.route) {
+                val facesViewModel: com.eyepal.app.viewmodels.FacesViewModel = viewModel()
+                FacesScreen(viewModel = facesViewModel, onNavigateToSavedFaces = { navController.navigate(Screen.SavedFaces.route) }, savedFacesViewModel = facesViewModel)
+            }
             composable(Screen.FloorDetection.route) { FloorDetectionScreen() }
             composable(Screen.Chat.route) { ChatScreen() }
             composable(Screen.LyricPrompter.route) { LyricPrompterScreen() }
@@ -111,6 +115,10 @@ fun EyePalApp() {
             }
             composable(Screen.GoogleGlass.route) {
                 GoogleGlassScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.SavedFaces.route) {
+                val facesViewModel: com.eyepal.app.viewmodels.FacesViewModel = viewModel()
+                SavedFacesScreen(viewModel = facesViewModel, onBack = { navController.popBackStack() })
             }
         }
     }

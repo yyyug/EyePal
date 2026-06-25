@@ -8,6 +8,7 @@ import com.eyepal.app.data.SettingsRepository
 import com.eyepal.app.models.LyricSong
 import com.eyepal.app.services.AccessibilityAnnouncer
 import com.eyepal.app.services.LyricPrompterService
+import com.eyepal.app.services.LyricStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,6 +28,10 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
     private val settings = SettingsRepository(application)
     private val announcer = AccessibilityAnnouncer(application)
     private var playbackJob: Job? = null
+
+    init {
+        savedSongs.value = LyricStorage.loadSongs(application)
+    }
 
     fun search() {
         val input = searchText.value.trim()
@@ -51,8 +56,15 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
 
     fun saveCurrentSong() {
         val song = currentSong.value ?: return
-        savedSongs.value = savedSongs.value + song
+        val savedSong = song.copy(id = System.currentTimeMillis().toString())
+        savedSongs.value = listOf(savedSong) + savedSongs.value
+        LyricStorage.addSong(getApplication(), savedSong)
         announcer.announce("${song.title} by ${song.artist} saved.")
+    }
+
+    fun deleteSong(songId: String) {
+        savedSongs.value = savedSongs.value.filter { it.id != songId }
+        LyricStorage.deleteSong(getApplication(), songId)
     }
 
     fun playFromStart() {

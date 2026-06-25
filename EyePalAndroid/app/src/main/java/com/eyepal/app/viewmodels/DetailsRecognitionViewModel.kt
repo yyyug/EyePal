@@ -22,6 +22,7 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
     private val openAI = OpenAIService()
     private val announcer = AccessibilityAnnouncer(application)
     private var lastImage: Bitmap? = null
+    private var lastPrompt = "For a blind user, read visible text exactly, then describe people, objects, layout, and orientation cues. Be concise."
 
     fun startCamera(previewView: android.view.View) {
         val lifecycleOwner = (previewView.context as? androidx.lifecycle.LifecycleOwner) ?: return
@@ -31,23 +32,26 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
     fun stopCamera() { camera.stopCamera() }
     fun signIn() { isSignedIn.value = true }
 
-    fun capturePhoto() {
+    fun capturePhoto() { lastPrompt = "For a blind user, read visible text exactly, then describe people, objects, layout, and orientation cues. Be concise."; doCapture() }
+
+    fun capturePresetPhoto(prompt: String) { lastPrompt = prompt; doCapture() }
+
+    private fun doCapture() {
         if (isProcessing.value) return
         isProcessing.value = true
         statusText.value = "Describing the photo..."
         viewModelScope.launch {
             try {
-                val bitmap = camera.capturePhoto() ?: throw Exception("Failed to capture photo")
+                val bitmap = camera.capturePhoto() ?: throw Exception("Failed to capture")
                 lastImage = bitmap
                 val prefs = getApplication<Application>().getSharedPreferences("settings", 0)
                 val apiKey = prefs.getString("openai_api_key", "") ?: ""
                 if (apiKey.isEmpty()) { descriptionText.value = "Add OpenAI API key in Settings."; isProcessing.value = false; return@launch }
-                val prompt = "For a blind user, if visible text is present, read it exactly. Then describe people, objects, layout, and orientation cues. Be concise and specific."
-                val result = openAI.describeImage(bitmap, apiKey, prompt)
+                val result = openAI.describeImage(bitmap, apiKey, lastPrompt)
                 descriptionText.value = result
-                statusText.value = "Photo details are ready."
+                statusText.value = "Details ready."
                 announcer.announce(result)
-            } catch (e: Exception) { errorMessage.value = e.message; statusText.value = "Could not describe the photo." }
+            } catch (e: Exception) { errorMessage.value = e.message; statusText.value = "Failed." }
             isProcessing.value = false
         }
     }
@@ -64,7 +68,7 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
                 val apiKey = prefs.getString("openai_api_key", "") ?: ""
                 val result = openAI.describeImage(image, apiKey, question)
                 descriptionText.value = result
-                statusText.value = "Follow-up answer is ready."
+                statusText.value = "Follow-up ready."
                 announcer.announce(result)
             } catch (e: Exception) { errorMessage.value = e.message }
             isProcessing.value = false

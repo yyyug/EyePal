@@ -21,32 +21,25 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
     val statusText by viewModel.statusText
     val recognizedText by viewModel.recognizedText
     val isProcessing by viewModel.isProcessing
+    val isContinuous by viewModel.isContinuous
 
-    DisposableEffect(Unit) { onDispose { viewModel.stopCamera() } }
+    DisposableEffect(Unit) { onDispose { viewModel.stopContinuous(); viewModel.stopCamera() } }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                PreviewView(ctx).apply {
-                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                    scaleType = PreviewView.ScaleType.FILL_CENTER
-                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                }
-            },
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            update = { preview -> viewModel.startCamera(preview) }
-        )
+        AndroidView(factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
+            modifier = Modifier.fillMaxWidth().weight(1f), update = { preview -> viewModel.startCamera(preview) })
 
         Card(modifier = Modifier.fillMaxWidth().padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(statusText, style = MaterialTheme.typography.bodyLarge)
                 if (recognizedText.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(recognizedText, style = MaterialTheme.typography.bodyMedium)
+                    Card(modifier = Modifier.fillMaxWidth()) { Text(recognizedText, modifier = Modifier.padding(12.dp)) }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                Button(onClick = { viewModel.captureAndRecognize() }, modifier = Modifier.fillMaxWidth(), enabled = !isProcessing) {
-                    Text(if (isProcessing) "Recognizing..." else "Capture Text")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { viewModel.captureAndRecognize() }, modifier = Modifier.weight(1f), enabled = !isProcessing && !isContinuous) { Text("Capture") }
+                    Button(onClick = { if (isContinuous) viewModel.stopContinuous() else viewModel.startContinuous() }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (isContinuous) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary)) { Text(if (isContinuous) "Stop" else "Continuous") }
                 }
             }
         }
@@ -55,34 +48,34 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FacesScreen(viewModel: FacesViewModel = viewModel()) {
+fun FacesScreen(viewModel: FacesViewModel = viewModel(), onNavigateToSavedFaces: () -> Unit = {}, savedFacesViewModel: FacesViewModel = viewModel) {
     val statusText by viewModel.statusText
     val isProcessing by viewModel.isProcessing
+    val pendingSaveName by viewModel.pendingSaveName
+    var nameInput by remember { mutableStateOf("") }
 
     DisposableEffect(Unit) { onDispose { viewModel.stopCamera() } }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                PreviewView(ctx).apply {
-                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                    scaleType = PreviewView.ScaleType.FILL_CENTER
-                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                }
-            },
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            update = { preview -> viewModel.startCamera(preview) }
-        )
+        AndroidView(factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
+            modifier = Modifier.fillMaxWidth().weight(1f), update = { preview -> viewModel.startCamera(preview) })
 
         Card(modifier = Modifier.fillMaxWidth().padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(statusText, style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.height(12.dp))
-                Button(onClick = { viewModel.detectFaces() }, modifier = Modifier.fillMaxWidth(), enabled = !isProcessing) {
-                    Text(if (isProcessing) "Detecting..." else "Detect Faces")
-                }
+                Button(onClick = { viewModel.detectFaces() }, modifier = Modifier.fillMaxWidth(), enabled = !isProcessing) { Text(if (isProcessing) "Detecting..." else "Detect Faces") }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = onNavigateToSavedFaces, modifier = Modifier.fillMaxWidth()) { Text("Manage Saved Faces") }
             }
         }
+    }
+
+    if (pendingSaveName != null) {
+        AlertDialog(onDismissRequest = { viewModel.dismissSave() }, title = { Text("Add Person") },
+            text = { OutlinedTextField(value = nameInput, onValueChange = { nameInput = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Person's name") }, singleLine = true) },
+            confirmButton = { TextButton(onClick = { viewModel.saveFace(nameInput); nameInput = "" }, enabled = nameInput.isNotBlank()) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { nameInput = ""; viewModel.dismissSave() }) { Text("Not Now") } })
     }
 }
 
