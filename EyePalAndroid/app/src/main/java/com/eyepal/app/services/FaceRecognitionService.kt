@@ -22,7 +22,9 @@ class FaceRecognitionService(private val context: Context) {
     )
     private val embeddingEngine = ArcFaceEmbeddingEngine(context)
     private var profiles: MutableList<SavedFaceProfile> = mutableListOf()
-    var recognitionThreshold: Float = 0.82f
+    var recognitionThreshold: Float = 0.95f
+    var minimumTopMatchMargin: Float = 0.05f
+    var knownMatchFrameThreshold: Int = 3
 
     data class SavedFaceProfile(val id: String, val name: String, val embeddings: List<FloatArray>)
     data class FaceMatch(val name: String, val confidence: Float)
@@ -69,11 +71,18 @@ class FaceRecognitionService(private val context: Context) {
         if (profiles.isEmpty()) return null
         var bestName = ""
         var bestScore = 0f
+        var secondBestScore = 0f
         for (profile in profiles) {
             val maxScore = profile.embeddings.maxOfOrNull { embeddingEngine.cosineSimilarity(embedding, it) } ?: continue
-            if (maxScore > bestScore) { bestScore = maxScore; bestName = profile.name }
+            android.util.Log.d("FaceRec", "Profile '${profile.name}': score=${String.format("%.4f", maxScore)}")
+            if (maxScore > bestScore) { secondBestScore = bestScore; bestScore = maxScore; bestName = profile.name }
+            else if (maxScore > secondBestScore) { secondBestScore = maxScore }
         }
-        return if (bestScore >= recognitionThreshold) FaceMatch(bestName, bestScore) else null
+        val margin = bestScore - secondBestScore
+        android.util.Log.d("FaceRec", "Best: '$bestName'=${String.format("%.4f", bestScore)} 2nd=${String.format("%.4f", secondBestScore)} margin=${String.format("%.4f", margin)} threshold=${String.format("%.4f", recognitionThreshold)} minMargin=${String.format("%.4f", minimumTopMatchMargin)}")
+        if (bestScore < recognitionThreshold) return null
+        if (profiles.size > 1 && margin < minimumTopMatchMargin) return null
+        return FaceMatch(bestName, bestScore)
     }
 
     suspend fun saveFace(name: String, embedding: FloatArray) = withContext(Dispatchers.IO) {

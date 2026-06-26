@@ -28,12 +28,12 @@ final class FaceRecognitionService {
     private var pendingUnknownEmbeddings: [[Float]] = []
     private var pendingUnknownJPEGData: Data?
 
-    var recognitionThreshold: Float = 0.82
+    var recognitionThreshold: Float = 0.95
     var suggestionFrameThreshold = 6
     var minimumSuggestionInterval: TimeInterval = 10
-    var knownMatchFrameThreshold = 1
-    var minimumTopMatchMargin: Float = 0.01
-    var borderlineKnownThreshold: Float = 0.78
+    var knownMatchFrameThreshold = 3
+    var minimumTopMatchMargin: Float = 0.05
+    var borderlineKnownThreshold: Float = 0.90
     var enrollmentSampleTarget = 4
     var minimumEnrollmentSamples = 3
 

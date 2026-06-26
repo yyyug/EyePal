@@ -25,10 +25,19 @@ class ArcFaceEmbeddingEngine(private val context: Context) {
                     modelFile.outputStream().use { output -> input.copyTo(output) }
                 }
             }
+            val modelSize = modelFile.length()
+            android.util.Log.d("ArcFace", "Model file: ${modelFile.absolutePath} (${modelSize / 1024 / 1024} MB)")
             val sessionOptions = OrtSession.SessionOptions()
             session = ortEnv!!.createSession(modelFile.absolutePath, sessionOptions)
+            val inputNames = session!!.inputNames
+            val outputNames = session!!.outputNames
+            android.util.Log.d("ArcFace", "Session loaded. Inputs: $inputNames Outputs: $outputNames")
             isLoaded = true
-        } catch (_: Exception) { isLoaded = false }
+            android.util.Log.d("ArcFace", "ArcFace engine loaded successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("ArcFace", "Failed to load model: ${e.message}", e)
+            isLoaded = false
+        }
     }
 
     suspend fun generateEmbedding(faceBitmap: Bitmap): FloatArray? = withContext(Dispatchers.IO) {

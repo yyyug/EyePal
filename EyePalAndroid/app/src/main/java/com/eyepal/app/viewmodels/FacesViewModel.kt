@@ -23,7 +23,9 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("settings", 0)
 
     init {
-        faceService.recognitionThreshold = prefs.getFloat("face_match_threshold", 0.82f)
+        faceService.recognitionThreshold = prefs.getFloat("face_match_threshold", 0.95f)
+        faceService.minimumTopMatchMargin = prefs.getFloat("face_match_margin", 0.05f)
+        faceService.knownMatchFrameThreshold = prefs.getInt("face_match_frame_threshold", 3)
         viewModelScope.launch {
             faceService.load()
             profiles.value = faceService.getProfiles()

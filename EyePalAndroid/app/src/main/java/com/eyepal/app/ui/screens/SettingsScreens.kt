@@ -50,10 +50,10 @@ fun SettingsScreen(
 
         Text("Face Recognition", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
         Text("Match sensitivity: ${String.format("%.0f", threshold * 100)}%")
-        Slider(value = threshold, onValueChange = { kotlinx.coroutines.MainScope().launch { settings.setFaceMatchThreshold(it) } }, valueRange = 0.78f..0.98f, steps = 19)
+        Slider(value = threshold, onValueChange = { kotlinx.coroutines.MainScope().launch { settings.setFaceMatchThreshold(it) } }, valueRange = 0.90f..0.99f, steps = 9)
 
         Text("Top match margin: ${String.format("%.3f", margin)}")
-        Slider(value = margin.toFloat(), onValueChange = { kotlinx.coroutines.MainScope().launch { settings.setFaceMatchMargin(it.toDouble()) } }, valueRange = 0.005f..0.05f, steps = 8)
+        Slider(value = margin.toFloat(), onValueChange = { kotlinx.coroutines.MainScope().launch { settings.setFaceMatchMargin(it.toFloat()) } }, valueRange = 0.01f..0.10f, steps = 9)
 
         HorizontalDivider()
 
