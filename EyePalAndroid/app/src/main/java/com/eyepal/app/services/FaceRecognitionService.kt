@@ -23,8 +23,8 @@ class FaceRecognitionService(private val context: Context) {
     private val embeddingEngine = ArcFaceEmbeddingEngine(context)
     private var profiles: MutableList<SavedFaceProfile> = mutableListOf()
     var recognitionThreshold: Float = 0.95f
-    var minimumTopMatchMargin: Float = 0.05f
-    var knownMatchFrameThreshold: Int = 3
+    var minimumTopMatchMargin: Float = 0.02f
+    var knownMatchFrameThreshold: Int = 1
 
     data class SavedFaceProfile(val id: String, val name: String, val embeddings: List<FloatArray>)
     data class FaceMatch(val name: String, val confidence: Float)

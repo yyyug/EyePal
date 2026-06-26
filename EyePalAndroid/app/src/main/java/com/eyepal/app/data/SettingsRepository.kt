@@ -19,6 +19,7 @@ class SettingsRepository(private val context: Context) {
         val QUICK_ACTION_CONTROL_STYLE = stringPreferencesKey("quick_action_control_style")
         val FACE_MATCH_THRESHOLD = floatPreferencesKey("face_match_threshold")
         val FACE_MATCH_MARGIN = floatPreferencesKey("face_match_margin")
+        val FACE_MATCH_FRAME_THRESHOLD = intPreferencesKey("face_match_frame_threshold")
         val FACE_SPEECH_COOLDOWN = floatPreferencesKey("face_speech_cooldown")
         val READ_TEXT_SPEECH_COOLDOWN = floatPreferencesKey("read_text_speech_cooldown")
         val SUGGEST_UNKNOWN_FACES = booleanPreferencesKey("suggest_unknown_faces")
@@ -43,8 +44,9 @@ class SettingsRepository(private val context: Context) {
 
     val featureOrder: Flow<List<String>> = context.dataStore.data.map { it[Keys.FEATURE_ORDER]?.split(",") ?: AppFeature.defaultOrder.map { it.name } }
     val quickMoondreamAPIKey: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_MOONDREAM_API_KEY] ?: "" }
-    val faceMatchThreshold: Flow<Float> = context.dataStore.data.map { it[Keys.FACE_MATCH_THRESHOLD] ?: 0.82f }
-    val faceMatchMargin: Flow<Float> = context.dataStore.data.map { it[Keys.FACE_MATCH_MARGIN] ?: 0.015f }
+    val faceMatchThreshold: Flow<Float> = context.dataStore.data.map { it[Keys.FACE_MATCH_THRESHOLD] ?: 0.95f }
+    val faceMatchMargin: Flow<Float> = context.dataStore.data.map { it[Keys.FACE_MATCH_MARGIN] ?: 0.02f }
+    val faceMatchFrameThreshold: Flow<Int> = context.dataStore.data.map { it[Keys.FACE_MATCH_FRAME_THRESHOLD] ?: 1 }
     val faceSpeechCooldown: Flow<Float> = context.dataStore.data.map { it[Keys.FACE_SPEECH_COOLDOWN] ?: 2.5f }
     val readTextSpeechCooldown: Flow<Float> = context.dataStore.data.map { it[Keys.READ_TEXT_SPEECH_COOLDOWN] ?: 2.5f }
     val suggestUnknownFaces: Flow<Boolean> = context.dataStore.data.map { it[Keys.SUGGEST_UNKNOWN_FACES] ?: true }
@@ -78,6 +80,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setFaceMatchMargin(value: Float) {
         context.dataStore.edit { it[Keys.FACE_MATCH_MARGIN] = value }
+    }
+
+    suspend fun setFaceMatchFrameThreshold(value: Int) {
+        context.dataStore.edit { it[Keys.FACE_MATCH_FRAME_THRESHOLD] = value }
     }
 
     suspend fun setSuggestUnknownFaces(value: Boolean) {

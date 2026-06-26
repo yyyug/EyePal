@@ -31,8 +31,8 @@ final class FaceRecognitionService {
     var recognitionThreshold: Float = 0.95
     var suggestionFrameThreshold = 6
     var minimumSuggestionInterval: TimeInterval = 10
-    var knownMatchFrameThreshold = 3
-    var minimumTopMatchMargin: Float = 0.05
+    var knownMatchFrameThreshold = 1
+    var minimumTopMatchMargin: Float = 0.02
     var borderlineKnownThreshold: Float = 0.90
     var enrollmentSampleTarget = 4
     var minimumEnrollmentSamples = 3

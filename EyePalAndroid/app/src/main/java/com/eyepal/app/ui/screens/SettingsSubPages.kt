@@ -90,7 +90,9 @@ fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
 fun FacesSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("settings", 0) }
-    var threshold by remember { mutableFloatStateOf(prefs.getFloat("face_match_threshold", 0.82f)) }
+    var threshold by remember { mutableFloatStateOf(prefs.getFloat("face_match_threshold", 0.95f)) }
+    var margin by remember { mutableFloatStateOf(prefs.getFloat("face_match_margin", 0.02f)) }
+    var frameThreshold by remember { mutableIntStateOf(prefs.getInt("face_match_frame_threshold", 1)) }
     var suggestUnknown by remember { mutableStateOf(prefs.getBoolean("suggest_unknown_faces", true)) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -99,7 +101,17 @@ fun FacesSettingsScreen(onBack: () -> Unit) {
 
         Text("Match Sensitivity", style = MaterialTheme.typography.titleMedium)
         Text("${String.format("%.0f", threshold * 100)}%", style = MaterialTheme.typography.bodyLarge)
-        Slider(value = threshold, onValueChange = { threshold = it; prefs.edit().putFloat("face_match_threshold", it).apply() }, valueRange = 0.78f..0.98f, steps = 19)
+        Slider(value = threshold, onValueChange = { threshold = it; prefs.edit().putFloat("face_match_threshold", it).apply() }, valueRange = 0.90f..0.99f, steps = 9)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Top Match Margin", style = MaterialTheme.typography.titleMedium)
+        Text("${String.format("%.3f", margin)}", style = MaterialTheme.typography.bodyLarge)
+        Slider(value = margin, onValueChange = { margin = it; prefs.edit().putFloat("face_match_margin", it).apply() }, valueRange = 0.01f..0.10f, steps = 9)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Frame Threshold", style = MaterialTheme.typography.titleMedium)
+        Text("$frameThreshold frame(s)", style = MaterialTheme.typography.bodyLarge)
+        Slider(value = frameThreshold.toFloat(), onValueChange = { frameThreshold = it.toInt(); prefs.edit().putInt("face_match_frame_threshold", frameThreshold).apply() }, valueRange = 1f..5f, steps = 4)
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Suggest Unknown Faces", style = MaterialTheme.typography.titleMedium)
