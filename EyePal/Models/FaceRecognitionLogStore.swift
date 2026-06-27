@@ -25,33 +25,34 @@ class FaceRecognitionLogStore {
 
     var allEntries: [FaceRecognitionLogEntry] { entries }
 
-    func load(context: Context) {
-        let file = File(context.filesDir, fileName)
-        guard file.exists() else { return }
-        if let data = try? Data(contentsOf: file),
-           let decoded = try? JSONDecoder().decode([FaceRecognitionLogEntry].self, from: data) {
-            entries = decoded
-        }
+    private var fileURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(fileName)
     }
 
-    func save(context: Context) {
-        let file = File(context.filesDir, fileName)
-        if let data = try? JSONEncoder().encode(entries) {
-            try? data.write(to: file, options: .atomic)
-        }
+    func load() {
+        guard FileManager.default.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL),
+              let decoded = try? JSONDecoder().decode([FaceRecognitionLogEntry].self, from: data) else { return }
+        entries = decoded
     }
 
-    func append(message: String, context: Context) {
+    func save() {
+        guard let data = try? JSONEncoder().encode(entries) else { return }
+        try? data.write(to: fileURL, options: .atomic)
+    }
+
+    func append(message: String) {
         let entry = FaceRecognitionLogEntry(message: message)
         entries.insert(entry, at: 0)
         if entries.count > 50 {
             entries = Array(entries.prefix(50))
         }
-        save(context)
+        save()
     }
 
-    func clear(context: Context) {
+    func clear() {
         entries.removeAll()
-        save(context)
+        save()
     }
 }

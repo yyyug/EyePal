@@ -16,23 +16,22 @@ final class SettingsStore: ObservableObject {
 
     @Published var faceRecognitionLogs: [FaceRecognitionLogEntry] = []
     private let logStore = FaceRecognitionLogStore.shared
-    private var logContext: Context?
+    private var logLoaded = false
 
-    func setupLogContext(_ context: Context) {
-        logContext = context
-        logStore.load(context)
+    func setupFaceLog() {
+        logStore.load()
         faceRecognitionLogs = logStore.allEntries
+        logLoaded = true
     }
 
     func appendFaceLog(_ message: String) {
-        guard let ctx = logContext else { return }
-        logStore.append(message: message, context: ctx)
+        guard logLoaded else { return }
+        logStore.append(message: message)
         faceRecognitionLogs = logStore.allEntries
     }
 
     func loadFaceLogs() {
-        guard let ctx = logContext else { return }
-        logStore.load(ctx)
+        logStore.load()
         faceRecognitionLogs = logStore.allEntries
     }
     @AppStorage("featureOrderData") private var featureOrderData = Data()
