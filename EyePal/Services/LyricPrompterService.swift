@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import CommonCrypto
 
 enum LyricPrompterError: LocalizedError {
     case notSignedIn
