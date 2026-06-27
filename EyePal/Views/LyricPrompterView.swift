@@ -189,7 +189,9 @@ private struct LyricDisplayView: View {
                                 .font(.body)
                                 .padding(.horizontal)
                                 .id("line_\(index)")
-                                .accessibilityFocused($focus, equals: index == 0 ? .firstLine : nil)
+                                .if(index == 0) { view in
+                                    view.accessibilityFocused($focus, equals: .firstLine)
+                                }
                         }
                     }
                     .padding(.vertical)
