@@ -25,13 +25,18 @@ struct LyricPrompterView: View {
             .navigationTitle(viewModel.currentSong != nil ? (viewModel.currentSong?.title ?? "Lyrics") : "Lyric Prompter")
             .toolbar {
                 if viewModel.currentSong != nil {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Back") {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
                             viewModel.stopPlayback()
                             viewModel.currentSong = nil
+                        } label: {
+                            Label("Back", systemImage: "chevron.left")
                         }
                     }
                 }
+            }
+            .onDisappear {
+                viewModel.stopPlayback()
             }
             .alert("Error", isPresented: Binding(
                 get: { viewModel.errorMessage != nil },
