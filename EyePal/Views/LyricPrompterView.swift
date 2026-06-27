@@ -137,6 +137,14 @@ struct LyricPrompterView: View {
             } header: {
                 Text("\(viewModel.searchResults.count) results found")
             }
+
+            if !viewModel.searchLog.isEmpty {
+                Section("Debug Log") {
+                    ForEach(viewModel.searchLog, id: \.self) { entry in
+                        Text(entry).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
         .listStyle(.plain)
         .toolbar {

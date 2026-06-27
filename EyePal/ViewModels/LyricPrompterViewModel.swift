@@ -7,6 +7,7 @@ final class LyricPrompterViewModel: ObservableObject {
     @Published var savedSongs: [LyricSong] = []
     @Published var currentSong: LyricSong?
     @Published var searchResults: [LyricSearchResult] = []
+    @Published var searchLog: [String] = []
     @Published var isSearching = false
     @Published var isLoadingLyrics = false
     @Published var errorMessage: String?
@@ -73,6 +74,7 @@ final class LyricPrompterViewModel: ObservableObject {
         isSearching = true
         errorMessage = nil
         searchResults = []
+        searchLog = ["Searching: \(input)"]
 
         let results = await service.searchAllSources(
             searchText: input,
@@ -84,6 +86,7 @@ final class LyricPrompterViewModel: ObservableObject {
         )
 
         if results.isEmpty {
+            searchLog.append("LRCLIB + QQ Music: no results, trying LLM...")
             do {
                 let (title, artist) = parseSearchInput(input)
                 let llmResponse = try await service.searchLyricsLLM(
@@ -104,6 +107,9 @@ final class LyricPrompterViewModel: ObservableObject {
                 isSearching = false
             }
         } else {
+            for r in results {
+                searchLog.append("[\(r.source)] \(r.trackName) - \(r.artistName) synced=\(r.hasSyncedLyrics)")
+            }
             searchResults = results
             isSearching = false
         }

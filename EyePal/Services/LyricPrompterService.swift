@@ -159,7 +159,15 @@ final class LyricPrompterService {
         guard !lyricBase64.isEmpty else { return nil }
 
         guard let lyricData = Data(base64Encoded: lyricBase64),
-              let lrcString = String(data: lyricData, encoding: .utf8) else { return nil }
+              let rawString = String(data: lyricData, encoding: .utf8) else { return nil }
+
+        // Try QRC decryption if content looks like hex-encoded QRC
+        let lrcString: String
+        if rawString.allSatisfy({ $0.isHexDigit || $0 == "\n" || $0 == "\r" }) && rawString.count > 100 {
+            lrcString = Self.decryptQRC(rawString) ?? rawString
+        } else {
+            lrcString = rawString
+        }
 
         let hasSynced = lrcString.contains("[0")
         return (synced: hasSynced ? lrcString : nil, plain: hasSynced ? extractPlainFromLRC(lrcString) : lrcString, hasSynced: hasSynced)
@@ -177,26 +185,27 @@ final class LyricPrompterService {
             return UInt8(str, radix: 16)
         }
         guard bytes.count % 8 == 0, !bytes.isEmpty else { return nil }
-        let key: [UInt8] = Array("!@#)(*$%123ZXC!@!@#)(NHL)".utf8)
+
+        let key = "!@#)(*$%123ZXC!@!@#)(NHL)".data(using: .ascii)!
         var decrypted = Data(count: bytes.count)
+
+        // TripleDES-like decryption: process 8-byte blocks with XOR using key schedule
+        let keyBytes = [UInt8](key)
         for i in stride(from: 0, to: bytes.count, by: 8) {
             let block = Array(bytes[i..<min(i + 8, bytes.count)])
-            let decryptedBlock = tripleDESDecrypt(block, key: key)
-            for j in 0..<min(8, decryptedBlock.count) {
-                decrypted[decrypted.startIndex + i + j] = decryptedBlock[j]
+            // Simple block cipher: XOR with key bytes (simplified from TripleDES)
+            for j in 0..<min(8, block.count) {
+                decrypted[decrypted.startIndex + i + j] = block[j] ^ keyBytes[j % keyBytes.count]
             }
         }
-        guard let decompressed = try? (decrypted as NSData).decompressed(using: .zlib) else { return nil }
-        return String(data: decompressed as Data, encoding: .utf8)
-    }
 
-    private static func tripleDESDecrypt(_ block: [UInt8], key: [UInt8]) -> [UInt8] {
-        guard block.count == 8 else { return block }
-        var result = [UInt8](repeating: 0, count: 8)
-        for i in 0..<8 {
-            result[i] = block[i] ^ key[i % key.count]
+        // Try zlib decompression
+        if let decompressed = try? (decrypted as NSData).decompressed(using: .zlib) {
+            return String(data: decompressed as Data, encoding: .utf8)
         }
-        return result
+
+        // If not compressed, return raw decrypted
+        return String(data: decrypted, encoding: .utf8)
     }
 
     // MARK: - Load selected lyrics
