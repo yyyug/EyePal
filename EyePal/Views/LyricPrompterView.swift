@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum LyricFocusTarget {
     case pageTitle
@@ -15,7 +16,7 @@ struct LyricPrompterView: View {
         NavigationStack {
             Group {
                 if let song = viewModel.currentSong {
-                    LyricDisplayView(song: song, viewModel: viewModel, focus: $focus)
+                    LyricDisplayView(song: song, viewModel: viewModel)
                 } else if !viewModel.searchResults.isEmpty {
                     resultsListView
                 } else {
@@ -117,7 +118,12 @@ struct LyricPrompterView: View {
                             HStack {
                                 Text(result.trackName).font(.headline)
                                 Spacer()
-                                SuggestionChip(onClick: {}, label: { Text(result.source) })
+                                Text(result.source)
+                                    .font(.caption2.weight(.semibold))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.blue.opacity(0.2))
+                                    .clipShape(Capsule())
                             }
                             Text(result.artistName).font(.subheadline).foregroundStyle(.secondary)
                             if let album = result.albumName {
@@ -158,7 +164,6 @@ struct LyricPrompterView: View {
 private struct LyricDisplayView: View {
     let song: LyricSong
     let viewModel: LyricPrompterViewModel
-    @Binding var focus: LyricFocusTarget?
 
     private var advanceOffset: TimeInterval { settingsStore.lyricAdvanceOffset }
 
@@ -189,7 +194,7 @@ private struct LyricDisplayView: View {
             } else {
                 HStack {
                     Spacer()
-                    Text("No timed lyrics available").font(.bodySmall).foregroundStyle(.secondary)
+                    Text("No timed lyrics available").font(.caption).foregroundStyle(.secondary)
                     Spacer()
                 }.padding(.vertical, 8)
             }
@@ -217,12 +222,13 @@ private struct LyricDisplayView: View {
             .buttonStyle(.borderedProminent)
             .padding()
         }
-        .onChange(of: viewModel.isPlaying) { playing in
-            if playing {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    focus = .firstLine
+            .onChange(of: viewModel.isPlaying) { playing in
+                if playing, let firstLine = viewModel.currentSong?.lines.first?.text {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        UIAccessibility.post(notification: .screenChanged, argument: nil)
+                        UIAccessibility.post(notification: .announcement, argument: firstLine)
+                    }
                 }
             }
-        }
     }
 }
