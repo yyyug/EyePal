@@ -34,33 +34,48 @@ enum FaceEmbeddingError: LocalizedError {
 }
 
 final class FaceEmbeddingEngine {
+    private var cachedOutputName: String?
+    private var onLog: ((String) -> Void)?
     private lazy var sessionState: SessionState? = {
         guard let modelURL = Bundle.main.url(
             forResource: FaceModelContract.modelFilename,
             withExtension: FaceModelContract.modelExtension
         ) else {
-            NSLog("[ArcFace] ERROR: Model file not found")
+            let msg = "[ArcFace] ERROR: Model file not found"
+            NSLog("%@", msg)
+            onLog?(msg)
             return nil
         }
 
         do {
-            NSLog("[ArcFace] Loading model: \(modelURL.path)")
+            let msg = "[ArcFace] Loading model: \(modelURL.path)"
+            NSLog("%@", msg)
             let env = try ORTEnv(loggingLevel: .warning)
             let sessionOptions = try ORTSessionOptions()
             let session = try ORTSession(env: env, modelPath: modelURL.path, sessionOptions: sessionOptions)
-            NSLog("[ArcFace] Model loaded. Input names: \(session.inputNames) Output names: \(session.outputNames)")
+            cachedOutputName = session.outputNames.first
+            let info = "[ArcFace] Inputs: \(session.inputNames) Outputs: \(session.outputNames) Use output: \(cachedOutputName ?? "nil")"
+            NSLog("%@", info)
+            onLog?(info)
             return SessionState(env: env, session: session)
         } catch {
-            NSLog("[ArcFace] ERROR loading model: \(error)")
+            let msg = "[ArcFace] ERROR loading model: \(error)"
+            NSLog("%@", msg)
+            onLog?(msg)
             return nil
         }
     }()
+
+    func setLogger(_ logger: @escaping (String) -> Void) {
+        onLog = logger
+    }
 
     func embedding(for cgImage: CGImage) async throws -> [Float] {
         guard let sessionState else {
             throw FaceEmbeddingError.missingModel
         }
 
+        let outputName = cachedOutputName ?? FaceModelContract.outputName
         let inputData = try makeInputData(from: cgImage)
         let tensor = try makeTensor(from: inputData)
 
@@ -71,7 +86,7 @@ final class FaceEmbeddingEngine {
                     do {
                         let result = try sessionState.session.run(
                             withInputs: [FaceModelContract.inputName: tensor],
-                            outputNames: [FaceModelContract.outputName],
+                            outputNames: [outputName],
                             runOptions: nil
                         )
                         continuation.resume(returning: result)
@@ -86,12 +101,18 @@ final class FaceEmbeddingEngine {
             throw FaceEmbeddingError.runtimeUnavailable(error.localizedDescription)
         }
 
-        guard let outputValue = outputs[FaceModelContract.outputName] else {
-            throw FaceEmbeddingError.missingOutputFeature(FaceModelContract.outputName)
+        guard let outputValue = outputs[outputName] else {
+            throw FaceEmbeddingError.missingOutputFeature(outputName)
         }
 
         let outputTensorData = try outputValue.tensorData() as Data
         let outputShape = try outputValue.tensorTypeAndShapeInfo().shape
+        NSLog("[ArcFace] Output: name=\(outputName) shape=\(outputShape) dataBytes=\(outputTensorData.count)")
+
+        guard outputTensorData.count >= FaceModelContract.defaultEmbeddingSize * MemoryLayout<Float32>.stride else {
+            throw FaceEmbeddingError.invalidOutputShape(outputShape)
+        }
+
         let vector = try outputTensorData.toEmbeddingVector(shape: outputShape, expectedCount: FaceModelContract.defaultEmbeddingSize)
         let embedding = normalized(vector)
         NSLog("[ArcFace] Embedding dim=\(embedding.count) min=\(embedding.min() ?? 0) max=\(embedding.max() ?? 0) norm=\(sqrt(embedding.map { $0 * $0 }.reduce(0, +)))")

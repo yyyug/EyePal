@@ -18,6 +18,9 @@ final class FaceRecognitionService {
     private let faceStore = FaceStore()
     private let processingQueue = DispatchQueue(label: "com.eyepals.face.recognition")
     private let context = CIContext()
+    var onLog: ((String) -> Void)? {
+        didSet { embeddingEngine.setLogger { [weak self] msg in self?.onLog?(msg) } }
+    }
 
     private var isProcessing = false
     private var profiles: [FaceProfile] = []

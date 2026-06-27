@@ -25,6 +25,9 @@ final class FaceRecognitionViewModel: ObservableObject {
         settingsStore = settings
         recognitionService.recognitionThreshold = max(Float(settings.faceMatchThreshold), 0.90)
         recognitionService.minimumTopMatchMargin = max(Float(settings.faceMatchMargin), 0.01)
+        recognitionService.onLog = { [weak self] msg in
+            self?.settingsStore?.appendFaceLog(msg)
+        }
     }
 
     func start() {
