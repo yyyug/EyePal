@@ -17,10 +17,10 @@ struct LyricPrompterView: View {
     var body: some View {
         NavigationStack {
             Group {
-                when(navState) {
-                    case .search: songListView
-                    case .results: resultsListView
-                    case .lyrics: EmptyView()
+                switch navState {
+                case .search: songListView
+                case .results: resultsListView
+                case .lyrics: EmptyView()
                 }
             }
             .navigationTitle(titleForState)
@@ -48,11 +48,6 @@ struct LyricPrompterView: View {
         case .results: return "Search Results"
         case .lyrics: return viewModel.currentSong?.title ?? "Lyrics"
         }
-    }
-
-    @ViewBuilder
-    private func when(_ state: LyricNavigationState, @ViewBuilder content: (LyricNavigationState) -> Unit) {
-        content(state)
     }
 
     private var songListView: some View {
