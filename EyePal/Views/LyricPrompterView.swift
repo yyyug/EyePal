@@ -9,8 +9,8 @@ struct LyricPrompterView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if let song = viewModel.currentSong {
-                    LyricDisplayView(song: song, viewModel: viewModel)
+                if viewModel.currentSong != nil {
+                    LyricDisplayView(song: viewModel.currentSong!, viewModel: viewModel)
                 } else if !viewModel.searchResults.isEmpty {
                     resultsListView
                 } else {
@@ -30,9 +30,7 @@ struct LyricPrompterView: View {
                     }
                 }
             }
-            .onDisappear {
-                viewModel.stopPlayback()
-            }
+            .onDisappear { viewModel.stopPlayback() }
             .alert("Error", isPresented: Binding(
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.errorMessage = nil } }
@@ -45,12 +43,6 @@ struct LyricPrompterView: View {
         .onAppear {
             viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
             viewModel.loadSaved()
-            if let song = viewModel.currentSong {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    UIAccessibility.post(notification: .screenChanged, argument: nil)
-                    UIAccessibility.post(notification: .announcement, argument: "\(song.title) by \(song.artist)")
-                }
-            }
         }
     }
 
@@ -68,11 +60,7 @@ struct LyricPrompterView: View {
                             }
                         }
                         .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                viewModel.deleteSong(song)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                            Button(role: .destructive) { viewModel.deleteSong(song) } label: { Label("Delete", systemImage: "trash") }
                         }
                     }
                 }
@@ -89,11 +77,8 @@ struct LyricPrompterView: View {
                     .submitLabel(.search)
                     .onSubmit { Task { await viewModel.search() } }
 
-                Button {
-                    Task { await viewModel.search() }
-                } label: {
-                    Label(viewModel.isSearching ? "Searching..." : "Search Lyrics", systemImage: "magnifyingglass")
-                        .frame(maxWidth: .infinity)
+                Button { Task { await viewModel.search() } } label: {
+                    Label(viewModel.isSearching ? "Searching..." : "Search Lyrics", systemImage: "magnifyingglass").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isSearching || viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -106,38 +91,26 @@ struct LyricPrompterView: View {
         List {
             Section {
                 ForEach(viewModel.searchResults) { result in
-                    Button {
-                        viewModel.loadSelectedResult(result)
-                    } label: {
+                    Button { viewModel.loadSelectedResult(result) } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(result.trackName).font(.headline)
                                 Spacer()
                                 Text(result.source.rawValue)
                                     .font(.caption2.weight(.semibold))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.2))
-                                    .clipShape(Capsule())
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(Color.blue.opacity(0.2)).clipShape(Capsule())
                             }
                             Text(result.artistName).font(.subheadline).foregroundStyle(.secondary)
-                            if let album = result.albumName {
-                                Text(album).font(.caption).foregroundStyle(.secondary)
-                            }
+                            if let album = result.albumName { Text(album).font(.caption).foregroundStyle(.secondary) }
                             HStack(spacing: 8) {
-                                if result.hasSyncedLyrics {
-                                    Label("Synced", systemImage: "waveform").font(.caption).foregroundStyle(.green)
-                                } else {
-                                    Label("Plain", systemImage: "text.alignleft").font(.caption).foregroundStyle(.secondary)
-                                }
+                                if result.hasSyncedLyrics { Label("Synced", systemImage: "waveform").font(.caption).foregroundStyle(.green) }
+                                else { Label("Plain", systemImage: "text.alignleft").font(.caption).foregroundStyle(.secondary) }
                             }
                         }
                     }
-                    .accessibilityHint(result.hasSyncedLyrics ? "Has timed lyrics" : "Plain text lyrics only")
                 }
-            } header: {
-                Text("\(viewModel.searchResults.count) results found")
-            }
+            } header: { Text("\(viewModel.searchResults.count) results found") }
 
             if !viewModel.searchLog.isEmpty {
                 Section("Debug Log") {
@@ -149,9 +122,7 @@ struct LyricPrompterView: View {
         }
         .listStyle(.plain)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { viewModel.dismissResults() }
-            }
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { viewModel.dismissResults() } }
         }
     }
 }
@@ -159,55 +130,33 @@ struct LyricPrompterView: View {
 private struct LyricDisplayView: View {
     let song: LyricSong
     let viewModel: LyricPrompterViewModel
-
     @EnvironmentObject private var settingsStore: SettingsStore
 
     var body: some View {
         VStack(spacing: 0) {
             if song.hasTimestamps {
                 HStack(spacing: 12) {
-                    Button {
-                        viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromStart(offset: advanceOffset)
-                    } label: {
-                        Label(viewModel.isPlaying ? "Stop" : "Play from Start", systemImage: viewModel.isPlaying ? "stop.circle" : "play.circle")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromNow(offset: advanceOffset)
-                    } label: {
-                        Label(viewModel.isPlaying ? "Stop" : "Play from Now", systemImage: viewModel.isPlaying ? "stop.circle" : "forward.circle")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+                    Button { viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromStart(offset: settingsStore.lyricAdvanceOffset) } label: {
+                        Label(viewModel.isPlaying ? "Stop" : "Play from Start", systemImage: viewModel.isPlaying ? "stop.circle" : "play.circle").frame(maxWidth: .infinity)
+                    }.buttonStyle(.bordered)
+                    Button { viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromNow(offset: settingsStore.lyricAdvanceOffset) } label: {
+                        Label(viewModel.isPlaying ? "Stop" : "Play from Now", systemImage: viewModel.isPlaying ? "stop.circle" : "forward.circle").frame(maxWidth: .infinity)
+                    }.buttonStyle(.bordered)
+                }.padding(.horizontal).padding(.vertical, 8)
             } else {
-                HStack {
-                    Spacer()
-                    Text("No timed lyrics available").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                }.padding(.vertical, 8)
+                HStack { Spacer(); Text("No timed lyrics available").font(.caption).foregroundStyle(.secondary); Spacer() }.padding(.vertical, 8)
             }
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(song.lines) { line in
-                        Text(line.text)
-                            .font(.body)
-                            .padding(.horizontal)
+                        Text(line.text).font(.body).padding(.horizontal)
                     }
-                }
-                .padding(.vertical)
+                }.padding(.vertical)
             }
 
-            Button { viewModel.saveCurrentSong() } label: {
-                Label("Save Lyrics", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
+            Button { viewModel.saveCurrentSong() } label: { Label("Save Lyrics", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }
+                .buttonStyle(.borderedProminent).padding()
         }
         .onChange(of: viewModel.isPlaying) { playing in
             if playing, let firstLine = song.lines.first?.text {
@@ -218,6 +167,4 @@ private struct LyricDisplayView: View {
             }
         }
     }
-
-    private var advanceOffset: TimeInterval { settingsStore.lyricAdvanceOffset }
 }
