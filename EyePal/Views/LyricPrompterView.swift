@@ -113,7 +113,7 @@ struct LyricPrompterView: View {
                             HStack {
                                 Text(result.trackName).font(.headline)
                                 Spacer()
-                                Text(result.source)
+                                Text(result.source.rawValue)
                                     .font(.caption2.weight(.semibold))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
