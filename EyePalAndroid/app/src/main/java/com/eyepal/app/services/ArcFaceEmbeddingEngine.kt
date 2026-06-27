@@ -44,20 +44,15 @@ class ArcFaceEmbeddingEngine(private val context: Context) {
         if (!isLoaded || session == null || ortEnv == null) return@withContext null
         try {
             val inputBitmap = Bitmap.createScaledBitmap(faceBitmap, 112, 112, true)
-            val rChannel = FloatArray(112 * 112)
-            val gChannel = FloatArray(112 * 112)
-            val bChannel = FloatArray(112 * 112)
-            var idx = 0
+            val floatBuffer = FloatBuffer.allocate(3 * 112 * 112)
             for (y in 0 until 112) {
                 for (x in 0 until 112) {
                     val pixel = inputBitmap.getPixel(x, y)
-                    rChannel[idx] = Color.red(pixel) / 127.5f - 1.0f
-                    gChannel[idx] = Color.green(pixel) / 127.5f - 1.0f
-                    bChannel[idx] = Color.blue(pixel) / 127.5f - 1.0f
-                    idx++
+                    floatBuffer.put(Color.red(pixel) / 127.5f - 1.0f)
+                    floatBuffer.put(Color.green(pixel) / 127.5f - 1.0f)
+                    floatBuffer.put(Color.blue(pixel) / 127.5f - 1.0f)
                 }
             }
-            val floatBuffer = FloatBuffer.wrap(rChannel + gChannel + bChannel)
             floatBuffer.rewind()
             val inputTensor = OnnxTensor.createTensor(ortEnv!!, floatBuffer, longArrayOf(1, 3, 112, 112))
             val results = session!!.run(mapOf(session!!.inputNames.first() to inputTensor))

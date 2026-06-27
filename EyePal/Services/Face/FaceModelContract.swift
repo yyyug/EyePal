@@ -6,7 +6,7 @@ enum FaceModelContract {
     static let inputName = "input_1"
     static let outputName = "embedding"
     static let inputDimensionCount = 4
-    static let inputShape = [1, 3, 112, 112]
+    static let inputShape = [1, 112, 112, 3]
     static let imageWidth = 112
     static let imageHeight = 112
     static let channels = 3

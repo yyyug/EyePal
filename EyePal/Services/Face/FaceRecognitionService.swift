@@ -92,6 +92,7 @@ final class FaceRecognitionService {
                         await completion(nil, suggestion)
                     }
                 } catch {
+                    await MainActor.run { onLog?("Error: \(error.localizedDescription)") }
                     await completion(nil, nil)
                 }
             }
