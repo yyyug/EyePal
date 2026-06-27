@@ -1,16 +1,10 @@
 import SwiftUI
 import UIKit
 
-enum LyricFocusTarget {
-    case pageTitle
-    case firstLine
-}
-
 struct LyricPrompterView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = LyricPrompterViewModel()
-    @AccessibilityFocusState private var focus: LyricFocusTarget?
 
     var body: some View {
         NavigationStack {
@@ -207,9 +201,6 @@ private struct LyricDisplayView: View {
                                 .font(.body)
                                 .padding(.horizontal)
                                 .id("line_\(index)")
-                                .if(index == 0) { view in
-                                    view.accessibilityFocused($focus, equals: .firstLine)
-                                }
                         }
                     }
                     .padding(.vertical)
