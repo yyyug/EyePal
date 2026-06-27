@@ -160,8 +160,6 @@ private struct LyricDisplayView: View {
     let song: LyricSong
     let viewModel: LyricPrompterViewModel
 
-    private var advanceOffset: TimeInterval { settingsStore.lyricAdvanceOffset }
-
     @EnvironmentObject private var settingsStore: SettingsStore
 
     var body: some View {
@@ -174,6 +172,55 @@ private struct LyricDisplayView: View {
                         Label(viewModel.isPlaying ? "Stop" : "Play from Start", systemImage: viewModel.isPlaying ? "stop.circle" : "play.circle")
                             .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromNow(offset: advanceOffset)
+                    } label: {
+                        Label(viewModel.isPlaying ? "Stop" : "Play from Now", systemImage: viewModel.isPlaying ? "stop.circle" : "forward.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            } else {
+                HStack {
+                    Spacer()
+                    Text("No timed lyrics available").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                }.padding(.vertical, 8)
+            }
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(song.lines) { line in
+                        Text(line.text)
+                            .font(.body)
+                            .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical)
+            }
+
+            Button { viewModel.saveCurrentSong() } label: {
+                Label("Save Lyrics", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding()
+        }
+        .onChange(of: viewModel.isPlaying) { playing in
+            if playing, let firstLine = song.lines.first?.text {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    UIAccessibility.post(notification: .screenChanged, argument: nil)
+                    UIAccessibility.post(notification: .announcement, argument: firstLine)
+                }
+            }
+        }
+    }
+
+    private var advanceOffset: TimeInterval { settingsStore.lyricAdvanceOffset }
+}
                     .buttonStyle(.bordered)
 
                     Button {

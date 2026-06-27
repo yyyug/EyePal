@@ -186,26 +186,38 @@ final class LyricPrompterService {
         }
         guard bytes.count % 8 == 0, !bytes.isEmpty else { return nil }
 
-        let key = "!@#)(*$%123ZXC!@!@#)(NHL)".data(using: .ascii)!
-        var decrypted = Data(count: bytes.count)
+        let keyBytes: [UInt8] = Array("!@#)(*$%123ZXC!@!@#)(NHL)".utf8)
 
-        // TripleDES-like decryption: process 8-byte blocks with XOR using key schedule
-        let keyBytes = [UInt8](key)
-        for i in stride(from: 0, to: bytes.count, by: 8) {
-            let block = Array(bytes[i..<min(i + 8, bytes.count)])
-            // Simple block cipher: XOR with key bytes (simplified from TripleDES)
-            for j in 0..<min(8, block.count) {
-                decrypted[decrypted.startIndex + i + j] = block[j] ^ keyBytes[j % keyBytes.count]
+        // TripleDES decryption using CommonCrypto
+        var decrypted = [UInt8](repeating: 0, count: bytes.count)
+        var dataOutMoved = 0
+
+        bytes.withUnsafeBytes { inputPtr in
+            decrypted.withUnsafeMutableBytes { outputPtr in
+                _ = CCCrypt(
+                    CCOperation(kCCDecrypt),
+                    CCAlgorithm(kCCAlgorithm3DES),
+                    CCOptions(kCCOptionECBMode),
+                    keyBytes, keyBytes.count,
+                    nil,
+                    inputPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                    bytes.count,
+                    outputPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                    bytes.count,
+                    &dataOutMoved
+                )
             }
         }
 
+        let decryptedData = Data(decrypted)
+
         // Try zlib decompression
-        if let decompressed = try? (decrypted as NSData).decompressed(using: .zlib) {
+        if let decompressed = try? (decryptedData as NSData).decompressed(using: .zlib) {
             return String(data: decompressed as Data, encoding: .utf8)
         }
 
         // If not compressed, return raw decrypted
-        return String(data: decrypted, encoding: .utf8)
+        return String(data: decryptedData, encoding: .utf8)
     }
 
     // MARK: - Load selected lyrics
