@@ -75,10 +75,16 @@ final class FaceRecognitionViewModel: ObservableObject {
                 recognizedName = match.name
                 statusText = "Recognized \(match.name)."
                 sampleProgress = nil
+                settingsStore?.appendFaceLog("Matched: \(match.name) \(String(format: "%.3f", match.confidence))")
                 announcer.announce(match.name, minimumInterval: settingsStore?.faceSpeechCooldown ?? 2.5)
             } else {
                 recognizedName = nil
                 statusText = "Scanning for known faces."
+                if let embedding = result.embedding {
+                    settingsStore?.appendFaceLog("No match. Embedding dim=\(embedding.count), profiles=\(self.recognitionService.getProfiles().count)")
+                } else {
+                    settingsStore?.appendFaceLog("ERROR: embedding is nil - model may not be loaded")
+                }
             }
 
             if let suggestion, pendingSuggestion == nil, settingsStore?.suggestUnknownFaces ?? true {

@@ -878,6 +878,13 @@ private struct FaceRecognitionSettingsView: View {
                     Text("No log entries yet.")
                         .foregroundStyle(.secondary)
                 } else {
+                    Button {
+                        let logText = settingsStore.faceRecognitionLogs.map { "[\($0.formattedTime)] \($0.message)" }.joined(separator: "\n")
+                        UIPasteboard.general.string = logText
+                    } label: {
+                        Label("Copy All Logs", systemImage: "doc.on.doc")
+                    }
+
                     ForEach(settingsStore.faceRecognitionLogs) { entry in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.formattedTime)

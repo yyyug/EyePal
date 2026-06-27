@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct LyricPrompterView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
@@ -17,6 +18,14 @@ struct LyricPrompterView: View {
                 }
             }
             .navigationTitle(viewModel.currentSong != nil ? (viewModel.currentSong?.title ?? "Lyrics") : "Lyric Prompter")
+            .onAppear {
+                if let song = viewModel.currentSong {
+                    UIAccessibility.post(notification: .screenChanged, argument: nil)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        UIAccessibility.post(notification: .announcement, argument: "\(song.title) by \(song.artist). \(song.lines.count) lines of lyrics.")
+                    }
+                }
+            }
             .toolbar {
                 if viewModel.currentSong != nil {
                     ToolbarItem(placement: .cancellationAction) {

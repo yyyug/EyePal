@@ -161,6 +161,7 @@ final class LyricPrompterViewModel: ObservableObject {
                 await MainActor.run { self.isPlaying = false }
                 return
             }
+            // Announce first line immediately, then continue with timed lines
             await MainActor.run { self.announcer.announce(first.text, minimumInterval: 0) }
             for i in 1..<linesWithTime.count {
                 guard !Task.isCancelled else { break }
