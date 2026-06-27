@@ -48,13 +48,14 @@ final class FaceEmbeddingEngine {
         }
 
         do {
-            let msg = "[ArcFace] Loading model: \(modelURL.path)"
-            NSLog("%@", msg)
+            NSLog("[ArcFace] Loading model: \(modelURL.path)")
             let env = try ORTEnv(loggingLevel: .warning)
             let sessionOptions = try ORTSessionOptions()
             let session = try ORTSession(env: env, modelPath: modelURL.path, sessionOptions: sessionOptions)
-            cachedOutputName = session.outputNames.first
-            let info = "[ArcFace] Inputs: \(session.inputNames) Outputs: \(session.outputNames) Use output: \(cachedOutputName ?? "nil")"
+            let inputNames = session.inputNames()
+            let outputNames = session.outputNames()
+            cachedOutputName = outputNames.first
+            let info = "[ArcFace] Inputs: \(inputNames) Outputs: \(outputNames) Use output: \(cachedOutputName ?? "nil")"
             NSLog("%@", info)
             onLog?(info)
             return SessionState(env: env, session: session)
