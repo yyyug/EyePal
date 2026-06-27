@@ -66,6 +66,9 @@ final class FaceRecognitionViewModel: ObservableObject {
         camera.start()
     }
 
+    private var lastLogName: String?
+    private var lastLogTime: Date = .distantPast
+
     private func handle(sampleBuffer: CMSampleBuffer) {
         recognitionService.process(sampleBuffer: sampleBuffer) { [weak self] match, suggestion in
             guard let self else { return }
@@ -75,7 +78,12 @@ final class FaceRecognitionViewModel: ObservableObject {
                 recognizedName = match.name
                 statusText = "Recognized \(match.name)."
                 sampleProgress = nil
-                settingsStore?.appendFaceLog("Matched: \(match.name) \(String(format: "%.3f", match.confidence))")
+                let now = Date()
+                if match.name != lastLogName || now.timeIntervalSince(lastLogTime) >= 3.0 {
+                    settingsStore?.appendFaceLog("Matched: \(match.name) \(String(format: "%.3f", match.confidence))")
+                    lastLogName = match.name
+                    lastLogTime = now
+                }
                 announcer.announce(match.name, minimumInterval: settingsStore?.faceSpeechCooldown ?? 2.5)
             } else {
                 recognizedName = nil

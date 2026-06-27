@@ -136,17 +136,21 @@ final class FaceEmbeddingEngine {
         context.interpolationQuality = .high
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        var floats = [Float32](repeating: 0, count: FaceModelContract.inputShape.reduce(1, *))
-        var writeIndex = 0
+        let channelCount = FaceModelContract.imageWidth * FaceModelContract.imageHeight
+        var rChannel = [Float32](repeating: 0, count: channelCount)
+        var gChannel = [Float32](repeating: 0, count: channelCount)
+        var bChannel = [Float32](repeating: 0, count: channelCount)
+        var idx = 0
         for y in 0..<height {
             for x in 0..<width {
                 let sourceIndex = (y * bytesPerRow) + (x * bytesPerPixel)
-                floats[writeIndex] = normalize(rgbaBytes[sourceIndex])
-                floats[writeIndex + 1] = normalize(rgbaBytes[sourceIndex + 1])
-                floats[writeIndex + 2] = normalize(rgbaBytes[sourceIndex + 2])
-                writeIndex += FaceModelContract.channels
+                rChannel[idx] = normalize(rgbaBytes[sourceIndex])
+                gChannel[idx] = normalize(rgbaBytes[sourceIndex + 1])
+                bChannel[idx] = normalize(rgbaBytes[sourceIndex + 2])
+                idx += 1
             }
         }
+        var floats = rChannel + gChannel + bChannel
 
         guard floats.count == FaceModelContract.inputShape.reduce(1, *) else {
             throw FaceEmbeddingError.invalidInputShape(FaceModelContract.inputShape)
