@@ -45,9 +45,10 @@ struct LyricPrompterView: View {
         .onAppear {
             viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
             viewModel.loadSaved()
-            if viewModel.currentSong != nil {
+            if let song = viewModel.currentSong {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    focus = .pageTitle
+                    UIAccessibility.post(notification: .screenChanged, argument: nil)
+                    UIAccessibility.post(notification: .announcement, argument: "\(song.title) by \(song.artist)")
                 }
             }
         }
