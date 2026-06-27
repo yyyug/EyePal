@@ -39,17 +39,19 @@ final class FaceEmbeddingEngine {
             forResource: FaceModelContract.modelFilename,
             withExtension: FaceModelContract.modelExtension
         ) else {
+            NSLog("[ArcFace] ERROR: Model file not found")
             return nil
         }
 
         do {
+            NSLog("[ArcFace] Loading model: \(modelURL.path)")
             let env = try ORTEnv(loggingLevel: .warning)
             let sessionOptions = try ORTSessionOptions()
-            return try SessionState(
-                env: env,
-                session: ORTSession(env: env, modelPath: modelURL.path, sessionOptions: sessionOptions)
-            )
+            let session = try ORTSession(env: env, modelPath: modelURL.path, sessionOptions: sessionOptions)
+            NSLog("[ArcFace] Model loaded. Input names: \(session.inputNames) Output names: \(session.outputNames)")
+            return SessionState(env: env, session: session)
         } catch {
+            NSLog("[ArcFace] ERROR loading model: \(error)")
             return nil
         }
     }()
@@ -91,7 +93,9 @@ final class FaceEmbeddingEngine {
         let outputTensorData = try outputValue.tensorData() as Data
         let outputShape = try outputValue.tensorTypeAndShapeInfo().shape
         let vector = try outputTensorData.toEmbeddingVector(shape: outputShape, expectedCount: FaceModelContract.defaultEmbeddingSize)
-        return normalized(vector)
+        let embedding = normalized(vector)
+        NSLog("[ArcFace] Embedding dim=\(embedding.count) min=\(embedding.min() ?? 0) max=\(embedding.max() ?? 0) norm=\(sqrt(embedding.map { $0 * $0 }.reduce(0, +)))")
+        return embedding
     }
 
     private func makeTensor(from inputData: Data) throws -> ORTValue {
