@@ -46,6 +46,10 @@ final class FaceRecognitionService {
         return loaded
     }
 
+    func loadEmbeddingEngine() {
+        embeddingEngine.load()
+    }
+
     func process(
         sampleBuffer: CMSampleBuffer,
         completion: @escaping @MainActor (FaceMatch?, FaceSuggestion?) -> Void,

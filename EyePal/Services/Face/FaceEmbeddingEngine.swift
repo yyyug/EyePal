@@ -34,9 +34,17 @@ enum FaceEmbeddingError: LocalizedError {
 }
 
 final class FaceEmbeddingEngine {
+    private var sessionState: SessionState?
     private var cachedOutputName: String?
     private var onLog: ((String) -> Void)?
-    private lazy var sessionState: SessionState? = {
+    private let inferenceQueue = DispatchQueue(label: "com.eyepal.arcface.inference")
+
+    func setLogger(_ logger: @escaping (String) -> Void) {
+        onLog = logger
+    }
+
+    func load() {
+        guard sessionState == nil else { return }
         guard let modelURL = Bundle.main.url(
             forResource: FaceModelContract.modelFilename,
             withExtension: FaceModelContract.modelExtension
@@ -44,7 +52,7 @@ final class FaceEmbeddingEngine {
             let msg = "[ArcFace] ERROR: Model file not found"
             NSLog("%@", msg)
             onLog?(msg)
-            return nil
+            return
         }
 
         do {
@@ -55,20 +63,15 @@ final class FaceEmbeddingEngine {
             let inputNames = try session.inputNames()
             let outputNames = try session.outputNames()
             cachedOutputName = outputNames.first
-            let info = "[ArcFace] Inputs: \(inputNames) Outputs: \(outputNames) Use output: \(cachedOutputName ?? "nil")"
+            let info = "[ArcFace] Model OK. Inputs: \(inputNames) Outputs: \(outputNames) Use: \(cachedOutputName ?? "nil")"
             NSLog("%@", info)
             onLog?(info)
-            return SessionState(env: env, session: session)
+            sessionState = SessionState(env: env, session: session)
         } catch {
-            let msg = "[ArcFace] ERROR loading model: \(error)"
+            let msg = "[ArcFace] ERROR loading: \(error.localizedDescription)"
             NSLog("%@", msg)
             onLog?(msg)
-            return nil
         }
-    }()
-
-    func setLogger(_ logger: @escaping (String) -> Void) {
-        onLog = logger
     }
 
     func embedding(for cgImage: CGImage) async throws -> [Float] {
@@ -80,17 +83,24 @@ final class FaceEmbeddingEngine {
         let inputData = try makeInputData(from: cgImage)
         let tensor = try makeTensor(from: inputData)
 
-        let outputs: [String: ORTValue]
+        let outputTensorData: Data
+        let outputShape: [NSNumber]
         do {
-            outputs = try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
+            (outputTensorData, outputShape) = try await withCheckedThrowingContinuation { continuation in
+                inferenceQueue.async {
                     do {
                         let result = try sessionState.session.run(
                             withInputs: [FaceModelContract.inputName: tensor],
                             outputNames: [outputName],
                             runOptions: nil
                         )
-                        continuation.resume(returning: result)
+                        guard let outVal = result[outputName] else {
+                            continuation.resume(throwing: FaceEmbeddingError.missingOutputFeature(outputName))
+                            return
+                        }
+                        let data = try outVal.tensorData() as Data
+                        let shape = try outVal.tensorTypeAndShapeInfo().shape
+                        continuation.resume(returning: (data, shape))
                     } catch {
                         continuation.resume(throwing: FaceEmbeddingError.runtimeUnavailable(error.localizedDescription))
                     }
@@ -102,21 +112,16 @@ final class FaceEmbeddingEngine {
             throw FaceEmbeddingError.runtimeUnavailable(error.localizedDescription)
         }
 
-        guard let outputValue = outputs[outputName] else {
-            throw FaceEmbeddingError.missingOutputFeature(outputName)
-        }
-
-        let outputTensorData = try outputValue.tensorData() as Data
-        let outputShape = try outputValue.tensorTypeAndShapeInfo().shape
-        NSLog("[ArcFace] Output: name=\(outputName) shape=\(outputShape) dataBytes=\(outputTensorData.count)")
-
-        guard outputTensorData.count >= FaceModelContract.defaultEmbeddingSize * MemoryLayout<Float32>.stride else {
+        let expectedBytes = FaceModelContract.defaultEmbeddingSize * MemoryLayout<Float32>.stride
+        guard outputTensorData.count >= expectedBytes else {
+            let msg = "[ArcFace] Output too small: \(outputTensorData.count) bytes, need \(expectedBytes). shape=\(outputShape)"
+            NSLog("%@", msg)
+            onLog?(msg)
             throw FaceEmbeddingError.invalidOutputShape(outputShape)
         }
 
         let vector = try outputTensorData.toEmbeddingVector(shape: outputShape, expectedCount: FaceModelContract.defaultEmbeddingSize)
         let embedding = normalized(vector)
-        NSLog("[ArcFace] Embedding dim=\(embedding.count) min=\(embedding.min() ?? 0) max=\(embedding.max() ?? 0) norm=\(sqrt(embedding.map { $0 * $0 }.reduce(0, +)))")
         return embedding
     }
 

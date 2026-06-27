@@ -36,6 +36,7 @@ final class FaceRecognitionViewModel: ObservableObject {
         Task {
             do {
                 _ = try await recognitionService.loadProfiles()
+                recognitionService.loadEmbeddingEngine()
                 statusText = "Starting face recognition."
                 camera.start()
             } catch {
