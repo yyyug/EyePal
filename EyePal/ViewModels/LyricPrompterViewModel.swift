@@ -154,6 +154,9 @@ final class LyricPrompterViewModel: ObservableObject {
         isPlaying = true
         advanceOffset = offset
 
+        // Focus will be moved by the view via @AccessibilityFocusState
+        // The view observes isPlaying and focuses first line
+
         playbackTask = Task { [weak self] in
             guard let self else { return }
             let linesWithTime = song.lines.filter { $0.startTime != nil }
@@ -161,8 +164,10 @@ final class LyricPrompterViewModel: ObservableObject {
                 await MainActor.run { self.isPlaying = false }
                 return
             }
-            // Announce first line immediately, then continue with timed lines
-            await MainActor.run { self.announcer.announce(first.text, minimumInterval: 0) }
+            // First line already focused by view, announce it
+            await MainActor.run {
+                self.announcer.announce(first.text, minimumInterval: 0)
+            }
             for i in 1..<linesWithTime.count {
                 guard !Task.isCancelled else { break }
                 let prev = linesWithTime[i - 1]

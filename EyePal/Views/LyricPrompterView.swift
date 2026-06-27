@@ -1,16 +1,21 @@
 import SwiftUI
-import UIKit
+
+enum LyricFocusTarget {
+    case pageTitle
+    case firstLine
+}
 
 struct LyricPrompterView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = LyricPrompterViewModel()
+    @AccessibilityFocusState private var focus: LyricFocusTarget?
 
     var body: some View {
         NavigationStack {
             Group {
                 if let song = viewModel.currentSong {
-                    LyricDisplayView(song: song, viewModel: viewModel)
+                    LyricDisplayView(song: song, viewModel: viewModel, focus: $focus)
                 } else if !viewModel.searchResults.isEmpty {
                     resultsListView
                 } else {
@@ -18,14 +23,6 @@ struct LyricPrompterView: View {
                 }
             }
             .navigationTitle(viewModel.currentSong != nil ? (viewModel.currentSong?.title ?? "Lyrics") : "Lyric Prompter")
-            .onAppear {
-                if let song = viewModel.currentSong {
-                    UIAccessibility.post(notification: .screenChanged, argument: nil)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        UIAccessibility.post(notification: .announcement, argument: "\(song.title) by \(song.artist). \(song.lines.count) lines of lyrics.")
-                    }
-                }
-            }
             .toolbar {
                 if viewModel.currentSong != nil {
                     ToolbarItem(placement: .cancellationAction) {
@@ -48,9 +45,11 @@ struct LyricPrompterView: View {
         .onAppear {
             viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
             viewModel.loadSaved()
-        }
-        .onDisappear {
-            viewModel.stopPlayback()
+            if viewModel.currentSong != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focus = .pageTitle
+                }
+            }
         }
     }
 
@@ -73,9 +72,6 @@ struct LyricPrompterView: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
-                        }
-                        .accessibilityAction(named: Text("Delete \(song.title)")) {
-                            viewModel.deleteSong(song)
                         }
                     }
                 }
@@ -116,7 +112,7 @@ struct LyricPrompterView: View {
                             HStack {
                                 Text(result.trackName).font(.headline)
                                 Spacer()
-                                sourceTag(result.source)
+                                SuggestionChip(onClick: {}, label: { Text(result.source) })
                             }
                             Text(result.artistName).font(.subheadline).foregroundStyle(.secondary)
                             if let album = result.albumName {
@@ -124,13 +120,10 @@ struct LyricPrompterView: View {
                             }
                             HStack(spacing: 8) {
                                 if result.hasSyncedLyrics {
-                                    Label("Synced", systemImage: "waveform")
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
+                                    Label("Synced", systemImage: "waveform").font(.caption).foregroundStyle(.green)
+                                } else {
+                                    Label("Plain", systemImage: "text.alignleft").font(.caption).foregroundStyle(.secondary)
                                 }
-                                Label("Plain", systemImage: "text.alignleft")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -147,32 +140,16 @@ struct LyricPrompterView: View {
             }
         }
     }
-
-    private func sourceTag(_ source: LyricSearchSource) -> some View {
-        Text(source.rawValue.uppercased())
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(sourceColor(source).opacity(0.2))
-            .foregroundStyle(sourceColor(source))
-            .clipShape(Capsule())
-    }
-
-    private func sourceColor(_ source: LyricSearchSource) -> Color {
-        switch source {
-        case .lrclib: return .blue
-        case .qqmusic: return .green
-        case .llm: return .purple
-        }
-    }
 }
 
 private struct LyricDisplayView: View {
     let song: LyricSong
     let viewModel: LyricPrompterViewModel
-    @EnvironmentObject private var settingsStore: SettingsStore
+    @Binding var focus: LyricFocusTarget?
 
     private var advanceOffset: TimeInterval { settingsStore.lyricAdvanceOffset }
+
+    @EnvironmentObject private var settingsStore: SettingsStore
 
     var body: some View {
         VStack(spacing: 0) {
@@ -199,20 +176,24 @@ private struct LyricDisplayView: View {
             } else {
                 HStack {
                     Spacer()
-                    Text("No timed lyrics available").font(.caption).foregroundStyle(.secondary)
+                    Text("No timed lyrics available").font(.bodySmall).foregroundStyle(.secondary)
                     Spacer()
                 }.padding(.vertical, 8)
             }
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(song.lines) { line in
-                        Text(line.text)
-                            .font(.body)
-                            .padding(.horizontal)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(song.lines.enumerated()), id: \.element.id) { index, line in
+                            Text(line.text)
+                                .font(.body)
+                                .padding(.horizontal)
+                                .id("line_\(index)")
+                                .accessibilityFocused($focus, equals: index == 0 ? .firstLine : nil)
+                        }
                     }
+                    .padding(.vertical)
                 }
-                .padding(.vertical)
             }
 
             Button { viewModel.saveCurrentSong() } label: {
@@ -220,6 +201,13 @@ private struct LyricDisplayView: View {
             }
             .buttonStyle(.borderedProminent)
             .padding()
+        }
+        .onChange(of: viewModel.isPlaying) { playing in
+            if playing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focus = .firstLine
+                }
+            }
         }
     }
 }
