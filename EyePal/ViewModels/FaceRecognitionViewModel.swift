@@ -80,7 +80,7 @@ final class FaceRecognitionViewModel: ObservableObject {
             } else {
                 recognizedName = nil
                 statusText = "Scanning for known faces."
-                settingsStore?.appendFaceLog("No match. profiles=\(self.recognitionService.getProfiles().count)")
+                settingsStore?.appendFaceLog("No match.")
             }
 
             if let suggestion, pendingSuggestion == nil, settingsStore?.suggestUnknownFaces ?? true {
