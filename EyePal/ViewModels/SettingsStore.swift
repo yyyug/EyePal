@@ -15,14 +15,25 @@ final class SettingsStore: ObservableObject {
     @AppStorage("lyricBaseURL") var lyricBaseURL = ""
 
     @Published var faceRecognitionLogs: [FaceRecognitionLogEntry] = []
-    private let maxLogEntries = 50
+    private let logStore = FaceRecognitionLogStore.shared
+    private var logContext: Context?
+
+    func setupLogContext(_ context: Context) {
+        logContext = context
+        logStore.load(context)
+        faceRecognitionLogs = logStore.allEntries
+    }
 
     func appendFaceLog(_ message: String) {
-        let entry = FaceRecognitionLogEntry(message: message)
-        faceRecognitionLogs.insert(entry, at: 0)
-        if faceRecognitionLogs.count > maxLogEntries {
-            faceRecognitionLogs = Array(faceRecognitionLogs.prefix(maxLogEntries))
-        }
+        guard let ctx = logContext else { return }
+        logStore.append(message: message, context: ctx)
+        faceRecognitionLogs = logStore.allEntries
+    }
+
+    func loadFaceLogs() {
+        guard let ctx = logContext else { return }
+        logStore.load(ctx)
+        faceRecognitionLogs = logStore.allEntries
     }
     @AppStorage("featureOrderData") private var featureOrderData = Data()
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""

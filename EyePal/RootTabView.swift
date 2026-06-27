@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RootTabView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
@@ -25,6 +26,7 @@ struct RootTabView: View {
                 .tag("more")
         }
         .onAppear {
+            settingsStore.setupLogContext(UIApplication.shared)
             if selectedTabIdentifier.isEmpty {
                 selectedTabIdentifier = settingsStore.tabFeatures.first?.rawValue ?? "more"
             }
