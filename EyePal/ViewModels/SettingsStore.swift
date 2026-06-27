@@ -286,14 +286,3 @@ final class SettingsStore: ObservableObject {
     }
 }
 
-struct FaceRecognitionLogEntry: Identifiable {
-    let id = UUID()
-    let message: String
-    let timestamp = Date()
-
-    var formattedTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: timestamp)
-    }
-}
