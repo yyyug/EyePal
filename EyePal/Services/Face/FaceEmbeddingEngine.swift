@@ -52,8 +52,8 @@ final class FaceEmbeddingEngine {
             let env = try ORTEnv(loggingLevel: .warning)
             let sessionOptions = try ORTSessionOptions()
             let session = try ORTSession(env: env, modelPath: modelURL.path, sessionOptions: sessionOptions)
-            let inputNames = session.inputNames()
-            let outputNames = session.outputNames()
+            let inputNames = try session.inputNames()
+            let outputNames = try session.outputNames()
             cachedOutputName = outputNames.first
             let info = "[ArcFace] Inputs: \(inputNames) Outputs: \(outputNames) Use output: \(cachedOutputName ?? "nil")"
             NSLog("%@", info)
