@@ -149,49 +149,54 @@ final class FaceRecognitionService {
         }
 
         guard let landmarks = observation.landmarks,
-              let leftEye = landmarks.leftEye?.normalizedPoints,
-              let rightEye = landmarks.rightEye?.normalizedPoints,
-              let nose = landmarks.nose?.normalizedPoints,
-              let outerLips = landmarks.outerLips?.normalizedPoints else {
+              let leftEye = landmarks.leftEye?.normalizedPoints.first,
+              let rightEye = landmarks.rightEye?.normalizedPoints.first else {
             throw FaceEmbeddingError.noFaceDetected
         }
 
-        let imgW = observation.boundingBox.width
-        let imgH = observation.boundingBox.height
-        let imgX = observation.boundingBox.origin.x
-        let imgY = observation.boundingBox.origin.y
-
-        let eyeCenter = CGPoint(
-            x: imgX + (leftEye[0].x + rightEye[0].x) / 2 * imgW,
-            y: imgY + (leftEye[0].y + rightEye[0].y) / 2 * imgH
-        )
-
-        let eyeDistance = sqrt(
-            pow((leftEye[0].x - rightEye[0].x) * imgW, 2) +
-            pow((leftEye[0].y - rightEye[0].y) * imgH, 2)
-        )
-        let faceSize = eyeDistance * 2.2
-
+        let bb = observation.boundingBox
         let pixelW = CVPixelBufferGetWidth(pixelBuffer)
         let pixelH = CVPixelBufferGetHeight(pixelBuffer)
 
-        let cropSize = max(faceSize * Double(pixelW), faceSize * Double(pixelH)) / max(Double(pixelW), Double(pixelH))
+        let leX = bb.origin.x + leftEye.x * bb.width
+        let leY = bb.origin.y + leftEye.y * bb.height
+        let reX = bb.origin.x + rightEye.x * bb.width
+        let reY = bb.origin.y + rightEye.y * bb.height
+
+        let eyeCenterX = (leX + reX) / 2
+        let eyeCenterY = (leY + reY) / 2
+        let eyeDist = sqrt(pow((reX - leX) * Double(pixelW), 2) + pow((reY - leY) * Double(pixelH), 2))
+        let angle = atan2((reY - leY) * Double(pixelH), (reX - leX) * Double(pixelW))
+
+        let cropSize = eyeDist * 2.5
+        let centerX = eyeCenterX * Double(pixelW)
+        let centerY = eyeCenterY * Double(pixelH)
+
+        guard let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right).cropped(to: CGRect(x: 0, y: 0, width: pixelW, height: pixelH)) as CIImage? else {
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+
         let cropRect = CGRect(
-            x: eyeCenter.x * Double(pixelW) - cropSize / 2,
-            y: eyeCenter.y * Double(pixelH) - cropSize / 2,
+            x: centerX - cropSize / 2,
+            y: centerY - cropSize / 2,
             width: cropSize,
             height: cropSize
         ).intersection(CGRect(x: 0, y: 0, width: Double(pixelW), height: Double(pixelH)))
 
-        guard let sourceCGImage = context.createCGImage(
-            CIImage(cvPixelBuffer: pixelBuffer).oriented(.right),
-            from: CIImage(cvPixelBuffer: pixelBuffer).oriented(.right).extent
-        ) else {
-            throw FaceEmbeddingError.invalidOutput
+        guard cropRect.width > 0, cropRect.height > 0 else {
+            throw FaceEmbeddingError.noFaceDetected
         }
 
-        guard let croppedCG = sourceCGImage.cropping(to: cropRect) else {
-            throw FaceEmbeddingError.invalidOutput
+        let cropped = ciImage.cropped(to: cropRect)
+
+        let angleDeg = CGFloat(-angle * 180.0 / .pi)
+        let rotated = cropped.applying(CGAffineTransform(rotationAngle: angle * -1))
+
+        guard let cgImage = context.createCGImage(
+            rotated.applying(CGAffineTransform(translationX: -rotated.extent.origin.x, y: -rotated.extent.origin.y)),
+            from: CGRect(x: 0, y: 0, width: cropSize, height: cropSize)
+        ) else {
+            throw FaceEmbeddingError.preprocessingFailed
         }
 
         let outputSize = 112
@@ -208,10 +213,10 @@ final class FaceRecognitionService {
         }
 
         outputContext.interpolationQuality = .high
-        outputContext.draw(croppedCG, in: CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
+        outputContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
 
         guard let result = outputContext.makeImage() else {
-            throw FaceEmbeddingError.invalidOutput
+            throw FaceEmbeddingError.preprocessingFailed
         }
 
         return result
