@@ -99,7 +99,11 @@ final class FaceRecognitionService {
                         await completion(nil, suggestion)
                     }
                 } catch {
-                    await MainActor.run { onLog?("Error: \(error.localizedDescription)") }
+                    if case FaceEmbeddingError.noFaceDetected = error {
+                        // silently skip — no face in frame
+                    } else {
+                        await MainActor.run { onLog?("Error: \(error.localizedDescription)") }
+                    }
                     await completion(nil, nil)
                 }
             }
@@ -141,7 +145,7 @@ final class FaceRecognitionService {
         guard let observation = (request.results as? [VNFaceObservation])?.max(by: {
             $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
         }) else {
-            throw FaceEmbeddingError.invalidOutput
+            throw FaceEmbeddingError.noFaceDetected
         }
 
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)

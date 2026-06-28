@@ -10,6 +10,7 @@ enum FaceEmbeddingError: LocalizedError {
     case invalidOutputShape([NSNumber])
     case invalidOutput
     case runtimeUnavailable(String)
+    case noFaceDetected
 
     var errorDescription: String? {
         switch self {
@@ -29,6 +30,8 @@ enum FaceEmbeddingError: LocalizedError {
             return "The face embedding model did not return a usable vector."
         case .runtimeUnavailable(let detail):
             return "ONNX Runtime could not run the face embedding model: \(detail)"
+        case .noFaceDetected:
+            return "No face detected in frame."
         }
     }
 }
