@@ -5,7 +5,7 @@ import SwiftUI
 final class SettingsStore: ObservableObject {
     @AppStorage("faceSpeechCooldown") var faceSpeechCooldown = 2.5
     @AppStorage("readTextSpeechCooldown") var readTextSpeechCooldown = 2.5
-    @AppStorage("faceMatchThreshold") var faceMatchThreshold = 0.87
+    @AppStorage("faceMatchThreshold") var faceMatchThreshold = 0.65
     @AppStorage("faceMatchMargin") var faceMatchMargin = 0.015
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true
     @AppStorage("lyricAdvanceOffset") var lyricAdvanceOffset = 0.0

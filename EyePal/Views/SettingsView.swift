@@ -854,7 +854,7 @@ private struct FaceRecognitionSettingsView: View {
             Section("Recognition") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Match sensitivity")
-                    Slider(value: $settingsStore.faceMatchThreshold, in: 0.90...0.99, step: 0.01)
+                    Slider(value: $settingsStore.faceMatchThreshold, in: 0.30...0.90, step: 0.01)
                     Text(settingsStore.faceMatchThreshold.formatted(.percent.precision(.fractionLength(0))))
 
                     Text("Top match margin")
