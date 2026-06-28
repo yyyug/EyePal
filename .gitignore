@@ -6,3 +6,6 @@ tools/*.pt
 tools/face_model/models/*
 tools/face_model/dist/
 artifacts-ipa/
+bfg.jar
+xr_docs.txt
+xr_hardware.txt
