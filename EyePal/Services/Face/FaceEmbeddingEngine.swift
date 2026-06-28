@@ -174,9 +174,9 @@ final class FaceEmbeddingEngine {
         for y in 0..<height {
             for x in 0..<width {
                 let sourceIndex = (y * bytesPerRow) + (x * bytesPerPixel)
-                floats[writeIndex] = normalize(rgbaBytes[sourceIndex + 2])
+                floats[writeIndex] = normalize(rgbaBytes[sourceIndex])
                 floats[writeIndex + 1] = normalize(rgbaBytes[sourceIndex + 1])
-                floats[writeIndex + 2] = normalize(rgbaBytes[sourceIndex])
+                floats[writeIndex + 2] = normalize(rgbaBytes[sourceIndex + 2])
                 writeIndex += FaceModelContract.channels
             }
         }

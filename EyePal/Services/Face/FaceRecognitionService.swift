@@ -148,18 +148,73 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.noFaceDetected
         }
 
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
-        let imageRect = ciImage.extent
-        let cropRect = VNImageRectForNormalizedRect(observation.boundingBox, Int(imageRect.width), Int(imageRect.height))
-            .insetBy(dx: -24, dy: -24)
-            .intersection(imageRect)
+        guard let landmarks = observation.landmarks,
+              let leftEye = landmarks.leftEye?.normalizedPoints,
+              let rightEye = landmarks.rightEye?.normalizedPoints,
+              let nose = landmarks.nose?.normalizedPoints,
+              let outerLips = landmarks.outerLips?.normalizedPoints else {
+            throw FaceEmbeddingError.noFaceDetected
+        }
 
-        let cropped = ciImage.cropped(to: cropRect)
-        guard let cgImage = context.createCGImage(cropped, from: cropped.extent) else {
+        let imgW = observation.boundingBox.width
+        let imgH = observation.boundingBox.height
+        let imgX = observation.boundingBox.origin.x
+        let imgY = observation.boundingBox.origin.y
+
+        let eyeCenter = CGPoint(
+            x: imgX + (leftEye[0].x + rightEye[0].x) / 2 * imgW,
+            y: imgY + (leftEye[0].y + rightEye[0].y) / 2 * imgH
+        )
+
+        let eyeDistance = sqrt(
+            pow((leftEye[0].x - rightEye[0].x) * imgW, 2) +
+            pow((leftEye[0].y - rightEye[0].y) * imgH, 2)
+        )
+        let faceSize = eyeDistance * 2.2
+
+        let pixelW = CVPixelBufferGetWidth(pixelBuffer)
+        let pixelH = CVPixelBufferGetHeight(pixelBuffer)
+
+        let cropSize = max(faceSize * Double(pixelW), faceSize * Double(pixelH)) / max(Double(pixelW), Double(pixelH))
+        let cropRect = CGRect(
+            x: eyeCenter.x * Double(pixelW) - cropSize / 2,
+            y: eyeCenter.y * Double(pixelH) - cropSize / 2,
+            width: cropSize,
+            height: cropSize
+        ).intersection(CGRect(x: 0, y: 0, width: Double(pixelW), height: Double(pixelH)))
+
+        guard let sourceCGImage = context.createCGImage(
+            CIImage(cvPixelBuffer: pixelBuffer).oriented(.right),
+            from: CIImage(cvPixelBuffer: pixelBuffer).oriented(.right).extent
+        ) else {
             throw FaceEmbeddingError.invalidOutput
         }
 
-        return cgImage
+        guard let croppedCG = sourceCGImage.cropping(to: cropRect) else {
+            throw FaceEmbeddingError.invalidOutput
+        }
+
+        let outputSize = 112
+        guard let outputContext = CGContext(
+            data: nil,
+            width: outputSize,
+            height: outputSize,
+            bitsPerComponent: 8,
+            bytesPerRow: outputSize * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+
+        outputContext.interpolationQuality = .high
+        outputContext.draw(croppedCG, in: CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
+
+        guard let result = outputContext.makeImage() else {
+            throw FaceEmbeddingError.invalidOutput
+        }
+
+        return result
     }
 
     private func confirmedMatch(for rankedCandidates: [CandidateMatch]) -> FaceMatch? {
