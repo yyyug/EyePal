@@ -125,6 +125,9 @@ final class FaceEmbeddingEngine {
 
         let vector = try outputTensorData.toEmbeddingVector(shape: outputShape, expectedCount: FaceModelContract.defaultEmbeddingSize)
         let embedding = normalized(vector)
+        let norm = sqrt(embedding.map { $0 * $0 }.reduce(0, +))
+        let first5 = embedding.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ",")
+        NSLog("[ArcFace] dim=%d norm=%.4f [%@...]", embedding.count, norm, first5)
         return embedding
     }
 
