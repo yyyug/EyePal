@@ -118,19 +118,18 @@ final class FaceEmbeddingEngine {
             throw FaceEmbeddingError.runtimeUnavailable(error.localizedDescription)
         }
 
-        let expectedBytes = FaceModelContract.defaultEmbeddingSize * MemoryLayout<Float32>.stride
+        let actualDim = outputShape.last?.intValue ?? FaceModelContract.defaultEmbeddingSize
+        let expectedBytes = actualDim * MemoryLayout<Float32>.stride
+        let msg = "[ArcFace] Output: \(outputTensorData.count) bytes, shape=\(outputShape), dim=\(actualDim)"
+        NSLog("%@", msg)
+        onLog?(msg)
+
         guard outputTensorData.count >= expectedBytes else {
-            let msg = "[ArcFace] Output too small: \(outputTensorData.count) bytes, need \(expectedBytes). shape=\(outputShape)"
-            NSLog("%@", msg)
-            onLog?(msg)
             throw FaceEmbeddingError.invalidOutputShape(outputShape)
         }
 
-        let vector = try outputTensorData.toEmbeddingVector(shape: outputShape, expectedCount: FaceModelContract.defaultEmbeddingSize)
+        let vector = try outputTensorData.toEmbeddingVector(shape: outputShape, expectedCount: actualDim)
         let embedding = normalized(vector)
-        let norm = sqrt(embedding.map { $0 * $0 }.reduce(0, +))
-        let first5 = embedding.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ",")
-        NSLog("[ArcFace] dim=%d norm=%.4f [%@...]", embedding.count, norm, first5)
         return embedding
     }
 
