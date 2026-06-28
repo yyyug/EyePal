@@ -165,6 +165,82 @@ final class FaceRecognitionService {
 
         let eyeCenterX = (leX + reX) / 2
         let eyeCenterY = (leY + reY) / 2
+        let eyeDistX = (reX - leX) * Double(pixelW)
+        let eyeDistY = (reY - leY) * Double(pixelH)
+        let eyeDist = sqrt(eyeDistX * eyeDistX + eyeDistY * eyeDistY)
+
+        let cropSize = min(eyeDist * 2.8, Double(min(pixelW, pixelH)))
+        let centerX = eyeCenterX * Double(pixelW)
+        let centerY = eyeCenterY * Double(pixelH)
+
+        let cropRect = CGRect(
+            x: max(0, centerX - cropSize / 2),
+            y: max(0, centerY - cropSize / 2),
+            width: cropSize,
+            height: cropSize
+        ).intersection(CGRect(x: 0, y: 0, width: Double(pixelW), height: Double(pixelH)))
+
+        guard cropRect.width > 10, cropRect.height > 10 else {
+            throw FaceEmbeddingError.noFaceDetected
+        }
+
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
+        let cropped = ciImage.cropped(to: cropRect)
+
+        guard let cgImage = context.createCGImage(cropped, from: cropped.extent) else {
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+
+        let outputSize = 112
+        guard let outputContext = CGContext(
+            data: nil,
+            width: outputSize,
+            height: outputSize,
+            bitsPerComponent: 8,
+            bytesPerRow: outputSize * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+
+        outputContext.interpolationQuality = .high
+        outputContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
+
+        guard let result = outputContext.makeImage() else {
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+
+        return result
+    }
+
+        let request = VNDetectFaceLandmarksRequest()
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
+        try handler.perform([request])
+
+        guard let observation = (request.results as? [VNFaceObservation])?.max(by: {
+            $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
+        }) else {
+            throw FaceEmbeddingError.noFaceDetected
+        }
+
+        guard let landmarks = observation.landmarks,
+              let leftEye = landmarks.leftEye?.normalizedPoints.first,
+              let rightEye = landmarks.rightEye?.normalizedPoints.first else {
+            throw FaceEmbeddingError.noFaceDetected
+        }
+
+        let bb = observation.boundingBox
+        let pixelW = CVPixelBufferGetWidth(pixelBuffer)
+        let pixelH = CVPixelBufferGetHeight(pixelBuffer)
+
+        let leX = bb.origin.x + leftEye.x * bb.width
+        let leY = bb.origin.y + leftEye.y * bb.height
+        let reX = bb.origin.x + rightEye.x * bb.width
+        let reY = bb.origin.y + rightEye.y * bb.height
+
+        let eyeCenterX = (leX + reX) / 2
+        let eyeCenterY = (leY + reY) / 2
         let eyeDist = sqrt(pow((reX - leX) * Double(pixelW), 2) + pow((reY - leY) * Double(pixelH), 2))
         let angle = atan2((reY - leY) * Double(pixelH), (reX - leX) * Double(pixelW))
 
