@@ -48,9 +48,9 @@ class ArcFaceEmbeddingEngine(private val context: Context) {
             for (y in 0 until 112) {
                 for (x in 0 until 112) {
                     val pixel = inputBitmap.getPixel(x, y)
-                    floatBuffer.put(Color.red(pixel) / 127.5f - 1.0f)
-                    floatBuffer.put(Color.green(pixel) / 127.5f - 1.0f)
                     floatBuffer.put(Color.blue(pixel) / 127.5f - 1.0f)
+                    floatBuffer.put(Color.green(pixel) / 127.5f - 1.0f)
+                    floatBuffer.put(Color.red(pixel) / 127.5f - 1.0f)
                 }
             }
             floatBuffer.rewind()

@@ -138,7 +138,7 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.invalidOutput
         }
 
-        let request = VNDetectFaceRectanglesRequest()
+        let request = VNDetectFaceLandmarksRequest()
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
         try handler.perform([request])
 

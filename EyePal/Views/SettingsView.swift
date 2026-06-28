@@ -885,6 +885,13 @@ private struct FaceRecognitionSettingsView: View {
                         Label("Copy All Logs", systemImage: "doc.on.doc")
                     }
 
+                    Button(role: .destructive) {
+                        FaceRecognitionLogStore.shared.clear()
+                        settingsStore.faceRecognitionLogs = []
+                    } label: {
+                        Label("Clear Log", systemImage: "trash")
+                    }
+
                     ForEach(settingsStore.faceRecognitionLogs) { entry in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.formattedTime)
