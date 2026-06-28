@@ -189,11 +189,10 @@ final class FaceRecognitionService {
 
         let cropped = ciImage.cropped(to: cropRect)
 
-        let angleDeg = CGFloat(-angle * 180.0 / .pi)
-        let rotated = cropped.applying(CGAffineTransform(rotationAngle: angle * -1))
+        let rotated = cropped.transformed(by: CGAffineTransform(rotationAngle: angle * -1))
 
         guard let cgImage = context.createCGImage(
-            rotated.applying(CGAffineTransform(translationX: -rotated.extent.origin.x, y: -rotated.extent.origin.y)),
+            rotated.transformed(by: CGAffineTransform(translationX: -rotated.extent.origin.x, y: -rotated.extent.origin.y)),
             from: CGRect(x: 0, y: 0, width: cropSize, height: cropSize)
         ) else {
             throw FaceEmbeddingError.preprocessingFailed
