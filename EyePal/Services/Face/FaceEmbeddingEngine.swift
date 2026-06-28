@@ -38,6 +38,7 @@ enum FaceEmbeddingError: LocalizedError {
 
 final class FaceEmbeddingEngine {
     private var sessionState: SessionState?
+    private var cachedInputName: String?
     private var cachedOutputName: String?
     private var onLog: ((String) -> Void)?
     private let inferenceQueue = DispatchQueue(label: "com.eyepal.arcface.inference")
@@ -65,8 +66,9 @@ final class FaceEmbeddingEngine {
             let session = try ORTSession(env: env, modelPath: modelURL.path, sessionOptions: sessionOptions)
             let inputNames = try session.inputNames()
             let outputNames = try session.outputNames()
+            cachedInputName = inputNames.first
             cachedOutputName = outputNames.first
-            let info = "[ArcFace] Model OK. Inputs: \(inputNames) Outputs: \(outputNames) Use: \(cachedOutputName ?? "nil")"
+            let info = "[ArcFace] Inputs: \(inputNames) Outputs: \(outputNames)"
             NSLog("%@", info)
             onLog?(info)
             sessionState = SessionState(env: env, session: session)
@@ -82,6 +84,7 @@ final class FaceEmbeddingEngine {
             throw FaceEmbeddingError.missingModel
         }
 
+        let inputName = cachedInputName ?? FaceModelContract.inputName
         let outputName = cachedOutputName ?? FaceModelContract.outputName
         let inputData = try makeInputData(from: cgImage)
         let tensor = try makeTensor(from: inputData)
@@ -93,7 +96,7 @@ final class FaceEmbeddingEngine {
                 inferenceQueue.async {
                     do {
                         let result = try sessionState.session.run(
-                            withInputs: [FaceModelContract.inputName: tensor],
+                            withInputs: [inputName: tensor],
                             outputNames: [outputName],
                             runOptions: nil
                         )
@@ -169,17 +172,21 @@ final class FaceEmbeddingEngine {
         context.interpolationQuality = .high
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        var floats = [Float32](repeating: 0, count: FaceModelContract.inputShape.reduce(1, *))
-        var writeIndex = 0
+        let pixelCount = width * height
+        var rChannel = [Float32](repeating: 0, count: pixelCount)
+        var gChannel = [Float32](repeating: 0, count: pixelCount)
+        var bChannel = [Float32](repeating: 0, count: pixelCount)
+        var idx = 0
         for y in 0..<height {
             for x in 0..<width {
                 let sourceIndex = (y * bytesPerRow) + (x * bytesPerPixel)
-                floats[writeIndex] = normalize(rgbaBytes[sourceIndex])
-                floats[writeIndex + 1] = normalize(rgbaBytes[sourceIndex + 1])
-                floats[writeIndex + 2] = normalize(rgbaBytes[sourceIndex + 2])
-                writeIndex += FaceModelContract.channels
+                rChannel[idx] = normalize(rgbaBytes[sourceIndex])
+                gChannel[idx] = normalize(rgbaBytes[sourceIndex + 1])
+                bChannel[idx] = normalize(rgbaBytes[sourceIndex + 2])
+                idx += 1
             }
         }
+        let floats = rChannel + gChannel + bChannel
 
         guard floats.count == FaceModelContract.inputShape.reduce(1, *) else {
             throw FaceEmbeddingError.invalidInputShape(FaceModelContract.inputShape)
