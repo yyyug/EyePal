@@ -22,6 +22,7 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
     val isConnected by viewModel.isConnected
     val statusText by viewModel.statusText
     val useGlassCamera by viewModel.useGlassCamera
+    val isXRMode by viewModel.isXRMode
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -33,11 +34,22 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
                 Text("Audio Glasses", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(statusText, color = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                if (isConnected && isXRMode) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("XR Projected") },
+                        leadingIcon = { Text("XR", style = MaterialTheme.typography.labelSmall) }
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 if (isConnected) {
                     Button(onClick = { viewModel.disconnect() }, modifier = Modifier.fillMaxWidth()) { Text("Disconnect") }
                 } else {
-                    Button(onClick = { val activity = context as? android.app.Activity; if (activity != null) viewModel.connect(activity) }, modifier = Modifier.fillMaxWidth()) { Text("Connect Audio Glasses") }
+                    Button(onClick = {
+                        val activity = context as? android.app.Activity
+                        if (activity != null) viewModel.connect(activity)
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Connect Audio Glasses") }
                 }
             }
         }
@@ -51,13 +63,29 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Use glasses camera in Quick/Details/ReadText")
                         Spacer(modifier = Modifier.weight(1f))
-                        Switch(checked = useGlassCamera, onCheckedChange = { viewModel.toggleGlassCamera(lifecycleOwner, PreviewView(context).apply { layoutParams = ViewGroup.LayoutParams(1, 1) }) })
+                        Switch(checked = useGlassCamera, onCheckedChange = {
+                            viewModel.toggleGlassCamera(lifecycleOwner, PreviewView(context).apply {
+                                layoutParams = ViewGroup.LayoutParams(1, 1)
+                            })
+                        })
+                    }
+                    if (isXRMode) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("XR Mode: Camera accessed via projected context", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }
                     if (useGlassCamera) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        AndroidView(factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
+                        AndroidView(
+                            factory = { ctx ->
+                                PreviewView(ctx).apply {
+                                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200)
+                                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth().height(200.dp),
-                            update = { preview -> viewModel.toggleGlassCamera(lifecycleOwner, preview) })
+                            update = { preview -> viewModel.toggleGlassCamera(lifecycleOwner, preview) }
+                        )
                     }
                 }
             }
@@ -68,7 +96,11 @@ fun GoogleGlassScreen(onBack: () -> Unit, viewModel: GoogleGlassViewModel = view
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("How it works", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Enable 'Use glasses camera' to capture photos from the glasses' camera instead of the phone camera in Quick Recognition, Details Recognition, and Read Text screens.", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (isXRMode) "Connected via XR Projected context. Camera and audio are accessed directly from the glasses' hardware."
+                    else "Connected via Bluetooth HFP. Audio is routed through Bluetooth. Enable 'Use glasses camera' to capture photos.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }

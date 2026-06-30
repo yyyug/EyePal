@@ -18,19 +18,32 @@ class GoogleGlassViewModel(application: android.app.Application) : AndroidViewMo
     val statusText = mutableStateOf("No glasses connected.")
     val useGlassCamera = mutableStateOf(false)
     val cameraFrame = mutableStateOf<Bitmap?>(null)
+    val isXRMode = mutableStateOf(false)
 
     private val glassService = GoogleGlassService(application)
     private val announcer = AccessibilityAnnouncer(application)
 
     init {
-        viewModelScope.launch { GoogleGlassState.isConnected.collectLatest { isConnected.value = it; statusText.value = if (it) "Connected to audio glasses" else "No glasses connected." } }
+        viewModelScope.launch { GoogleGlassState.isConnected.collectLatest { isConnected.value = it; updateStatus() } }
         viewModelScope.launch { GoogleGlassState.useGlassCamera.collectLatest { useGlassCamera.value = it } }
         viewModelScope.launch { GoogleGlassState.cameraFrame.collectLatest { cameraFrame.value = it } }
+        viewModelScope.launch { GoogleGlassState.isXRMode.collectLatest { isXRMode.value = it; updateStatus() } }
+    }
+
+    private fun updateStatus() {
+        val connected = GoogleGlassState.isConnected.value
+        val xr = GoogleGlassState.isXRMode.value
+        statusText.value = when {
+            !connected -> "No glasses connected."
+            xr -> "Connected via XR Projected (camera + audio)"
+            else -> "Connected via Bluetooth HFP"
+        }
     }
 
     fun connect(activity: Activity) {
         glassService.connect(activity)
-        announcer.announce("Connected to audio glasses")
+        val mode = if (GoogleGlassState.isXRMode.value) "XR Projected" else "Bluetooth HFP"
+        announcer.announce("Connected to glasses via $mode")
     }
 
     fun disconnect() {
@@ -42,7 +55,10 @@ class GoogleGlassViewModel(application: android.app.Application) : AndroidViewMo
     fun toggleGlassCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
         val newValue = !useGlassCamera.value
         GoogleGlassState.setUseGlassCamera(newValue)
-        if (newValue) { glassService.startGlassCamera(lifecycleOwner, previewView) }
-        else { glassService.stopGlassCamera() }
+        if (newValue) {
+            glassService.startGlassCamera(lifecycleOwner, previewView)
+        } else {
+            glassService.stopGlassCamera()
+        }
     }
 }

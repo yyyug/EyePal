@@ -14,7 +14,11 @@ object GoogleGlassState {
     private val _cameraFrame = MutableStateFlow<Bitmap?>(null)
     val cameraFrame: StateFlow<Bitmap?> = _cameraFrame
 
+    private val _isXRMode = MutableStateFlow(false)
+    val isXRMode: StateFlow<Boolean> = _isXRMode
+
     fun setConnected(value: Boolean) { _isConnected.value = value }
     fun setUseGlassCamera(value: Boolean) { _useGlassCamera.value = value }
     fun updateCameraFrame(bitmap: Bitmap) { _cameraFrame.value = bitmap }
+    fun setXRMode(value: Boolean) { _isXRMode.value = value }
 }
