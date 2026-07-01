@@ -14,8 +14,9 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.xr.projected.ProjectedContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.Executors
 
 @Suppress("DEPRECATION")
@@ -29,27 +30,78 @@ class GoogleGlassService(private val context: Context) {
     private var glassImageCapture: ImageCapture? = null
     private var projectedContext: Context? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var connectionMonitor: Job? = null
+
+    private val _isDeviceConnected = MutableStateFlow(false)
+    val isDeviceConnected: StateFlow<Boolean> = _isDeviceConnected
 
     fun connect(activity: Activity) {
         audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        val projected = try {
-            ProjectedContext.createProjectedDeviceContext(context)
+        // Check if XR projected device (glasses) is actually connected
+        val connected = try {
+            ProjectedContext.isProjectedDeviceConnected(context, Dispatchers.IO)
         } catch (e: Exception) {
-            Log.w(TAG, "XR projected context not available, falling back to Bluetooth HFP", e)
-            null
+            Log.w(TAG, "Failed to check XR device connection", e)
+            false
         }
 
-        if (projected != null) {
-            projectedContext = projected
-            GoogleGlassState.setConnected(true)
-            GoogleGlassState.setXRMode(true)
-            Log.i(TAG, "Connected via XR projected context")
-        } else {
-            connectBluetoothHFP()
-            GoogleGlassState.setConnected(true)
-            GoogleGlassState.setXRMode(false)
-            Log.i(TAG, "Connected via Bluetooth HFP")
+        if (connected) {
+            // Get the projected context for glasses hardware access
+            val projected = try {
+                ProjectedContext.createProjectedDeviceContext(context)
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "Failed to create projected context", e)
+                null
+            }
+
+            if (projected != null) {
+                projectedContext = projected
+                _isDeviceConnected.value = true
+                GoogleGlassState.setConnected(true)
+                GoogleGlassState.setXRMode(true)
+                Log.i(TAG, "Connected via XR projected context")
+                startConnectionMonitoring()
+                return
+            }
+        }
+
+        // Fallback to Bluetooth HFP
+        connectBluetoothHFP()
+        _isDeviceConnected.value = true
+        GoogleGlassState.setConnected(true)
+        GoogleGlassState.setXRMode(false)
+        Log.i(TAG, "Connected via Bluetooth HFP (no XR projected device)")
+    }
+
+    /**
+     * Monitor XR device connection status.
+     * When the glasses disconnect, clean up resources automatically.
+     */
+    private fun startConnectionMonitoring() {
+        connectionMonitor?.cancel()
+        connectionMonitor = scope.launch {
+            while (isActive) {
+                delay(5000)
+                val stillConnected = try {
+                    ProjectedContext.isProjectedDeviceConnected(context, Dispatchers.IO)
+                } catch (e: Exception) {
+                    false
+                }
+
+                if (!stillConnected && _isDeviceConnected.value) {
+                    Log.i(TAG, "XR device disconnected")
+                    _isDeviceConnected.value = false
+                    GoogleGlassState.setConnected(false)
+                    GoogleGlassState.setUseGlassCamera(false)
+                    GoogleGlassState.setXRMode(false)
+                    glassCameraProvider?.unbindAll()
+                    glassCameraProvider = null
+                    glassImageCapture = null
+                    projectedContext = null
+                }
+            }
         }
     }
 
@@ -68,15 +120,20 @@ class GoogleGlassService(private val context: Context) {
     }
 
     fun disconnect() {
+        connectionMonitor?.cancel()
+        connectionMonitor = null
+
         if (GoogleGlassState.isXRMode.value) {
             projectedContext = null
         } else {
             @Suppress("DEPRECATION")
             audioManager?.clearCommunicationDevice()
         }
+
         glassCameraProvider?.unbindAll()
         glassCameraProvider = null
         glassImageCapture = null
+        _isDeviceConnected.value = false
         GoogleGlassState.setConnected(false)
         GoogleGlassState.setUseGlassCamera(false)
         GoogleGlassState.setXRMode(false)
@@ -85,9 +142,10 @@ class GoogleGlassService(private val context: Context) {
     fun startGlassCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
         if (!GoogleGlassState.useGlassCamera.value || !GoogleGlassState.isConnected.value) return
 
+        // Get the correct context: projected for glasses, phone for fallback
         val ctx = if (GoogleGlassState.isXRMode.value) {
             projectedContext ?: run {
-                Log.e(TAG, "Projected context is null")
+                Log.e(TAG, "Projected context is null — device may have disconnected")
                 return
             }
         } else {
@@ -105,7 +163,9 @@ class GoogleGlassService(private val context: Context) {
                         return@addListener
                     }
 
-                    val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+                    val preview = Preview.Builder().build().also {
+                        it.surfaceProvider = previewView.surfaceProvider
+                    }
                     glassImageCapture = ImageCapture.Builder()
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                         .build()
@@ -116,7 +176,7 @@ class GoogleGlassService(private val context: Context) {
                         preview,
                         glassImageCapture
                     )
-                    Log.i(TAG, "Glasses camera started successfully")
+                    Log.i(TAG, "Glasses camera started")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to bind glasses camera", e)
                 }
@@ -137,17 +197,20 @@ class GoogleGlassService(private val context: Context) {
         try {
             var resultBitmap: Bitmap? = null
             val latch = java.util.concurrent.CountDownLatch(1)
-            imageCapture.takePicture(analysisExecutor, object : ImageCapture.OnImageCapturedCallback() {
-                override fun onCaptureSuccess(image: ImageProxy) {
-                    resultBitmap = imageProxyToBitmap(image)
-                    image.close()
-                    latch.countDown()
+            imageCapture.takePicture(
+                analysisExecutor,
+                object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        resultBitmap = imageProxyToBitmap(image)
+                        image.close()
+                        latch.countDown()
+                    }
+                    override fun onError(exception: ImageCaptureException) {
+                        Log.e(TAG, "Glasses photo capture failed", exception)
+                        latch.countDown()
+                    }
                 }
-                override fun onError(exception: ImageCaptureException) {
-                    Log.e(TAG, "Glasses photo capture failed", exception)
-                    latch.countDown()
-                }
-            })
+            )
             latch.await()
             resultBitmap
         } catch (e: Exception) {
