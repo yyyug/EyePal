@@ -13,6 +13,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import androidx.xr.projected.ProjectedContext
+import com.eyepal.app.GlassesProjectedActivity
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,41 +69,35 @@ class GoogleGlassService(private val context: Context) {
     fun connect(activity: Activity) {
         audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        // Step 1: Check if XR projected device (glasses) is connected
-        // We check this synchronously first — the real check is async via isProjectedDeviceConnected()
-        // For the initial connection, we attempt to create the projected context directly.
-        // If it fails, the device is not connected and we fall back.
-        //
-        // NOTE: On a real glasses device, this will succeed if the glasses are paired.
-        // On the Audio_Glasses AVD, this may fail because the emulator doesn't
-        // fully implement ProjectedContext — this is expected.
-        //
-        // The correct permissions flow per docs:
-        // - From glasses activity: use ProjectedPermissionsResultContract
-        // - From phone activity: use Activity.requestPermissions(permissions, requestCode, deviceId)
-        //   where deviceId comes from ProjectedContext.createProjectedDeviceContext(context)
-        //
-        // We attempt to create the projected context here. If it fails with
-        // IllegalStateException, we fall back to Bluetooth HFP.
-        val projected = try {
-            // This will throw IllegalStateException if no XR device is connected
-            // or SecurityException if permissions are missing
-            val ctx = androidx.xr.projected.ProjectedContext.createProjectedDeviceContext(context)
+        // Method A: Check if GlassesProjectedActivity already has a projected context
+        // This is the preferred path — the projected activity runs on the glasses
+        // and its context IS the projected context per XR SDK docs.
+        val sharedCtx = GlassesProjectedActivity.projectedContext
+        if (sharedCtx != null) {
+            projectedContext = sharedCtx
+            _isXRDeviceAvailable.value = true
+            GoogleGlassState.setConnected(true)
+            GoogleGlassState.setXRMode(true)
+            Log.i(TAG, "Connected via shared projected context from GlassesProjectedActivity")
+            startConnectionMonitoring()
+            return
+        }
 
-            // If we got here, the XR device is connected.
-            // Now we should request glasses-specific permissions using the deviceId
-            // from the projected context, per the docs:
-            // Activity#requestPermissions(permissions, requestCode, deviceId)
-            Log.i(TAG, "XR projected context created successfully")
+        // Method B: Create projected context from phone activity
+        // Per docs: use createProjectedDeviceContext(context) from phone app
+        // This requires the glasses to be paired and permissions granted.
+        val projected = try {
+            val ctx = ProjectedContext.createProjectedDeviceContext(context)
+            Log.i(TAG, "XR projected context created from phone activity")
             ctx
         } catch (e: IllegalStateException) {
             Log.w(TAG, "XR device not available: ${e.message}")
             null
         } catch (e: SecurityException) {
-            Log.w(TAG, "XR permission denied: ${e.message}. Need glasses-specific permissions.")
+            Log.w(TAG, "XR permission denied: ${e.message}")
             null
         } catch (e: Exception) {
-            Log.w(TAG, "Unexpected error creating projected context: ${e.message}")
+            Log.w(TAG, "Unexpected error: ${e.message}")
             null
         }
 
@@ -115,7 +111,7 @@ class GoogleGlassService(private val context: Context) {
             return
         }
 
-        // Step 4: Fallback — no XR glasses connected, use Bluetooth HFP
+        // Method C: Fallback — Bluetooth HFP
         connectBluetoothHFP()
         GoogleGlassState.setConnected(true)
         GoogleGlassState.setXRMode(false)
