@@ -9,3 +9,14 @@ artifacts-ipa/
 bfg.jar
 xr_docs.txt
 xr_hardware.txt
+EyePalAndroid/app/build/
+EyePalAndroid/java_pid14412.hprof
+EyePalAndroid/.gradle/
+EyePalAndroid/.kotlin/
+EyePalAndroid/app/build/
+EyePalAndroid/java_pid*.hprof
+EyePalAndroid/.gradle/
+EyePalAndroid/.kotlin/
+EyePalAndroid/gradlew
+EyePalAndroid/gradlew.bat
+EyePalAndroid/gradle/

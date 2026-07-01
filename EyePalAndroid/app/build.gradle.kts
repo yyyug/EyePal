@@ -1,18 +1,17 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
     namespace = "com.eyepal.app"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.eyepal.app"
         minSdk = 28
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
     }
@@ -27,10 +26,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -63,13 +58,10 @@ dependencies {
     implementation("com.google.mlkit:text-recognition-korean:16.0.1")
 
     // ML Kit Face Detection
-    implementation("com.google.mlkit:face-detection:16.2.0")
+    implementation("com.google.mlkit:face-detection:16.1.7")
 
     // ONNX Runtime
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.0")
-
-    // WebRTC
-    implementation("org.webrtc:google-webrtc:1.0.32006")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
@@ -80,12 +72,9 @@ dependencies {
     // OkHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Google Audio Glass (XR SDK)
+    // Google Glass (XR SDK)
     implementation("androidx.xr.runtime:runtime:1.0.0-alpha15")
-    implementation("androidx.xr.glimmer:glimmer:1.0.0-alpha13")
-    implementation("androidx.xr.glimmer:glimmer-google-fonts:1.0.0-alpha13")
     implementation("androidx.xr.projected:projected:1.0.0-alpha08")
-    implementation("androidx.xr.arcore:arcore:1.0.0-alpha14")
 
     // Accompanist Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
