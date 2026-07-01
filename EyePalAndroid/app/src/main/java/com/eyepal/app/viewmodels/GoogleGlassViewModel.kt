@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 class GoogleGlassViewModel(application: android.app.Application) : AndroidViewModel(application) {
     val isConnected = mutableStateOf(false)
-    val statusText = mutableStateOf("No glasses connected.")
+    val statusText = mutableStateOf("Scanning for glasses...")
     val useGlassCamera = mutableStateOf(false)
     val cameraFrame = mutableStateOf<Bitmap?>(null)
     val isXRMode = mutableStateOf(false)
@@ -35,8 +35,18 @@ class GoogleGlassViewModel(application: android.app.Application) : AndroidViewMo
         val xr = GoogleGlassState.isXRMode.value
         statusText.value = when {
             !connected -> "No glasses connected."
-            xr -> "Connected via XR Projected (camera + audio)"
+            xr -> "Connected via XR Projected"
             else -> "Connected via Bluetooth HFP"
+        }
+    }
+
+    /**
+     * Auto-connect: called on app startup to attempt glasses connection.
+     * For audio glasses, this sets up Bluetooth HFP or XR projected context.
+     */
+    fun autoConnect(activity: Activity) {
+        if (!GoogleGlassState.isConnected.value) {
+            connect(activity)
         }
     }
 
@@ -60,5 +70,10 @@ class GoogleGlassViewModel(application: android.app.Application) : AndroidViewMo
         } else {
             glassService.stopGlassCamera()
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        announcer.shutdown()
     }
 }

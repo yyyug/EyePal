@@ -1,39 +1,64 @@
 package com.eyepal.app
 
 import android.os.Bundle
+import android.util.Log
+import android.view.InputDevice
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
+import com.eyepal.app.services.GlassInputOutputHandler
 
 /**
  * GlassesProjectedActivity handles the XR projected lifecycle for audio glasses.
  *
- * For audio glasses (no display), this activity stays alive to maintain the
- * projected activity lifecycle. The system uses this lifecycle to route
- * audio and camera through the projected context.
- *
- * Do NOT call finish() — the activity must remain alive while the glasses
- * are connected so the system can manage the projected device lifecycle.
+ * For audio glasses (no display):
+ * - Activity stays alive to maintain projected lifecycle
+ * - Receives touchpad input events from glasses
+ * - Provides TTS audio feedback
+ * - Routes touchpad gestures to navigation
  */
 class GlassesProjectedActivity : ComponentActivity() {
+    companion object {
+        private const val TAG = "GlassesProjected"
+    }
+
+    private lateinit var glassIO: GlassInputOutputHandler
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Audio glasses have no display — do not setContent.
-        // The activity stays alive to maintain the projected lifecycle.
+        glassIO = GlassInputOutputHandler(applicationContext)
+        glassIO.initialize()
+        Log.i(TAG, "Projected activity created")
     }
 
     override fun onResume() {
         super.onResume()
-        // The projected device (glasses) is active while this activity resumes.
-        // System will route audio/camera through the projected context.
+        Log.i(TAG, "Projected activity resumed — glasses connected")
     }
 
     override fun onPause() {
         super.onPause()
-        // Glasses may be disconnecting or going to background.
+        Log.i(TAG, "Projected activity paused")
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Projected context is destroyed when the device disconnects.
-        // The system handles cleanup automatically.
+        glassIO.shutdown()
+        Log.i(TAG, "Projected activity destroyed")
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        // Forward touchpad events from glasses to gesture handler
+        val device = ev.source
+        if (device and InputDevice.SOURCE_TOUCHSCREEN != 0 || device and InputDevice.SOURCE_CLASS_POINTER != 0) {
+            glassIO.touchpadHandler.onMotionEvent(ev)
+
+            // Collect gesture and announce
+            val gesture = glassIO.touchpadHandler.gesture.value
+            if (gesture != null) {
+                glassIO.handleGesture(gesture)
+                glassIO.touchpadHandler.clearGesture()
+            }
+        }
+        return super.dispatchTouchEvent(ev)
     }
 }

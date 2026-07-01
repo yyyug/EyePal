@@ -14,6 +14,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyepal.app.ui.screens.*
+import com.eyepal.app.viewmodels.GoogleGlassViewModel
+import com.eyepal.app.services.GoogleGlassState
+import com.eyepal.app.services.AccessibilityAnnouncer
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
@@ -49,6 +53,15 @@ fun EyePalApp() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activity = context as? android.app.Activity
+    val glassViewModel: GoogleGlassViewModel = viewModel()
+
+    // Auto-connect to audio glasses on startup
+    LaunchedEffect(Unit) {
+        delay(1000) // Wait for system initialization
+        activity?.let { glassViewModel.autoConnect(it) }
+    }
 
     Scaffold(
         bottomBar = {

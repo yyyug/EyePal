@@ -1,14 +1,31 @@
 package com.eyepal.app.services
 
 import android.content.Context
-import android.os.Bundle
-import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityManager
+import android.speech.tts.TextToSpeech
+import android.util.Log
+import java.util.Locale
 
-class AccessibilityAnnouncer(private val context: Context) {
-    private val accessibilityManager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+class AccessibilityAnnouncer(context: Context) {
+    companion object {
+        private const val TAG = "AccessibilityAnnouncer"
+    }
+
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
     private var lastAnnouncement = ""
     private var lastTime = 0L
+
+    init {
+        tts = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                ttsReady = true
+                tts?.language = Locale.getDefault()
+                Log.i(TAG, "TTS initialized successfully")
+            } else {
+                Log.e(TAG, "TTS initialization failed: $status")
+            }
+        }
+    }
 
     fun announce(text: String, minimumInterval: Long = 0) {
         val now = System.currentTimeMillis()
@@ -18,20 +35,25 @@ class AccessibilityAnnouncer(private val context: Context) {
         lastAnnouncement = text
         lastTime = now
 
-        val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT).apply {
-            this.text.add(text)
-            this.className = "com.eyepal.app.MainActivity"
-        }
-        accessibilityManager.sendAccessibilityEvent(event)
+        speak(text)
     }
 
     fun announceForced(text: String) {
         lastAnnouncement = text
         lastTime = System.currentTimeMillis()
-        val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT).apply {
-            this.text.add(text)
-            this.className = "com.eyepal.app.MainActivity"
+        speak(text)
+    }
+
+    private fun speak(text: String) {
+        if (ttsReady) {
+            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "eyepal_${System.currentTimeMillis()}")
         }
-        accessibilityManager.sendAccessibilityEvent(event)
+    }
+
+    fun shutdown() {
+        tts?.stop()
+        tts?.shutdown()
+        tts = null
+        ttsReady = false
     }
 }
