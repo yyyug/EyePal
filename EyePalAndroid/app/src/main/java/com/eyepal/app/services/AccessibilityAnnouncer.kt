@@ -15,14 +15,17 @@ class AccessibilityAnnouncer(context: Context) {
     private var lastAnnouncement = ""
     private var lastTime = 0L
 
+    // Callback for logging speech output
+    var onSpeechOutput: ((String) -> Unit)? = null
+
     init {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 ttsReady = true
-                tts?.language = Locale.getDefault()
-                Log.i(TAG, "TTS initialized successfully")
+                tts?.language = Locale.US
+                Log.i(TAG, "TTS ready (English)")
             } else {
-                Log.e(TAG, "TTS initialization failed: $status")
+                Log.w(TAG, "TTS not available ($status) — audio glass may lack TTS engine")
             }
         }
     }
@@ -45,8 +48,12 @@ class AccessibilityAnnouncer(context: Context) {
     }
 
     private fun speak(text: String) {
+        // Log to console regardless of TTS availability
+        Log.i(TAG, "SPEAK: $text")
+        onSpeechOutput?.invoke(text)
+
         if (ttsReady) {
-            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "eyepal_${System.currentTimeMillis()}")
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "eyepal_${System.currentTimeMillis()}")
         }
     }
 
