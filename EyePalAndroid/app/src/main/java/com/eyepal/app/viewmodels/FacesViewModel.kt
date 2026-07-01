@@ -41,6 +41,10 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopCamera() { camera.stopCamera() }
 
+    fun detectFaces() {
+        statusText.value = "Detecting faces..."
+    }
+
     private fun processFrame(bitmap: Bitmap) {
         if (isProcessing.value) return
         isProcessing.value = true

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.eyepal.app.models.AppFeature
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -129,5 +130,3 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.GOOGLE_GLASS_CONNECTED] = connected }
     }
 }
-
-import com.eyepal.app.models.AppFeature

@@ -4,6 +4,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+tasks.withType<KotlinCompile> {
+    compilerOptions {
+        freeCompilerArgs.add("-opt-in=androidx.xr.projected.experimental.ExperimentalProjectedApi")
+    }
+}
+
 android {
     namespace = "com.eyepal.app"
     compileSdk = 37
@@ -78,4 +86,7 @@ dependencies {
 
     // Accompanist Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
+
+    // Material Components (required for Material3 themes in XML)
+    implementation("com.google.android.material:material:1.12.0")
 }

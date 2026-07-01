@@ -111,7 +111,7 @@ private fun LyricDisplayContent(song: LyricSong, onBack: () -> Unit, onSave: () 
             }
             Spacer(modifier = Modifier.height(8.dp))
         } else {
-            Text("No timed lyrics available", style = MaterialTheme.typography.caption, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(vertical = 4.dp))
+            Text("No timed lyrics available", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(vertical = 4.dp))
         }
 
         LazyColumn(modifier = Modifier.weight(1f)) {

@@ -5,22 +5,20 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.media.AudioDeviceType
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
-import android.media.MediaRecorder
 import android.util.Log
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import androidx.xr.projected.ExperimentalProjectedApi
 import androidx.xr.projected.ProjectedContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
+@Suppress("DEPRECATION")
 class GoogleGlassService(private val context: Context) {
     companion object {
         private const val TAG = "GoogleGlassService"
@@ -32,13 +30,12 @@ class GoogleGlassService(private val context: Context) {
     private var projectedContext: Context? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
 
-    @OptIn(ExperimentalProjectedApi::class)
     fun connect(activity: Activity) {
         audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         val projected = try {
             ProjectedContext.createProjectedDeviceContext(context)
-        } catch (e: IllegalStateException) {
+        } catch (e: Exception) {
             Log.w(TAG, "XR projected context not available, falling back to Bluetooth HFP", e)
             null
         }
@@ -62,6 +59,7 @@ class GoogleGlassService(private val context: Context) {
         val hfpDevice = devices.find { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
 
         if (hfpDevice != null) {
+            @Suppress("DEPRECATION")
             am.setCommunicationDevice(hfpDevice)
             Log.i(TAG, "Bluetooth HFP device set: ${hfpDevice.productName}")
         } else {
@@ -69,16 +67,12 @@ class GoogleGlassService(private val context: Context) {
         }
     }
 
-    @OptIn(ExperimentalProjectedApi::class)
     fun disconnect() {
-        val am = audioManager
         if (GoogleGlassState.isXRMode.value) {
-            // Projected context is tied to device lifecycle, just clear our reference
             projectedContext = null
         } else {
-            am?.let {
-                it.clearCommunicationDevice()
-            }
+            @Suppress("DEPRECATION")
+            audioManager?.clearCommunicationDevice()
         }
         glassCameraProvider?.unbindAll()
         glassCameraProvider = null
@@ -88,7 +82,6 @@ class GoogleGlassService(private val context: Context) {
         GoogleGlassState.setXRMode(false)
     }
 
-    @OptIn(ExperimentalProjectedApi::class)
     fun startGlassCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
         if (!GoogleGlassState.useGlassCamera.value || !GoogleGlassState.isConnected.value) return
 

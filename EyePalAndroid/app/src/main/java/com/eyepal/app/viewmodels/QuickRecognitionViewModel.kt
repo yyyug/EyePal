@@ -64,7 +64,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                 val prefs = getApplication<Application>().getSharedPreferences("settings", 0)
                 val apiKey = prefs.getString("moondream_api_key", "") ?: ""
                 if (apiKey.isEmpty()) { responseText.value = "Add Moondream API key in Settings."; isProcessing.value = false; return@launch }
-                val result = moondream.describeImage(bitmap, apiKey, lastPrompt)
+                val result = moondream.describeImage(bitmap!!, apiKey, lastPrompt)
                 responseText.value = result
                 statusText.value = "Result ready."
                 announcer.announce(result)

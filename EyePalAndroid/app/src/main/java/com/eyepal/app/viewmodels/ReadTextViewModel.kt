@@ -45,7 +45,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
             try {
                 val bitmap = if (GoogleGlassState.useGlassCamera.value) glassService.capturePhotoFromGlasses() else camera.capturePhoto()
                     ?: throw Exception("Failed to capture")
-                val text = ocr.recognizeText(bitmap)
+                val text = ocr.recognizeText(bitmap!!)
                 recognizedText.value = text
                 statusText.value = "Text recognized."
                 announcer.announce(text)

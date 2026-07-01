@@ -3,6 +3,7 @@ package com.eyepal.app.viewmodels
 import android.app.Application
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
+import kotlinx.coroutines.flow.first
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.data.SettingsRepository
 import com.eyepal.app.models.LyricSong

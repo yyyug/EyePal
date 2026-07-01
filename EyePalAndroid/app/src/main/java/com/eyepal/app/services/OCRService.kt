@@ -6,7 +6,6 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
-import com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -17,12 +16,11 @@ import kotlin.coroutines.resumeWithException
 class OCRService(private val context: Context) {
     private val latinRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val chineseRecognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-    private val devanagariRecognizer = TextRecognition.getClient(DevanagariTextRecognizerOptions.Builder().build())
     private val japaneseRecognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
     private val koreanRecognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
 
     private var lastSuccessfulRecognizer: TextRecognizer? = null
-    private val recognizers = listOf(latinRecognizer, chineseRecognizer, devanagariRecognizer, japaneseRecognizer, koreanRecognizer)
+    private val recognizers = listOf(latinRecognizer, chineseRecognizer, japaneseRecognizer, koreanRecognizer)
 
     suspend fun recognizeText(bitmap: Bitmap): String = suspendCancellableCoroutine { cont ->
         val image = InputImage.fromBitmap(bitmap, 0)

@@ -94,7 +94,7 @@ object OAuthService {
             scope.launch {
                 try {
                     val client = OkHttpClient()
-                    val body = "token=$refresh_token&client_id=$CLIENT_ID"
+                    val body = "token=$refreshToken&client_id=$CLIENT_ID"
                         .toRequestBody("application/x-www-form-urlencoded".toMediaType())
                     client.newCall(Request.Builder().url(REVOKE_URL).post(body).build()).execute()
                 } catch (_: Exception) {}

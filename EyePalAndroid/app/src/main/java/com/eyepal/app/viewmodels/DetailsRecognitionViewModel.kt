@@ -52,7 +52,7 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
                 val prefs = getApplication<Application>().getSharedPreferences("settings", 0)
                 val apiKey = prefs.getString("openai_api_key", "") ?: ""
                 if (apiKey.isEmpty()) { descriptionText.value = "Add OpenAI API key in Settings."; isProcessing.value = false; return@launch }
-                val result = openAI.describeImage(bitmap, apiKey, lastPrompt)
+                val result = openAI.describeImage(bitmap!!, apiKey, lastPrompt)
                 descriptionText.value = result
                 statusText.value = "Details ready."
                 announcer.announce(result)
