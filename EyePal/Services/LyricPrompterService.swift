@@ -148,13 +148,16 @@ final class LyricPrompterService {
         guard let (data, _) = try? await session.data(for: request),
               let raw = String(data: data, encoding: .utf8) else { return nil }
 
-        let jsonStr = raw
-            .replacingOccurrences(of: "\(callback)(", with: "")
-            .replacingOccurrences(of: ")", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let jsonStr: String
+        if raw.hasPrefix("\(callback)(") && raw.hasSuffix(")") {
+            jsonStr = String(raw.dropFirst(callback.count + 1).dropLast())
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            jsonStr = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
         guard let jsonData = jsonStr.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else { return nil }
 
         let lyricBase64 = json["lyric"] as? String ?? ""
         guard !lyricBase64.isEmpty else { return nil }

@@ -118,7 +118,6 @@ final class LyricPrompterViewModel: ObservableObject {
     func loadSelectedResult(_ result: LyricSearchResult) {
         isLoadingLyrics = true
         currentSong = service.loadLyrics(from: result)
-        searchResults = []
         isLoadingLyrics = false
     }
 

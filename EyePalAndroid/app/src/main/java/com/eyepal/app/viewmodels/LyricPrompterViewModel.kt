@@ -22,10 +22,11 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
     val isSearching = mutableStateOf(false)
     val isLoadingLyrics = mutableStateOf(false)
     val isPlaying = mutableStateOf(false)
+    val currentLineIndex = mutableStateOf(-1)
     val errorMessage = mutableStateOf<String?>(null)
     val savedSongs = mutableStateOf<List<LyricSong>>(emptyList())
 
-    private val service = LyricPrompterService()
+    private val service = LyricPrompterService(context = application)
     private val settings = SettingsRepository(application)
     private val announcer = AccessibilityAnnouncer(application)
     private var playbackJob: Job? = null
@@ -51,8 +52,15 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
     fun loadSelectedResult(result: com.eyepal.app.models.LyricSearchResult) {
         isLoadingLyrics.value = true
         currentSong.value = service.loadLyrics(result)
-        searchResults.value = emptyList()
         isLoadingLyrics.value = false
+    }
+
+    fun loadSavedSong(song: LyricSong) {
+        currentSong.value = song
+    }
+
+    fun loadSavedSongs() {
+        savedSongs.value = LyricStorage.loadSongs(getApplication())
     }
 
     fun saveCurrentSong() {
@@ -71,21 +79,7 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
     fun playFromStart() {
         val song = currentSong.value ?: return
         if (!song.hasTimestamps) return
-        stopPlayback()
-        isPlaying.value = true
-        playbackJob = viewModelScope.launch {
-            val linesWithTime = song.lines.filter { it.startTime != null }
-            val advanceOffset = settings.lyricAdvanceOffset.first()
-            val firstTime = linesWithTime.firstOrNull()?.startTime ?: return@launch
-            delay(((firstTime - advanceOffset).coerceAtLeast(0.0) * 1000).toLong())
-            for (line in linesWithTime) {
-                if (!isPlaying.value) break
-                announcer.announce(line.text)
-                val nextTime = linesWithTime.dropWhile { it.startTime!! <= line.startTime!! }.firstOrNull()?.startTime
-                if (nextTime != null) delay(((nextTime - line.startTime!! - advanceOffset).coerceAtLeast(0.0) * 1000).toLong())
-            }
-            isPlaying.value = false
-        }
+        playFromLine(0)
     }
 
     fun playFromNow() {
@@ -97,14 +91,49 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
             val linesWithTime = song.lines.filter { it.startTime != null }
             val advanceOffset = settings.lyricAdvanceOffset.first()
             if (linesWithTime.isEmpty()) { isPlaying.value = false; return@launch }
+            currentLineIndex.value = song.lines.indexOf(linesWithTime[0])
             announcer.announce(linesWithTime[0].text)
             for (i in 1 until linesWithTime.size) {
                 if (!isPlaying.value) break
                 val prev = linesWithTime[i - 1]
                 val curr = linesWithTime[i]
                 delay(((curr.startTime!! - prev.startTime!! - advanceOffset).coerceAtLeast(0.0) * 1000).toLong())
+                currentLineIndex.value = song.lines.indexOf(curr)
                 announcer.announce(curr.text)
             }
+            currentLineIndex.value = -1
+            isPlaying.value = false
+        }
+    }
+
+    fun playFromLine(index: Int) {
+        val song = currentSong.value ?: return
+        if (!song.hasTimestamps) return
+        stopPlayback()
+        isPlaying.value = true
+        playbackJob = viewModelScope.launch {
+            val linesWithTime = song.lines.filter { it.startTime != null }
+            val advanceOffset = settings.lyricAdvanceOffset.first()
+            if (linesWithTime.isEmpty()) { isPlaying.value = false; return@launch }
+
+            // Find the timed line closest to or at the given index
+            val targetLine = linesWithTime.firstOrNull { song.lines.indexOf(it) >= index }
+                ?: linesWithTime.lastOrNull()
+                ?: return@launch
+            val startIndex = linesWithTime.indexOf(targetLine)
+
+            currentLineIndex.value = song.lines.indexOf(targetLine)
+            announcer.announce(targetLine.text)
+
+            for (i in (startIndex + 1) until linesWithTime.size) {
+                if (!isPlaying.value) break
+                val prev = linesWithTime[i - 1]
+                val curr = linesWithTime[i]
+                delay(((curr.startTime!! - prev.startTime!! - advanceOffset).coerceAtLeast(0.0) * 1000).toLong())
+                currentLineIndex.value = song.lines.indexOf(curr)
+                announcer.announce(curr.text)
+            }
+            currentLineIndex.value = -1
             isPlaying.value = false
         }
     }
@@ -113,5 +142,6 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
         playbackJob?.cancel()
         playbackJob = null
         isPlaying.value = false
+        currentLineIndex.value = -1
     }
 }

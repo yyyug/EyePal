@@ -67,7 +67,7 @@ struct LyricPrompterView: View {
                             }
                         }
                         .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) { viewModel.deleteSong(song) } label: { Label("Delete", systemImage: "trash") }
+                            Button(role: .destructive) { viewModel.deleteSong(song) } label: { Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash") }
                         }
                     }
                 }.listStyle(.plain)
@@ -81,7 +81,7 @@ struct LyricPrompterView: View {
                 TextField("Song title or \"Song - Artist\"", text: $viewModel.searchText)
                     .textFieldStyle(.roundedBorder)
                     .submitLabel(.search)
-                    .onSubmit { Task { await viewModel.search() } }
+                    .onSubmit { Task { await performSearch() } }
 
                 Button { Task { await performSearch() } } label: {
                     Label(viewModel.isSearching ? "Searching..." : "Search Lyrics", systemImage: "magnifyingglass").frame(maxWidth: .infinity)
@@ -141,7 +141,7 @@ struct LyricPrompterView: View {
         .listStyle(.plain)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Back") { navState = .search; viewModel.dismissResults() }
+                Button(NSLocalizedString("voiceover.back", comment: "")) { navState = .search; viewModel.dismissResults() }
             }
         }
     }
@@ -184,7 +184,7 @@ private struct LyricDisplayView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
+                    Button(NSLocalizedString("common.close", comment: "")) {
                         viewModel.stopPlayback()
                         dismiss()
                     }
