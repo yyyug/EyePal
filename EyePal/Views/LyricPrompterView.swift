@@ -153,7 +153,7 @@ private struct LyricDisplayView: View {
                                 .font(.body)
                                 .padding(.horizontal)
                                 .id(line.id)
-                                .accessibilityFocused($focusedLineID, equals: line.id)
+                                .accessibilityFocused($focusedLineID, equals: line.id.uuidString)
                         }
                     }
                     .padding(.vertical)
@@ -177,7 +177,7 @@ private struct LyricDisplayView: View {
             }
             .onChange(of: viewModel.isPlaying) { playing in
                 if playing, let firstLine = song.lines.first {
-                    focusedLineID = firstLine.id
+                    focusedLineID = firstLine.id.uuidString
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         UIAccessibility.post(notification: .announcement, argument: firstLine.text)
                     }
