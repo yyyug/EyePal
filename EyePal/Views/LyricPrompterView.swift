@@ -1,52 +1,34 @@
 import SwiftUI
 import UIKit
 
-enum LyricNavigationState {
-    case search
-    case results
-    case lyrics
-}
-
 struct LyricPrompterView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = LyricPrompterViewModel()
-    @State private var navState: LyricNavigationState = .search
+    @State private var showResults = false
     @State private var showLyricsSheet = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch navState {
-                case .search: songListView
-                case .results: resultsListView
-                case .lyrics: EmptyView()
+            songListView
+                .navigationDestination(isPresented: $showResults) {
+                    resultsListView
                 }
-            }
-            .navigationTitle(titleForState)
-            .onAppear {
-                viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
-                viewModel.loadSaved()
-            }
-            .sheet(isPresented: $showLyricsSheet) {
-                if let song = viewModel.currentSong {
-                    LyricDisplayView(song: song, viewModel: viewModel)
+                .onAppear {
+                    viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
+                    viewModel.loadSaved()
                 }
-            }
-            .alert("Error", isPresented: Binding(
-                get: { viewModel.errorMessage != nil },
-                set: { if !$0 { viewModel.errorMessage = nil } }
-            )) {
-                Button("OK") { viewModel.errorMessage = nil }
-            } message: { Text(viewModel.errorMessage ?? "") }
-        }
-    }
-
-    private var titleForState: String {
-        switch navState {
-        case .search: return "Lyric Prompter"
-        case .results: return "Search Results"
-        case .lyrics: return viewModel.currentSong?.title ?? "Lyrics"
+                .sheet(isPresented: $showLyricsSheet) {
+                    if let song = viewModel.currentSong {
+                        LyricDisplayView(song: song, viewModel: viewModel)
+                    }
+                }
+                .alert("Error", isPresented: Binding(
+                    get: { viewModel.errorMessage != nil },
+                    set: { if !$0 { viewModel.errorMessage = nil } }
+                )) {
+                    Button("OK") { viewModel.errorMessage = nil }
+                } message: { Text(viewModel.errorMessage ?? "") }
         }
     }
 
@@ -58,7 +40,6 @@ struct LyricPrompterView: View {
                         Button {
                             viewModel.selectSong(song)
                             viewModel.currentSong = song
-                            navState = .lyrics
                             showLyricsSheet = true
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
@@ -91,12 +72,13 @@ struct LyricPrompterView: View {
             }
             .padding()
         }
+        .navigationTitle("Lyric Prompter")
     }
 
     private func performSearch() async {
         await viewModel.search()
         if !viewModel.searchResults.isEmpty {
-            navState = .results
+            showResults = true
         }
     }
 
@@ -106,8 +88,6 @@ struct LyricPrompterView: View {
                 ForEach(viewModel.searchResults) { result in
                     Button {
                         viewModel.loadSelectedResult(result)
-                        viewModel.currentSong = viewModel.currentSong
-                        navState = .lyrics
                         showLyricsSheet = true
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
@@ -139,11 +119,7 @@ struct LyricPrompterView: View {
             }
         }
         .listStyle(.plain)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(NSLocalizedString("voiceover.back", comment: "")) { navState = .search; viewModel.dismissResults() }
-            }
-        }
+        .navigationTitle("Search Results")
     }
 }
 
@@ -152,6 +128,7 @@ private struct LyricDisplayView: View {
     let viewModel: LyricPrompterViewModel
     @EnvironmentObject private var settingsStore: SettingsStore
     @Environment(\.dismiss) private var dismiss
+    @AccessibilityFocusState private var focusedLineID: String?
 
     var body: some View {
         NavigationStack {
@@ -172,9 +149,14 @@ private struct LyricDisplayView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(song.lines) { line in
-                            Text(line.text).font(.body).padding(.horizontal)
+                            Text(line.text)
+                                .font(.body)
+                                .padding(.horizontal)
+                                .id(line.id)
+                                .accessibilityFocused($focusedLineID, equals: line.id)
                         }
-                    }.padding(.vertical)
+                    }
+                    .padding(.vertical)
                 }
 
                 Button { viewModel.saveCurrentSong(); dismiss() } label: { Label("Save Lyrics", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }
@@ -184,17 +166,20 @@ private struct LyricDisplayView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("common.close", comment: "")) {
+                    Button {
                         viewModel.stopPlayback()
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .accessibilityLabel(NSLocalizedString("common.close", comment: ""))
                     }
                 }
             }
             .onChange(of: viewModel.isPlaying) { playing in
-                if playing, let firstLine = song.lines.first?.text {
+                if playing, let firstLine = song.lines.first {
+                    focusedLineID = firstLine.id
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        UIAccessibility.post(notification: .screenChanged, argument: nil)
-                        UIAccessibility.post(notification: .announcement, argument: firstLine)
+                        UIAccessibility.post(notification: .announcement, argument: firstLine.text)
                     }
                 }
             }

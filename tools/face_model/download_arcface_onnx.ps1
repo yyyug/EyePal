@@ -5,20 +5,27 @@ param(
 $ErrorActionPreference = "Stop"
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
-$modelUrl = "https://huggingface.co/garavv/arcface-onnx/resolve/main/arc.onnx?download=true"
-$outFile = Join-Path $OutDir "arcface.onnx"
-$tempFile = Join-Path $OutDir "arcface.download.onnx"
+$zipUrl = "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_sc.zip"
+$zipPath = Join-Path $OutDir "buffalo_sc.zip"
+$extractDir = Join-Path $OutDir "buffalo_sc"
+$outFile = Join-Path $OutDir "w600k_mbf.onnx"
 
-if (Test-Path $tempFile) {
-    Remove-Item $tempFile -Force
+if (Test-Path $zipPath) {
+    Remove-Item $zipPath -Force
+}
+if (Test-Path $extractDir) {
+    Remove-Item $extractDir -Recurse -Force
 }
 
-Write-Host "Downloading ArcFace embedding model to a temporary file..."
-Invoke-WebRequest -Uri $modelUrl -OutFile $tempFile
+Write-Host "Downloading InsightFace buffalo_sc model pack..."
+Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
 
-if (Test-Path $outFile) {
-    Remove-Item $outFile -Force
+$model = Get-ChildItem -Path $extractDir -Filter "w600k_mbf.onnx" -Recurse | Select-Object -First 1
+if (-not $model) {
+    throw "w600k_mbf.onnx not found in buffalo_sc.zip"
 }
-
-Move-Item $tempFile $outFile
+Copy-Item $model.FullName $outFile -Force
+Remove-Item $zipPath -Force
+Remove-Item $extractDir -Recurse -Force
 Write-Host "Saved model to $outFile"

@@ -14,7 +14,7 @@ def preprocess(image_path: Path) -> np.ndarray:
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = cv2.resize(image, (112, 112), interpolation=cv2.INTER_LINEAR)
     image = (image.astype(np.float32) - 127.5) / 128.0
-    return image[np.newaxis, ...]
+    return image.transpose(2, 0, 1)[np.newaxis, ...]
 
 
 def normalize(vector: np.ndarray) -> np.ndarray:
@@ -47,7 +47,7 @@ def main() -> None:
     score = cosine_similarity(embedding_a, embedding_b)
     print(f"Cosine similarity: {score:.4f}")
 
-    if score >= 0.82:
+    if score >= 0.65:
         print("Likely same person at the current EyePal threshold.")
     else:
         print("Likely different people or a weak crop at the current EyePal threshold.")

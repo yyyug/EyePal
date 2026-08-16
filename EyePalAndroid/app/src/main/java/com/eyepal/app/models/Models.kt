@@ -1,5 +1,9 @@
 package com.eyepal.app.models
 
+import android.content.Context
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Stable
+import com.eyepal.app.R
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -11,23 +15,26 @@ data class FaceProfile(
     val createdAt: Long = System.currentTimeMillis()
 )
 
-@Serializable
-data class LyricLine(
-    val text: String,
-    val startTime: Double? = null
-)
+    @Stable
+    @Serializable
+    data class LyricLine(
+        @Stable val text: String,
+        @Stable val startTime: Double? = null
+    )
 
-@Serializable
-data class LyricSong(
-    val id: String,
-    val title: String,
-    val artist: String,
-    val lines: List<LyricLine>,
-    val hasTimestamps: Boolean,
-    val createdAt: Long = System.currentTimeMillis()
-)
+    @Stable
+    @Serializable
+    data class LyricSong(
+        @Stable val id: String,
+        @Stable val title: String,
+        @Stable val artist: String,
+        @Stable val lines: List<LyricLine>,
+        @Stable val hasTimestamps: Boolean,
+        @Stable val createdAt: Long = System.currentTimeMillis()
+    )
 
-data class LyricSearchResult(
+    @Stable
+    data class LyricSearchResult(
     val source: String,
     val trackName: String,
     val artistName: String,
@@ -47,20 +54,29 @@ data class LyricLLMResponse(
 )
 
 enum class AppFeature(
-    val displayName: String,
-    val description: String,
-    val tabTitle: String,
+    @StringRes val displayNameRes: Int,
+    @StringRes val descriptionRes: Int,
+    @StringRes val tabTitleRes: Int,
     val icon: String
 ) {
-    FLOOR_DETECTION("Floor Detection", "Helps locate which floor you are on", "Floor", "architecture"),
-    CHAT("Chat", "Real-time voice translation", "Chat", "mic"),
-    FACES("Faces", "Face recognition and memory", "Faces", "person"),
-    QUICK_RECOGNITION("Quick Recognition", "Snap a photo for instant scene description", "Quick", "camera_alt"),
-    DETAILS_RECOGNITION("Details Recognition", "Detailed scene description with follow-up chat", "Details", "auto_awesome"),
-    READ_TEXT("Read Text", "OCR text recognition in multiple languages", "Read Text", "text_fields"),
-    LYRIC_PROMPTER("Lyric Prompter", "Search and listen to song lyrics", "Lyrics", "music_note");
+    FLOOR_DETECTION(R.string.feature_floor_detection, R.string.feature_desc_floor, R.string.tab_floor, "architecture"),
+    CHAT(R.string.feature_chat, R.string.feature_desc_chat, R.string.tab_chat, "mic"),
+    FACES(R.string.tab_faces, R.string.feature_desc_faces, R.string.tab_faces, "person"),
+    QUICK_RECOGNITION(R.string.feature_quick_recognition, R.string.feature_desc_quick, R.string.tab_quick, "camera_alt"),
+    DETAILS_RECOGNITION(R.string.feature_details_recognition, R.string.feature_desc_details, R.string.tab_details, "auto_awesome"),
+    READ_TEXT(R.string.feature_read_text, R.string.feature_desc_read_text, R.string.tab_read_text, "text_fields"),
+    LYRIC_PROMPTER(R.string.feature_lyric_prompter, R.string.feature_desc_lyrics, R.string.tab_lyrics, "music_note");
+
+    fun getDisplayName(context: Context): String = context.getString(displayNameRes)
+    fun getDescription(context: Context): String = context.getString(descriptionRes)
+    fun getTabTitle(context: Context): String = context.getString(tabTitleRes)
 
     companion object {
         val defaultOrder = entries.toList()
+
+        fun getDisplayNameByName(context: Context, name: String): String {
+            val feature = entries.find { it.name == name }
+            return feature?.getDisplayName(context) ?: name
+        }
     }
 }

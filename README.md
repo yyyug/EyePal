@@ -44,10 +44,12 @@ Lyric Prompter 功能從以下來源取得歌詞：
 # 安裝 CocoaPods 依賴
 pod install
 
-# 下載 ArcFace ONNX 模型
+# 下載 ArcFace ONNX 模型（w600k_mbf，InsightFace buffalo_sc 官方 MobileFaceNet）
 mkdir -p tools/face_model/models
-curl -L "https://huggingface.co/garavv/arcface-onnx/resolve/main/arc.onnx?download=true" \
-  -o tools/face_model/models/arcface_fresh.onnx
+curl -L "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_sc.zip" \
+  -o /tmp/buffalo_sc.zip
+unzip -o /tmp/buffalo_sc.zip -d /tmp/buffalo_sc
+cp /tmp/buffalo_sc/w600k_mbf.onnx tools/face_model/models/w600k_mbf.onnx
 
 # 開啟 Xcode
 open EyePal.xcworkspace

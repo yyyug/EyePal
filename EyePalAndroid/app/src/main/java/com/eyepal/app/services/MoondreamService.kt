@@ -28,8 +28,13 @@ class MoondreamService(private val client: OkHttpClient = OkHttpClient()) {
             .build()
 
         val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: throw Exception("No response")
+        val body = response.body?.string() ?: throw Exception("No response from Moondream API")
+        if (!response.isSuccessful) {
+            val errorMsg = try { JSONObject(body).optString("error", body) } catch (_: Exception) { body }
+            throw Exception("Moondream API error ${response.code}: $errorMsg")
+        }
         val json = JSONObject(body)
+        if (!json.has("answer")) throw Exception("Unexpected response: missing 'answer' field")
         json.getString("answer")
     }
 
@@ -39,6 +44,7 @@ class MoondreamService(private val client: OkHttpClient = OkHttpClient()) {
         val scale = minOf(1f, maxDim / maxOf(bitmap.width, bitmap.height))
         val resized = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
         resized.compress(Bitmap.CompressFormat.JPEG, 50, stream)
+        if (resized !== bitmap) resized.recycle()
         return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
     }
 }

@@ -30,9 +30,9 @@ jobs:
             -o tools/face_model/buffalo_sc.zip
           unzip -o tools/face_model/buffalo_sc.zip -d tools/face_model/buffalo_sc
           find tools/face_model/buffalo_sc -name "*.onnx" -exec ls -la {} \;
-          cp tools/face_model/buffalo_sc/*w600k*.onnx tools/face_model/models/arcface_fresh.onnx 2>/dev/null || \
-          cp tools/face_model/buffalo_sc/*mbf*.onnx tools/face_model/models/arcface_fresh.onnx 2>/dev/null || \
-          cp $(find tools/face_model/buffalo_sc -name "*.onnx" -not -name "det*" | head -1) tools/face_model/models/arcface_fresh.onnx
+          cp tools/face_model/buffalo_sc/*w600k_mbf*.onnx tools/face_model/models/w600k_mbf.onnx 2>/dev/null || \
+          cp tools/face_model/buffalo_sc/*mbf*.onnx tools/face_model/models/w600k_mbf.onnx 2>/dev/null || \
+          cp $(find tools/face_model/buffalo_sc -name "*.onnx" -not -name "det*" | head -1) tools/face_model/models/w600k_mbf.onnx
 
       - name: Install Pods
         run: pod install

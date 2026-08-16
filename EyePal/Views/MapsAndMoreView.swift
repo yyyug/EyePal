@@ -160,7 +160,7 @@ struct MapsView: View {
                         userInfo: ["query": viewModel.query]
                     )
                 } label: {
-                    Label("Search", systemImage: "magnifyingglass")
+                    Label(NSLocalizedString("common.search", comment: ""), systemImage: "magnifyingglass")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -440,7 +440,7 @@ struct MapsView: View {
                             }
                             .buttonStyle(.bordered)
 
-                            Button("Edit") {
+                            Button(NSLocalizedString("common.edit", comment: "")) {
                                 routeBeingEdited = route
                             }
                             .buttonStyle(.bordered)
@@ -453,7 +453,7 @@ struct MapsView: View {
                             Button(role: .destructive) {
                                 viewModel.deleteGuidedRoute(route)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                             }
                             .buttonStyle(.bordered)
                         }
@@ -520,7 +520,7 @@ struct MapsView: View {
                         Button(role: .destructive) {
                             viewModel.deleteTour(tour)
                         } label: {
-                            Label("Delete", systemImage: "trash")
+                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                         }
                         .buttonStyle(.bordered)
                     }
@@ -654,7 +654,7 @@ private struct AlongStreetGuideView: View {
                 Button {
                     viewModel.searchByQuery()
                 } label: {
-                    Label(viewModel.isLoading ? "Searching..." : "Search", systemImage: "magnifyingglass")
+                    Label(viewModel.isLoading ? "Searching..." : NSLocalizedString("common.search", comment: ""), systemImage: "magnifyingglass")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -807,7 +807,7 @@ private struct CountryPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
                 }
             }
         }
@@ -977,7 +977,7 @@ private struct IntersectionDetailView: View {
                         Button {
                             viewModel.moveBackward()
                         } label: {
-                            Label("Back", systemImage: "arrow.backward")
+                            Label(NSLocalizedString("voiceover.back", comment: ""), systemImage: "arrow.backward")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
@@ -1054,11 +1054,11 @@ struct MoreView: View {
                             .environmentObject(settingsStore)
                             .environmentObject(openAIStore)
                     } label: {
-                        Label("Settings", systemImage: "gearshape")
+                        Label(NSLocalizedString("tab.settings", comment: ""), systemImage: "gearshape")
                     }
                 }
             }
-            .navigationTitle("More")
+            .navigationTitle(NSLocalizedString("tab.more", comment: ""))
         }
     }
 
@@ -1169,7 +1169,7 @@ struct FloorDetectionListView: View {
                     Button(role: .destructive) {
                         floorStore.delete(record)
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                     }
                 }
             }
@@ -1190,7 +1190,7 @@ struct FloorDetectionListView: View {
                 FloorRecordEditorView()
                     .environmentObject(floorStore)
             } label: {
-                Label("Add", systemImage: "plus")
+                Label(NSLocalizedString("common.add", comment: ""), systemImage: "plus")
             }
         }
     }
@@ -1228,7 +1228,7 @@ private struct FloorRecordNameEditorView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(NSLocalizedString("common.save", comment: "")) {
                         save()
                     }
                     .disabled(trimmedName.isEmpty)
@@ -3934,10 +3934,10 @@ private struct MarkerEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(NSLocalizedString("common.save", comment: "")) {
                         onSave(title, subtitle)
                         dismiss()
                     }
@@ -3995,10 +3995,10 @@ private struct GuidedRouteEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(NSLocalizedString("common.save", comment: "")) {
                         onSave(
                             GuidedRoute(
                                 id: route.id,

@@ -60,7 +60,7 @@ def verify_model(model_path: Path) -> dict[str, object]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Verify and package the EyePal ONNX face embedding model.")
-    parser.add_argument("--model", required=True, type=Path, help="Path to arcface_fresh.onnx")
+    parser.add_argument("--model", required=True, type=Path, help="Path to w600k_mbf.onnx")
     parser.add_argument("--output-dir", required=True, type=Path, help="Directory where the validated model bundle will be written.")
     args = parser.parse_args()
 
@@ -70,7 +70,7 @@ def main() -> None:
     summary = verify_model(args.model)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    output_model = args.output_dir / "arcface_fresh.onnx"
+    output_model = args.output_dir / "w600k_mbf.onnx"
     shutil.copy2(args.model, output_model)
 
     summary_path = args.output_dir / "arcface_contract.json"

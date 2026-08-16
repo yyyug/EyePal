@@ -6,6 +6,7 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
+import com.eyepal.app.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.util.Locale
@@ -32,14 +33,16 @@ class GlassInputOutputHandler(private val context: Context) {
     val currentScreen: StateFlow<String> = _currentScreen
 
     // Feature list for navigation
-    private val features = listOf(
-        "Quick Recognition",
-        "Details Recognition",
-        "Read Text",
-        "Floor Detection",
-        "Chat",
-        "Lyric Prompter"
-    )
+    private val featureStrings by lazy {
+        listOf(
+            context.getString(R.string.feature_quick_recognition),
+            context.getString(R.string.feature_details_recognition),
+            context.getString(R.string.feature_read_text),
+            context.getString(R.string.feature_floor_detection),
+            context.getString(R.string.feature_chat),
+            context.getString(R.string.feature_lyric_prompter)
+        )
+    }
     private var currentFeatureIndex = 0
 
     fun initialize() {
@@ -60,6 +63,7 @@ class GlassInputOutputHandler(private val context: Context) {
     }
 
     fun speak(text: String) {
+        Log.i(TAG, "SPEAK: $text")
         if (ttsReady) {
             tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "eyepal_${System.currentTimeMillis()}")
         }
@@ -72,34 +76,35 @@ class GlassInputOutputHandler(private val context: Context) {
     fun handleGesture(gesture: GlassTouchpadHandler.Gesture): String? {
         return when (gesture) {
             is GlassTouchpadHandler.Gesture.Tap -> {
-                speak("Selected: ${features[currentFeatureIndex]}")
-                features[currentFeatureIndex]
+                speak(context.getString(R.string.tts_selected, featureStrings[currentFeatureIndex]))
+                featureStrings[currentFeatureIndex]
             }
             is GlassTouchpadHandler.Gesture.DoubleTap -> {
-                speak("Quick Recognition")
-                "Quick Recognition"
+                speak(context.getString(R.string.feature_quick_recognition))
+                context.getString(R.string.feature_quick_recognition)
             }
             is GlassTouchpadHandler.Gesture.LongPress -> {
-                speak("Details Recognition")
-                "Details Recognition"
+                speak(context.getString(R.string.feature_details_recognition))
+                context.getString(R.string.feature_details_recognition)
             }
             is GlassTouchpadHandler.Gesture.SwipeUp -> {
-                currentFeatureIndex = (currentFeatureIndex - 1 + features.size) % features.size
-                speak(features[currentFeatureIndex])
-                null
+                speak(context.getString(R.string.tts_back))
+                context.getString(R.string.tts_back)
             }
             is GlassTouchpadHandler.Gesture.SwipeDown -> {
-                currentFeatureIndex = (currentFeatureIndex + 1) % features.size
-                speak(features[currentFeatureIndex])
+                currentFeatureIndex = (currentFeatureIndex + 1) % featureStrings.size
+                speak(featureStrings[currentFeatureIndex])
                 null
             }
             is GlassTouchpadHandler.Gesture.SwipeRight -> {
-                speak("Quick Recognition")
-                "Quick Recognition"
+                currentFeatureIndex = (currentFeatureIndex + 1) % featureStrings.size
+                speak(featureStrings[currentFeatureIndex])
+                null
             }
             is GlassTouchpadHandler.Gesture.SwipeLeft -> {
-                speak("Back")
-                "Back"
+                currentFeatureIndex = (currentFeatureIndex - 1 + featureStrings.size) % featureStrings.size
+                speak(featureStrings[currentFeatureIndex])
+                null
             }
         }
     }

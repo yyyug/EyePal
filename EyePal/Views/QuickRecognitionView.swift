@@ -63,7 +63,7 @@ struct QuickRecognitionView: View {
                             }
                         } label: {
                             Label(
-                                viewModel.isContinuousCapture ? "Stop" : "Continuous",
+                                viewModel.isContinuousCapture ? NSLocalizedString("common.stop", comment: "") : NSLocalizedString("common.continuous", comment: ""),
                                 systemImage: viewModel.isContinuousCapture ? "stop.circle" : "play.circle"
                             )
                             .frame(maxWidth: .infinity)
@@ -156,7 +156,7 @@ struct QuickRecognitionView: View {
             Button {
                 viewModel.takePhoto()
             } label: {
-                Label(viewModel.isProcessing ? "Working..." : "Take Photo", systemImage: "camera")
+                Label(viewModel.isProcessing ? NSLocalizedString("common.working", comment: "") : NSLocalizedString("common.takePhoto", comment: ""), systemImage: "camera")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)

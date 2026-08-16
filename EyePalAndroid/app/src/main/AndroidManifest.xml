@@ -38,8 +38,8 @@
         <activity
             android:name=".GlassesProjectedActivity"
             android:exported="true"
-            android:requiredDisplayCategory="android.hardware.display.category.XR_PROJECTED"
-            android:label="EyePal Glass">
+            android:label="EyePal Glass"
+            android:requiredDisplayCategory="android.hardware.display.category.XR_PROJECTED">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.XR_PROJECTED_LAUNCHER" />

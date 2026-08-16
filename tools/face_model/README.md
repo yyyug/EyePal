@@ -6,10 +6,10 @@ This folder prepares the face embedding model for EyePal.
 
 This repo now uses one shipping model path and two environments:
 
-- Windows path: download and validate `arcface_fresh.onnx`
-- Ubuntu path: validate and package `arcface_fresh.onnx` for app handoff
+- Windows path: download and validate `w600k_mbf.onnx`
+- Ubuntu path: validate and package `w600k_mbf.onnx` for app handoff
 
-The shipping iOS path is ONNX Runtime with `arcface_fresh.onnx`.
+The shipping iOS path is ONNX Runtime with `w600k_mbf.onnx` (InsightFace buffalo_sc MobileFaceNet, same weights as Android).
 
 ## Verified model contract
 
@@ -29,22 +29,22 @@ The repo does not depend on Core ML conversion for the face model. The app uses 
 ## Windows setup
 
 1. Install Python 3.12 or newer.
-2. Run the downloader:
+2. Run the downloader (pulls InsightFace buffalo_sc, copies `w600k_mbf.onnx`):
    `powershell -ExecutionPolicy Bypass -File tools\face_model\download_arcface_onnx.ps1`
 3. Create a virtual environment and install requirements:
    `py -3.12 -m venv .venv`
    `.\.venv\Scripts\Activate.ps1`
    `pip install -r tools\face_model\requirements.txt`
 4. Validate the model with two cropped face photos:
-   `python tools\face_model\validate_arcface_onnx.py --model tools\face_model\models\arcface_fresh.onnx --image-a path\to\face1.jpg --image-b path\to\face2.jpg`
+   `python tools\face_model\validate_arcface_onnx.py --model tools\face_model\models\w600k_mbf.onnx --image-a path\to\face1.jpg --image-b path\to\face2.jpg`
 
 ## Expected preprocessing
 
-The selected model expects:
+The selected model (w600k_mbf) expects:
 - RGB
 - resized to `112x112`
 - normalized as `(pixel - 127.5) / 128.0`
-- NHWC tensor shape `1 x 112 x 112 x 3`
+- NCHW tensor shape `1 x 3 x 112 x 112`
 
 ## Ubuntu packaging setup
 
@@ -58,7 +58,7 @@ This will:
 
 1. create `.venv-ubuntu`
 2. install the ONNX validation requirements
-3. verify `tools/face_model/models/arcface_fresh.onnx`
+3. verify `tools/face_model/models/w600k_mbf.onnx`
 4. copy the validated model into `tools/face_model/dist`
 5. write `tools/face_model/dist/arcface_contract.json`
 
@@ -66,16 +66,18 @@ The packager can also be run directly:
 
 ```bash
 python tools/face_model/package_onnx_model.py \
-  --model tools/face_model/models/arcface_fresh.onnx \
+  --model tools/face_model/models/w600k_mbf.onnx \
   --output-dir tools/face_model/dist
 ```
 
 ## Final app bundling step
 
-The current app loads `arcface_fresh.onnx` at runtime. The Ubuntu toolchain therefore hands off:
+The current app loads `w600k_mbf.onnx` at runtime (iOS and Android share the same weights). The Ubuntu toolchain therefore hands off:
 
-- `arcface_fresh.onnx`
-- `arcface_contract.json`
+- `w600k_mbf.onnx`
+- `arcface_contract.json` (updated for the w600k_mbf input/output contract)
+
+The verified w600k_mbf contract is: input `input.1`, shape `1 x 3 x 112 x 112` (NCHW), RGB, output `516` with shape `1 x 512`.
 
 ## Experimental Non-Shipping Files
 

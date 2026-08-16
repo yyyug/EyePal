@@ -86,26 +86,10 @@ final class LyricPrompterViewModel: ObservableObject {
         )
 
         if results.isEmpty {
-            searchLog.append("LRCLIB + QQ Music: no results, trying LLM...")
-            do {
-                let (title, artist) = parseSearchInput(input)
-                let llmResponse = try await service.searchLyricsLLM(
-                    title: title,
-                    artist: artist,
-                    provider: LyricLLMProvider(rawValue: settings.lyricLLMProvider) ?? .codex,
-                    modelID: settings.lyricModelID,
-                    apiKey: settings.lyricAPIKey,
-                    baseURL: settings.lyricBaseURL,
-                    codexStore: openAIStore
-                )
-                let lines = llmResponse.lines.map { LyricLine(text: $0.text, startTime: $0.startTime) }
-                let song = LyricSong(title: llmResponse.title, artist: llmResponse.artist, lines: lines, hasTimestamps: llmResponse.hasTimestamps)
-                currentSong = song
-                isSearching = false
-            } catch {
-                errorMessage = error.localizedDescription
-                isSearching = false
-            }
+            searchLog.append("No results found.")
+            errorMessage = "No results found for \"\(input)\"."
+            announcer.announce("No results found for \(input)", minimumInterval: 0)
+            isSearching = false
         } else {
             for r in results {
                 searchLog.append("[\(r.source)] \(r.trackName) - \(r.artistName) synced=\(r.hasSyncedLyrics)")
@@ -194,19 +178,6 @@ final class LyricPrompterViewModel: ObservableObject {
 
     private func nextTimestamp(after time: Double, in lines: [LyricLine]) -> Double? {
         lines.first { $0.startTime! > time }?.startTime
-    }
-
-    private func parseSearchInput(_ input: String) -> (title: String, artist: String) {
-        let separators = [" - ", " – ", " — ", " by ", " / "]
-        for sep in separators {
-            if let range = input.range(of: sep) {
-                let title = String(input[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let artist = String(input[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !title.isEmpty && !artist.isEmpty { return (title, artist) }
-                if !title.isEmpty { return (title, "") }
-            }
-        }
-        return (input, "")
     }
 
     private func persistSongs() {

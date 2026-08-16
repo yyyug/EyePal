@@ -1,8 +1,7 @@
 package com.eyepal.app.services
 
-import android.content.Context
-import android.util.Log
-import android.view.InputDevice
+import android.os.Handler
+import android.os.Looper
 import android.view.MotionEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,11 +42,13 @@ class GlassTouchpadHandler {
     private val _gesture = MutableStateFlow<Gesture?>(null)
     val gesture: StateFlow<Gesture?> = _gesture
 
+    private val handler = Handler(Looper.getMainLooper())
     private var downTime = 0L
     private var downX = 0f
     private var downY = 0f
     private var lastTapTime = 0L
     private var tapCount = 0
+    private var pendingTapRunnable: Runnable? = null
 
     fun onMotionEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -63,26 +64,24 @@ class GlassTouchpadHandler {
                 val dy = event.y - downY
 
                 if (duration < TAP_TIMEOUT && Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
-                    // Tap detected
                     val now = System.currentTimeMillis()
+                    pendingTapRunnable?.let { handler.removeCallbacks(it) }
+                    pendingTapRunnable = null
                     if (now - lastTapTime < DOUBLE_TAP_TIMEOUT) {
-                        tapCount++
-                        if (tapCount >= 2) {
-                            _gesture.value = Gesture.DoubleTap
-                            tapCount = 0
-                        }
+                        _gesture.value = Gesture.DoubleTap
+                        tapCount = 0
                     } else {
                         tapCount = 1
+                        val runnable = Runnable {
+                            if (tapCount == 1) {
+                                _gesture.value = Gesture.Tap
+                                tapCount = 0
+                            }
+                        }
+                        pendingTapRunnable = runnable
+                        handler.postDelayed(runnable, DOUBLE_TAP_TIMEOUT)
                     }
                     lastTapTime = now
-
-                    // Delayed single tap
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        if (tapCount == 1 && System.currentTimeMillis() - lastTapTime >= DOUBLE_TAP_TIMEOUT - 50) {
-                            _gesture.value = Gesture.Tap
-                            tapCount = 0
-                        }
-                    }, DOUBLE_TAP_TIMEOUT)
                 } else if (duration >= LONG_PRESS_TIMEOUT && Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
                     _gesture.value = Gesture.LongPress
                 } else {

@@ -1,0 +1,77 @@
+/* Tab names */
+"tab.quick" = "Quick";
+"tab.details" = "Details";
+"tab.readText" = "Read Text";
+"tab.faces" = "Faces";
+"tab.floor" = "Floor";
+"tab.chat" = "Chat";
+"tab.lyrics" = "Lyrics";
+"tab.more" = "More";
+"tab.settings" = "Settings";
+
+/* Feature display names */
+"feature.quickRecognition" = "Quick Recognition";
+"feature.detailsRecognition" = "Details Recognition";
+"feature.readText" = "Read Text";
+"feature.floorDetection" = "Floor Detection";
+"feature.lyricPrompter" = "Lyric Prompter";
+"feature.faceRecognition" = "Face Recognition";
+"feature.chat" = "Chat";
+"feature.googleGlass" = "Google Glass";
+"feature.savedFaces" = "Saved Faces";
+"feature.featureOrder" = "Feature Order";
+
+/* Feature descriptions */
+"feature.floorDetection.description" = "Helps locate which floor you are on";
+"feature.chat.description" = "Real-time voice translation";
+"feature.faces.description" = "Face recognition and memory";
+"feature.quickRecognition.description" = "Snap a photo for instant scene description";
+"feature.detailsRecognition.description" = "Detailed scene description with follow-up chat";
+"feature.readText.description" = "OCR text recognition in multiple languages";
+"feature.lyricPrompter.description" = "Search and listen to song lyrics";
+
+/* Common UI buttons */
+"common.save" = "Save";
+"common.cancel" = "Cancel";
+"common.delete" = "Delete";
+"common.done" = "Done";
+"common.ok" = "OK";
+"common.search" = "Search";
+"common.send" = "Send";
+"common.close" = "Close";
+"common.edit" = "Edit";
+"common.add" = "Add";
+"common.start" = "Start";
+"common.stop" = "Stop";
+"common.signIn" = "Sign In";
+"common.signOut" = "Sign Out";
+"common.takePhoto" = "Take Photo";
+"common.continuous" = "Continuous";
+"common.working" = "Working...";
+"common.back" = "Back";
+"common.rename" = "Rename";
+
+/* Common prompts and descriptions */
+"common.noFacesSaved" = "No faces have been saved yet.";
+"common.pointCameraAtFace" = "Point the camera at a face.";
+"common.pointCameraAtText" = "Point the camera at printed text.";
+"common.pointCameraToDescribe" = "Point the camera at something to describe it.";
+"common.takePhotoToDescribe" = "Take a photo to describe the scene.";
+"common.takePhotoToQuickDescribe" = "Take a photo to quickly describe things";
+
+/* Settings labels */
+"settings.general" = "General";
+"settings.speech" = "Speech";
+"settings.behavior" = "Behavior";
+"settings.translation" = "Translation";
+"settings.playback" = "Playback";
+"settings.about" = "About";
+"settings.aiProvider" = "AI Provider";
+"settings.useMetricUnits" = "Use Metric Units";
+"settings.mixAudioWithOtherApps" = "Mix Audio With Other Apps";
+"settings.voiceVolume" = "Voice Volume";
+"settings.otherVolume" = "Other Volume";
+"settings.featureOrder" = "Feature Order";
+
+/* Voiceover/TTS */
+"voiceover.back" = "Back";

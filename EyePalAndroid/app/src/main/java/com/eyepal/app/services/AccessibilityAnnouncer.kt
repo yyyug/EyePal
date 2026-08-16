@@ -1,63 +1,86 @@
 package com.eyepal.app.services
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.util.Log
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import java.util.Locale
 
-class AccessibilityAnnouncer(context: Context) {
+class AccessibilityAnnouncer(private val context: Context) {
     companion object {
         private const val TAG = "AccessibilityAnnouncer"
+        private const val DEFAULT_MINIMUM_INTERVAL = 2000L
     }
+
+    private var lastAnnouncement = ""
+    private var lastTime = 0L
+    private val accessibilityManager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
 
     private var tts: TextToSpeech? = null
     private var ttsReady = false
-    private var lastAnnouncement = ""
-    private var lastTime = 0L
+    private var pendingText: String? = null
 
-    // Callback for logging speech output
     var onSpeechOutput: ((String) -> Unit)? = null
 
     init {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 ttsReady = true
-                tts?.language = Locale.US
-                Log.i(TAG, "TTS ready (English)")
-            } else {
-                Log.w(TAG, "TTS not available ($status) — audio glass may lack TTS engine")
+                tts?.language = Locale.getDefault()
+                tts?.setSpeechRate(1.1f)
+                pendingText?.let { text ->
+                    pendingText = null
+                    tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "eyepal_${System.currentTimeMillis()}")
+                }
+                Log.i(TAG, "TTS initialized")
             }
         }
     }
 
+    private val hasSpokenAccessibilityService: Boolean
+        get() = accessibilityManager
+            ?.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN)
+            ?.isNotEmpty() == true
+
     fun announce(text: String, minimumInterval: Long = 0) {
         val now = System.currentTimeMillis()
-        if (text == lastAnnouncement && now - lastTime < 2000) return
+        val effectiveInterval = if (minimumInterval > 0) minimumInterval else DEFAULT_MINIMUM_INTERVAL
+        if (text == lastAnnouncement && now - lastTime < effectiveInterval) return
         if (now - lastTime < minimumInterval) return
 
         lastAnnouncement = text
         lastTime = now
 
-        speak(text)
+        announceToTalkBack(text)
     }
 
     fun announceForced(text: String) {
         lastAnnouncement = text
         lastTime = System.currentTimeMillis()
-        speak(text)
+        announceToTalkBack(text)
     }
 
-    private fun speak(text: String) {
-        // Log to console regardless of TTS availability
-        Log.i(TAG, "SPEAK: $text")
+    private fun announceToTalkBack(text: String) {
+        Log.i(TAG, "ANNOUNCE: $text")
         onSpeechOutput?.invoke(text)
 
-        if (ttsReady) {
+        if (hasSpokenAccessibilityService) {
+            val event = AccessibilityEvent.obtain().apply {
+                eventType = AccessibilityEvent.TYPE_ANNOUNCEMENT
+                this.text.add(text)
+            }
+            accessibilityManager?.sendAccessibilityEvent(event)
+        } else if (ttsReady) {
             tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "eyepal_${System.currentTimeMillis()}")
+        } else {
+            pendingText = text
         }
     }
 
     fun shutdown() {
+        pendingText = null
         tts?.stop()
         tts?.shutdown()
         tts = null

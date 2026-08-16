@@ -1,52 +1,195 @@
 package com.eyepal.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.eyepal.app.EyePalApplication
+import com.eyepal.app.R
+import java.util.Locale
+import com.eyepal.app.config.Defaults
+import androidx.compose.ui.res.stringResource
+import com.eyepal.app.data.SettingsRepository
+import com.eyepal.app.services.FaceRecognitionLogStore
 import com.eyepal.app.services.OAuthService
+import com.eyepal.app.services.TranslationService
+import com.eyepal.app.viewmodels.QuickCaptionLength
+import com.eyepal.app.viewmodels.QuickContinuousInterval
+import com.eyepal.app.viewmodels.RecognitionActionControlStyle
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import java.text.SimpleDateFormat
+import java.util.Date
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailsRecognitionSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val isSignedIn = remember { mutableStateOf(OAuthService.isSignedIn(context)) }
-    var showSignOutDialog by remember { mutableStateOf(false) }
+    val settings = remember { (context.applicationContext as EyePalApplication).container.settingsRepository }
+    val scope = rememberCoroutineScope()
+    var isSignedIn by remember { mutableStateOf(OAuthService.isSignedIn(context)) }
+
+    val savedButtonsJson by settings.detailButtons.collectAsState(initial = "")
+    val controlStyle by settings.detailsActionControlStyle.collectAsState(initial = com.eyepal.app.config.Defaults.DETAILS_ACTION_CONTROL_STYLE)
+    val buttonTypes = listOf("Product", "Dish", "Short Text", "Custom")
+    var buttons by remember(savedButtonsJson) {
+        mutableStateOf(
+            try {
+                if (savedButtonsJson.isNotEmpty()) {
+                    val arr = org.json.JSONArray(savedButtonsJson)
+                    (0 until arr.length()).map { i ->
+                        val obj = arr.getJSONObject(i)
+                        Triple(obj.optString("name", ""), obj.optString("prompt", ""), obj.optString("type", "Custom"))
+                    }.take(4)
+                } else {
+                    listOf(Triple("Custom", "For a blind user, first read visible text exactly. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks.", "Custom"),
+                           Triple("Product", "Describe the main product in this image with 1 or 2 sentences, including its brand, name, packaging details, and primary function.", "Product"),
+                           Triple("Dish", "Describe the dish layout in detail for a blind user, including portions, relative positions, and likely ingredients.", "Dish"),
+                           Triple("Short Text", "Read the visible short text and numbers exactly, and mention where they appear in the scene.", "Short Text"))
+                }
+            } catch (_: Exception) {
+                listOf(Triple("Custom", "For a blind user, first read visible text exactly. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks.", "Custom"),
+                       Triple("Product", "Describe the main product in this image with 1 or 2 sentences, including its brand, name, packaging details, and primary function.", "Product"),
+                       Triple("Dish", "Describe the dish layout in detail for a blind user, including portions, relative positions, and likely ingredients.", "Dish"),
+                       Triple("Short Text", "Read the visible short text and numbers exactly, and mention where they appear in the scene.", "Short Text"))
+            }
+        )
+    }
+
+    fun saveButtons() {
+        val arr = org.json.JSONArray()
+        buttons.forEach { (name, prompt, type) ->
+            arr.put(org.json.JSONObject().apply {
+                put("name", name)
+                put("prompt", prompt)
+                put("type", type)
+            })
+        }
+        scope.launch { settings.setDetailButtons(arr.toString()) }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TopAppBar(title = { Text("Details Recognition") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
+        TopAppBar(title = { Text(stringResource(R.string.feature_details_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("ChatGPT Account", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_chatgpt_account), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        if (isSignedIn.value) {
-            Text("Signed in", color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = { showSignOutDialog = true }) { Text("Sign Out") }
-        } else {
-            Text("Not signed in", color = MaterialTheme.colorScheme.outline)
+
+        if (isSignedIn) {
+            Text(stringResource(R.string.label_signed_in), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = {
-                val intent = OAuthService.getAuthIntent(context)
-                context.startActivity(intent)
-            }) { Text("Sign In with ChatGPT") }
+                OAuthService.signOut(context)
+                isSignedIn = false
+            }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                Text(stringResource(R.string.btn_sign_out))
+            }
+        } else {
+            Text(stringResource(R.string.label_not_signed_in), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(stringResource(R.string.settings_sign_in_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        Text("Scene Description", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_scene_description), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Uses OpenAI API for detailed scene descriptions. Sign in with ChatGPT to enable.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-    }
+        Text(stringResource(R.string.settings_details_recognition_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
 
-    if (showSignOutDialog) {
-        AlertDialog(onDismissRequest = { showSignOutDialog = false }, title = { Text("Sign Out") },
-            text = { Text("Are you sure you want to sign out of ChatGPT?") },
-            confirmButton = { TextButton(onClick = { OAuthService.signOut(context); isSignedIn.value = false; showSignOutDialog = false }) { Text("Sign Out", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") } })
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(stringResource(R.string.settings_control_style), style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        val currentControlStyle = RecognitionActionControlStyle.fromValue(controlStyle)
+        var expandedControlStyle by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(expanded = expandedControlStyle, onExpandedChange = { expandedControlStyle = it }) {
+            OutlinedTextField(
+                value = stringResource(currentControlStyle.labelRes),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(R.string.settings_control_style)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedControlStyle) },
+                modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+            )
+            ExposedDropdownMenu(expanded = expandedControlStyle, onDismissRequest = { expandedControlStyle = false }) {
+                RecognitionActionControlStyle.entries.forEach { entry ->
+                    DropdownMenuItem(text = { Text(stringResource(entry.labelRes)) }, onClick = {
+                        scope.launch { settings.setDetailsActionControlStyle(entry.value) }
+                        expandedControlStyle = false
+                    })
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(stringResource(R.string.settings_control_style_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(stringResource(R.string.settings_detail_buttons), style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(stringResource(R.string.settings_detail_buttons_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        buttons.forEachIndexed { index, (name, prompt, type) ->
+            Text(stringResource(R.string.label_button, index + 1), style = MaterialTheme.typography.titleSmall)
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { newName ->
+                    buttons = buttons.toMutableList().apply { set(index, Triple(newName, prompt, type)) }
+                    saveButtons()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.label_name)) },
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = prompt,
+                onValueChange = { newPrompt ->
+                    buttons = buttons.toMutableList().apply { set(index, Triple(name, newPrompt, type)) }
+                    saveButtons()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.label_prompt)) },
+                maxLines = 3
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            var expandedType by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(onClick = { expandedType = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.label_type, type))
+                }
+                DropdownMenu(expanded = expandedType, onDismissRequest = { expandedType = false }) {
+                    buttonTypes.forEach { t ->
+                        DropdownMenuItem(
+                            text = { Text(t) },
+                            onClick = {
+                                buttons = buttons.toMutableList().apply { set(index, Triple(name, prompt, t)) }
+                                saveButtons()
+                                expandedType = false
+                            }
+                        )
+                    }
+                }
+            }
+            if (index < buttons.size - 1) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
     }
 }
 
@@ -54,70 +197,378 @@ fun DetailsRecognitionSettingsScreen(onBack: () -> Unit) {
 @Composable
 fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("settings", 0) }
-    var apiKey by remember { mutableStateOf(prefs.getString("moondream_api_key", "") ?: "") }
+    val settings = remember { (context.applicationContext as EyePalApplication).container.settingsRepository }
+    val scope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TopAppBar(title = { Text("Quick Recognition") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
-        Spacer(modifier = Modifier.height(16.dp))
+    val apiKey by settings.quickMoondreamAPIKey.collectAsState(initial = "")
+    val captionLength by settings.quickCaptionLength.collectAsState(initial = QuickCaptionLength.SHORT.value)
+    val captureInterval by settings.quickContinuousInterval.collectAsState(initial = QuickContinuousInterval._3S.value)
+    val controlStyle by settings.quickActionControlStyle.collectAsState(initial = com.eyepal.app.config.Defaults.QUICK_ACTION_CONTROL_STYLE)
+    val savedPresetsJson by settings.quickPresets.collectAsState(initial = "")
+    val translationEnabled by settings.quickTranslationEnabled.collectAsState(initial = false)
+    val translationTarget by settings.quickTranslationTarget.collectAsState(initial = Defaults.TRANSLATION_TARGET)
 
-        Text("Moondream API", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(value = apiKey, onValueChange = { apiKey = it; prefs.edit().putString("moondream_api_key", it).apply() }, modifier = Modifier.fillMaxWidth(), label = { Text("API Key") }, singleLine = true)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Get your API key from moondream.ai", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+    val buttonTypes = listOf("Product", "Dish", "Short Text", "Custom")
+    val quickButtons by remember(savedPresetsJson) {
+        mutableStateOf(
+            try {
+                if (savedPresetsJson.isNotEmpty()) {
+                    val arr = org.json.JSONArray(savedPresetsJson)
+                    (0 until arr.length()).map { i ->
+                        val obj = arr.getJSONObject(i)
+                        Triple(obj.optString("name", ""), obj.optString("prompt", ""), obj.optString("type", "Custom"))
+                    }.take(4)
+                } else {
+                    listOf(
+                        Triple("Custom", "Tell me how many men and women there are and describe them; if not found, say No people found", "Custom"),
+                        Triple("Product", "Describe the main product in this image with 1 or 2 sentences, including its brand, name and primary function", "Product"),
+                        Triple("Dish", "Describe the layout of the food on the plate or tray. Use clock positions or spatial terms", "Dish"),
+                        Triple("Short Text", "Describe the alphanumeric text visible in the image", "Short Text")
+                    )
+                }
+            } catch (_: Exception) {
+                listOf(
+                    Triple("Custom", "Tell me how many men and women there are and describe them; if not found, say No people found", "Custom"),
+                    Triple("Product", "Describe the main product in this image with 1 or 2 sentences, including its brand, name and primary function", "Product"),
+                    Triple("Dish", "Describe the layout of the food on the plate or tray. Use clock positions or spatial terms", "Dish"),
+                    Triple("Short Text", "Describe the alphanumeric text visible in the image", "Short Text")
+                )
+            }
+        )
+    }
+
+    fun savePresets() {
+        val arr = org.json.JSONArray()
+        quickButtons.forEach { (name, prompt, type) ->
+            arr.put(org.json.JSONObject().apply {
+                put("name", name)
+                put("prompt", prompt)
+                put("type", type)
+            })
+        }
+        scope.launch { settings.setQuickPresets(arr.toString()) }
+    }
+
+    val intervalOptions = QuickContinuousInterval.optionValues
+    val intervalLabelRes = QuickContinuousInterval.optionLabelRes
+
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        item {
+            TopAppBar(title = { Text(stringResource(R.string.feature_quick_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(stringResource(R.string.settings_moondream_api), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(value = apiKey, onValueChange = { scope.launch { settings.setQuickMoondreamAPIKey(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_api_key)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(stringResource(R.string.settings_moondream_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(stringResource(R.string.settings_caption_length), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            var expandedCaption by remember { mutableStateOf(false) }
+            val currentCaption = QuickCaptionLength.entries.find { it.value == captionLength } ?: QuickCaptionLength.SHORT
+            ExposedDropdownMenuBox(expanded = expandedCaption, onExpandedChange = { expandedCaption = it }) {
+                OutlinedTextField(
+                    value = stringResource(currentCaption.labelRes),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_caption_length)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedCaption) },
+                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expandedCaption, onDismissRequest = { expandedCaption = false }) {
+                    QuickCaptionLength.entries.forEach { entry ->
+                        DropdownMenuItem(text = { Text(stringResource(entry.labelRes)) }, onClick = {
+                            scope.launch { settings.setQuickCaptionLength(entry.value) }
+                            expandedCaption = false
+                        })
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.settings_quick_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(stringResource(R.string.settings_continuous_interval), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            val selectedIntervalRes = intervalLabelRes[intervalOptions.indexOf(captureInterval).coerceAtLeast(0)]
+            var expandedInterval by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(expanded = expandedInterval, onExpandedChange = { expandedInterval = it }) {
+                OutlinedTextField(
+                    value = stringResource(selectedIntervalRes),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_continuous_interval)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedInterval) },
+                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expandedInterval, onDismissRequest = { expandedInterval = false }) {
+                    intervalOptions.forEachIndexed { index, ms ->
+                        DropdownMenuItem(text = { Text(stringResource(intervalLabelRes[index])) }, onClick = {
+                            scope.launch { settings.setQuickContinuousInterval(ms) }
+                            expandedInterval = false
+                        })
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.settings_continuous_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(stringResource(R.string.settings_control_style), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            val currentControlStyle = RecognitionActionControlStyle.fromValue(controlStyle)
+            var expandedControlStyle by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(expanded = expandedControlStyle, onExpandedChange = { expandedControlStyle = it }) {
+                OutlinedTextField(
+                    value = stringResource(currentControlStyle.labelRes),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_control_style)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedControlStyle) },
+                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expandedControlStyle, onDismissRequest = { expandedControlStyle = false }) {
+                    RecognitionActionControlStyle.entries.forEach { entry ->
+                        DropdownMenuItem(text = { Text(stringResource(entry.labelRes)) }, onClick = {
+                            scope.launch { settings.setQuickActionControlStyle(entry.value) }
+                            expandedControlStyle = false
+                        })
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.settings_control_style_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(stringResource(R.string.settings_quick_buttons), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(stringResource(R.string.settings_quick_buttons_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        items(quickButtons.size) { index ->
+            val (name, prompt, type) = quickButtons[index]
+            Text(stringResource(R.string.label_button, index + 1), style = MaterialTheme.typography.titleSmall)
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { newName ->
+                    val updated = quickButtons.toMutableList().apply { set(index, Triple(newName, prompt, type)) }
+                    val arr = org.json.JSONArray()
+                    updated.forEach { (n, p, t) -> arr.put(org.json.JSONObject().apply { put("name", n); put("prompt", p); put("type", t) }) }
+                    scope.launch { settings.setQuickPresets(arr.toString()) }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.label_name)) },
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedTextField(
+                value = prompt,
+                onValueChange = { newPrompt ->
+                    val updated = quickButtons.toMutableList().apply { set(index, Triple(name, newPrompt, type)) }
+                    val arr = org.json.JSONArray()
+                    updated.forEach { (n, p, t) -> arr.put(org.json.JSONObject().apply { put("name", n); put("prompt", p); put("type", t) }) }
+                    scope.launch { settings.setQuickPresets(arr.toString()) }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.label_prompt)) },
+                maxLines = 3
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            var expandedType by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(onClick = { expandedType = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.label_type, type))
+                }
+                DropdownMenu(expanded = expandedType, onDismissRequest = { expandedType = false }) {
+                    buttonTypes.forEach { t ->
+                        DropdownMenuItem(
+                            text = { Text(t) },
+                            onClick = {
+                                val updated = quickButtons.toMutableList().apply { set(index, Triple(name, prompt, t)) }
+                                val arr = org.json.JSONArray()
+                                updated.forEach { (n, p, tp) -> arr.put(org.json.JSONObject().apply { put("name", n); put("prompt", p); put("type", tp) }) }
+                                scope.launch { settings.setQuickPresets(arr.toString()) }
+                                expandedType = false
+                            }
+                        )
+                    }
+                }
+            }
+            if (index < quickButtons.size - 1) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(stringResource(R.string.settings_translation), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(stringResource(R.string.settings_translation_enable), modifier = Modifier.weight(1f))
+                Switch(checked = translationEnabled, onCheckedChange = { scope.launch { settings.setQuickTranslationEnabled(it) } })
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            val currentLang = TranslationService.SUPPORTED_LANGUAGES.find { it.first == translationTarget }?.second ?: translationTarget
+            var expandedTranslation by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(expanded = expandedTranslation, onExpandedChange = { expandedTranslation = it }) {
+                OutlinedTextField(
+                    value = currentLang,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.target_language)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedTranslation) },
+                    enabled = translationEnabled,
+                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expandedTranslation, onDismissRequest = { expandedTranslation = false }) {
+                    TranslationService.SUPPORTED_LANGUAGES.forEach { (code, name) ->
+                        DropdownMenuItem(text = { Text(name) }, onClick = {
+                            scope.launch { settings.setQuickTranslationTarget(code) }
+                            expandedTranslation = false
+                        })
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.settings_translation_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val settings = remember { (context.applicationContext as EyePalApplication).container.settingsRepository }
+    val scope = rememberCoroutineScope()
+    val textCooldown by settings.readTextSpeechCooldown.collectAsState(initial = Defaults.READ_TEXT_SPEECH_COOLDOWN)
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TopAppBar(title = { Text("Text Recognition") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
+        TopAppBar(title = { Text(stringResource(R.string.settings_text_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))
-        Text("OCR Engine", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_ocr_engine), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Powered by Google MLKit. Supports Latin, Chinese, Japanese, and Korean scripts.", style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.settings_ocr_desc), style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Features", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_features_title), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text("• Real-time text recognition from camera\n• Multi-language support\n• Continuous recognition mode", style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.settings_features_list), style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(stringResource(R.string.settings_speech_cooldown_label, textCooldown.toInt()), style = MaterialTheme.typography.bodyMedium)
+        Slider(
+            value = textCooldown,
+            onValueChange = { scope.launch { settings.setReadTextSpeechCooldown(it) } },
+            valueRange = 1f..6f,
+            steps = 4
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FacesSettingsScreen(onBack: () -> Unit) {
+fun FacesSettingsScreen(onBack: () -> Unit, onNavigateToSavedFaces: () -> Unit) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("settings", 0) }
-    var threshold by remember { mutableFloatStateOf(prefs.getFloat("face_match_threshold", 0.95f)) }
-    var margin by remember { mutableFloatStateOf(prefs.getFloat("face_match_margin", 0.02f)) }
-    var frameThreshold by remember { mutableIntStateOf(prefs.getInt("face_match_frame_threshold", 1)) }
-    var suggestUnknown by remember { mutableStateOf(prefs.getBoolean("suggest_unknown_faces", true)) }
+    val settings = remember { (context.applicationContext as EyePalApplication).container.settingsRepository }
+    val scope = rememberCoroutineScope()
+    val threshold by settings.faceMatchThreshold.collectAsState(initial = Defaults.FACE_MATCH_THRESHOLD)
+    val margin by settings.faceMatchMargin.collectAsState(initial = Defaults.FACE_MATCH_MARGIN)
+    val suggestUnknown by settings.suggestUnknownFaces.collectAsState(initial = Defaults.SUGGEST_UNKNOWN_FACES)
+    val faceCooldown by settings.faceSpeechCooldown.collectAsState(initial = Defaults.FACE_SPEECH_COOLDOWN)
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TopAppBar(title = { Text("Faces") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
-        Spacer(modifier = Modifier.height(16.dp))
+    val faceService = remember { (context.applicationContext as EyePalApplication).container.faceRecognitionService }
+    val logEntries = remember { mutableStateOf<List<FaceRecognitionLogStore.LogEntry>>(emptyList()) }
 
-        Text("Match Sensitivity", style = MaterialTheme.typography.titleMedium)
-        Text("${String.format("%.0f", threshold * 100)}%", style = MaterialTheme.typography.bodyLarge)
-        Slider(value = threshold, onValueChange = { threshold = it; prefs.edit().putFloat("face_match_threshold", it).apply() }, valueRange = 0.90f..0.99f, steps = 9)
-        Spacer(modifier = Modifier.height(16.dp))
+    LaunchedEffect(Unit) {
+        try {
+            faceService.load()
+        } catch (_: Exception) {}
+        logEntries.value = faceService.logStore.getEntries()
+    }
 
-        Text("Top Match Margin", style = MaterialTheme.typography.titleMedium)
-        Text("${String.format("%.3f", margin)}", style = MaterialTheme.typography.bodyLarge)
-        Slider(value = margin, onValueChange = { margin = it; prefs.edit().putFloat("face_match_margin", it).apply() }, valueRange = 0.01f..0.10f, steps = 9)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("Frame Threshold", style = MaterialTheme.typography.titleMedium)
-        Text("$frameThreshold frame(s)", style = MaterialTheme.typography.bodyLarge)
-        Slider(value = frameThreshold.toFloat(), onValueChange = { frameThreshold = it.toInt(); prefs.edit().putInt("face_match_frame_threshold", frameThreshold).apply() }, valueRange = 1f..5f, steps = 4)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("Suggest Unknown Faces", style = MaterialTheme.typography.titleMedium)
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("Show prompt when unknown face detected", modifier = Modifier.weight(1f))
-            Switch(checked = suggestUnknown, onCheckedChange = { suggestUnknown = it; prefs.edit().putBoolean("suggest_unknown_faces", it).apply() })
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        item {
+            TopAppBar(title = { Text(stringResource(R.string.tab_faces)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        item {
+            Text(stringResource(R.string.settings_speech), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(stringResource(R.string.settings_speech_cooldown_label, faceCooldown.toInt()), style = MaterialTheme.typography.bodyMedium)
+            Slider(
+                value = faceCooldown,
+                onValueChange = { scope.launch { settings.setFaceSpeechCooldown(it) } },
+                valueRange = 1f..6f,
+                steps = 4
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        item {
+            Text(stringResource(R.string.settings_recognition), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(stringResource(R.string.settings_match_sensitivity_title), style = MaterialTheme.typography.bodyMedium)
+            Text("${String.format(Locale.US, "%.0f", threshold * 100)}%", style = MaterialTheme.typography.bodyLarge)
+            Slider(value = threshold, onValueChange = { scope.launch { settings.setFaceMatchThreshold(it) } }, valueRange = 0.30f..0.90f, steps = 59)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(stringResource(R.string.settings_top_match_margin_title), style = MaterialTheme.typography.bodyMedium)
+            Text("${String.format(Locale.US, "%.3f", margin)}", style = MaterialTheme.typography.bodyLarge)
+            Slider(value = margin, onValueChange = { scope.launch { settings.setFaceMatchMargin(it) } }, valueRange = 0.01f..0.10f, steps = 9)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(stringResource(R.string.settings_faces_suggest_unknown), modifier = Modifier.weight(1f))
+                Switch(checked = suggestUnknown, onCheckedChange = { scope.launch { settings.setSuggestUnknownFaces(it) } })
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        item {
+            Text(stringResource(R.string.settings_saved_faces), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onNavigateToSavedFaces, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.tab_saved_faces)) }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        item {
+            Text(stringResource(R.string.settings_recognition_log), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row {
+                TextButton(
+                    onClick = {
+                        val text = faceService.logStore.copyAll()
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Face Log", text))
+                    },
+                    enabled = logEntries.value.isNotEmpty()
+                ) { Text(stringResource(R.string.settings_copy_all_logs)) }
+                TextButton(
+                    onClick = {
+                        faceService.logStore.clear()
+                        logEntries.value = faceService.logStore.getEntries()
+                    },
+                    enabled = logEntries.value.isNotEmpty()
+                ) { Text(stringResource(R.string.clear_log), color = MaterialTheme.colorScheme.error) }
+            }
+            if (logEntries.value.isEmpty()) {
+                Text(stringResource(R.string.label_no_events), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            } else {
+                Column {
+                    logEntries.value.takeLast(20).reversed().forEach { entry ->
+                        val dateFormat = SimpleDateFormat("MMM dd HH:mm:ss", Locale.getDefault())
+                        Text("[${dateFormat.format(Date(entry.timestamp))}] ${entry.message}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+        item {
+            Text(stringResource(R.string.settings_training_tips), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(stringResource(R.string.label_tip_lighting), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Text(stringResource(R.string.label_tip_distance), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Text(stringResource(R.string.label_tip_refresh), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -126,32 +577,111 @@ fun FacesSettingsScreen(onBack: () -> Unit) {
 @Composable
 fun LyricPrompterSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("settings", 0) }
-    var provider by remember { mutableStateOf(prefs.getString("lyric_llm_provider", "CODEX") ?: "CODEX") }
-    var modelID by remember { mutableStateOf(prefs.getString("lyric_model_id", "gpt-5.4-mini") ?: "gpt-5.4-mini") }
-    var apiKey by remember { mutableStateOf(prefs.getString("lyric_api_key", "") ?: "") }
-    var advanceOffset by remember { mutableFloatStateOf(prefs.getFloat("lyric_advance_offset", 0f)) }
+    val settings = remember { (context.applicationContext as EyePalApplication).container.settingsRepository }
+    val scope = rememberCoroutineScope()
+    val provider by settings.lyricLLMProvider.collectAsState(initial = Defaults.LYRIC_LLM_PROVIDER)
+    val modelID by settings.lyricModelID.collectAsState(initial = Defaults.MODEL_ID)
+    val apiKey by settings.lyricAPIKey.collectAsState(initial = "")
+    val baseUrl by settings.lyricBaseURL.collectAsState(initial = "")
+    val advanceOffset by settings.lyricAdvanceOffset.collectAsState(initial = Defaults.LYRIC_ADVANCE_OFFSET)
+    var availableModels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingModels by remember { mutableStateOf(false) }
+    var isCodexSignedIn by remember { mutableStateOf(OAuthService.isSignedIn(context)) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        TopAppBar(title = { Text("Lyric Prompter") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
+        TopAppBar(title = { Text(stringResource(R.string.settings_lyric_prompter)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Playback", style = MaterialTheme.typography.titleMedium)
-        Text("Advance offset: ${String.format("%.1f", advanceOffset)}s")
-        Slider(value = advanceOffset, onValueChange = { advanceOffset = it; prefs.edit().putFloat("lyric_advance_offset", it).apply() }, valueRange = 0f..5f, steps = 9)
+        Text(stringResource(R.string.tab_playback), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.label_advance_offset, String.format(Locale.US, "%.1f", advanceOffset)))
+        Slider(value = advanceOffset, onValueChange = { scope.launch { settings.setLyricAdvanceOffset(it) } }, valueRange = 0f..5f, steps = 9)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("AI Provider", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.tab_ai_provider), style = MaterialTheme.typography.titleMedium)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             listOf("CODEX", "GEMINI", "OPENAI").forEachIndexed { index, name ->
-                SegmentedButton(selected = provider == name, onClick = { provider = name; prefs.edit().putString("lyric_llm_provider", name).apply() }, shape = SegmentedButtonDefaults.itemShape(index, 3)) { Text(name) }
+                SegmentedButton(selected = provider == name, onClick = { scope.launch { settings.setLyricLLMProvider(name) } }, shape = SegmentedButtonDefaults.itemShape(index, 3)) { Text(name) }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(value = modelID, onValueChange = { modelID = it; prefs.edit().putString("lyric_model_id", it).apply() }, modifier = Modifier.fillMaxWidth(), label = { Text("Model ID") }, singleLine = true)
-        if (provider != "CODEX") {
+        OutlinedTextField(value = modelID, onValueChange = { scope.launch { settings.setLyricModelID(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_model_id)) }, singleLine = true)
+        if (provider == "CODEX") {
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(value = apiKey, onValueChange = { apiKey = it; prefs.edit().putString("lyric_api_key", it).apply() }, modifier = Modifier.fillMaxWidth(), label = { Text("API Key") }, singleLine = true)
+            if (isCodexSignedIn) {
+                Text(stringResource(R.string.label_signed_in), style = MaterialTheme.typography.bodyLarge, color = Color(0xFF4CAF50))
+            } else {
+                Text(stringResource(R.string.label_not_signed_in_hint), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
+            }
+        } else {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(value = apiKey, onValueChange = { scope.launch { settings.setLyricAPIKey(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_api_key)) }, singleLine = true)
         }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(value = baseUrl, onValueChange = { scope.launch { settings.setLyricBaseURL(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_base_url)) }, singleLine = true)
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = {
+                isLoadingModels = true
+                scope.launch {
+                    val models = withContext(Dispatchers.IO) {
+                        try {
+                            val client = OkHttpClient()
+                            val baseUrl = when (provider) {
+                                "OPENAI" -> "https://api.openai.com/v1"
+                                "GEMINI" -> "https://generativelanguage.googleapis.com/v1beta"
+                                else -> null
+                            }
+                            val token = when (provider) {
+                                "OPENAI" -> apiKey
+                                "GEMINI" -> apiKey
+                                else -> ""
+                            }
+                            if (baseUrl.isNullOrEmpty() || token.isEmpty()) return@withContext emptyList()
+                            val request = Request.Builder()
+                                .url("$baseUrl/models")
+                                .header("Authorization", "Bearer $token")
+                                .get()
+                                .build()
+                            val response = client.newCall(request).execute()
+                            val body = response.body?.string() ?: return@withContext emptyList()
+                            val json = JSONObject(body)
+                            val data = json.optJSONArray("data") ?: return@withContext emptyList()
+                            (0 until data.length()).mapNotNull {
+                                data.getJSONObject(it).optString("id")
+                            }.sorted()
+                        } catch (_: Exception) { emptyList() }
+                    }
+                    availableModels = models
+                    isLoadingModels = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoadingModels && apiKey.isNotBlank()
+        ) {
+            Text(if (isLoadingModels) stringResource(R.string.btn_loading) else stringResource(R.string.btn_refresh_models))
+        }
+        if (availableModels.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(stringResource(R.string.label_available_models), style = MaterialTheme.typography.titleSmall)
+            LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                items(availableModels) { model ->
+                    ListItem(
+                        headlineContent = { Text(model) },
+                        trailingContent = {
+                            if (model == modelID) {
+                                Text(stringResource(R.string.label_selected), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                            }
+                        },
+                        modifier = Modifier.clickable {
+                            scope.launch { settings.setLyricModelID(model) }
+                        }
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(stringResource(R.string.tab_about), style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(stringResource(R.string.settings_about_lyrics), style = MaterialTheme.typography.bodySmall)
     }
 }

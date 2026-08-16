@@ -1,0 +1,77 @@
+/* Tab names */
+"tab.quick" = "快速";
+"tab.details" = "詳細";
+"tab.readText" = "文字";
+"tab.faces" = "人臉";
+"tab.floor" = "樓層";
+"tab.chat" = "對話";
+"tab.lyrics" = "歌詞";
+"tab.more" = "更多";
+"tab.settings" = "設定";
+
+/* Feature display names */
+"feature.quickRecognition" = "快速辨識";
+"feature.detailsRecognition" = "詳細辨識";
+"feature.readText" = "文字辨識";
+"feature.floorDetection" = "樓層偵測";
+"feature.lyricPrompter" = "歌詞提示";
+"feature.faceRecognition" = "人臉辨識";
+"feature.chat" = "對話";
+"feature.googleGlass" = "Google 眼鏡";
+"feature.savedFaces" = "已儲存人臉";
+"feature.featureOrder" = "功能順序";
+
+/* Feature descriptions */
+"feature.floorDetection.description" = "幫助定位您所在的樓層";
+"feature.chat.description" = "即時語音翻譯";
+"feature.faces.description" = "人臉辨識與記憶";
+"feature.quickRecognition.description" = "拍照即時描述場景";
+"feature.detailsRecognition.description" = "詳細場景描述與後續對話";
+"feature.readText.description" = "多語言文字辨識";
+"feature.lyricPrompter.description" = "搜尋並聆聽歌詞";
+
+/* Common UI buttons */
+"common.save" = "儲存";
+"common.cancel" = "取消";
+"common.delete" = "刪除";
+"common.done" = "完成";
+"common.ok" = "好";
+"common.search" = "搜尋";
+"common.send" = "送出";
+"common.close" = "關閉";
+"common.edit" = "編輯";
+"common.add" = "新增";
+"common.start" = "開始";
+"common.stop" = "停止";
+"common.signIn" = "登入";
+"common.signOut" = "登出";
+"common.takePhoto" = "拍照";
+"common.continuous" = "連續";
+"common.working" = "處理中...";
+"common.back" = "返回";
+"common.rename" = "重新命名";
+
+/* Common prompts and descriptions */
+"common.noFacesSaved" = "尚未儲存任何人臉。";
+"common.pointCameraAtFace" = "將鏡頭對準人臉。";
+"common.pointCameraAtText" = "將鏡頭對準印刷文字。";
+"common.pointCameraToDescribe" = "將鏡頭對準要描述的物件。";
+"common.takePhotoToDescribe" = "拍照以描述場景。";
+"common.takePhotoToQuickDescribe" = "拍照以快速描述事物";
+
+/* Settings labels */
+"settings.general" = "一般";
+"settings.speech" = "語音";
+"settings.behavior" = "行為";
+"settings.translation" = "翻譯";
+"settings.playback" = "播放";
+"settings.about" = "關於";
+"settings.aiProvider" = "AI 供應商";
+"settings.useMetricUnits" = "使用公制單位";
+"settings.mixAudioWithOtherApps" = "與其他應用程式混合音訊";
+"settings.voiceVolume" = "語音音量";
+"settings.otherVolume" = "其他音量";
+"settings.featureOrder" = "功能順序";
+
+/* Voiceover/TTS */
+"voiceover.back" = "返回";

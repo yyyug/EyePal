@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EyePal</string>
+
+    <!-- Tab names -->
+    <string name="tab_quick">快速</string>
+    <string name="tab_details">詳細</string>
+    <string name="tab_read_text">文字</string>
+    <string name="tab_faces">人臉</string>
+    <string name="tab_floor">樓層</string>
+    <string name="tab_chat">對話</string>
+    <string name="tab_lyrics">歌詞</string>
+    <string name="tab_more">更多</string>
+    <string name="tab_settings">設定</string>
+    <string name="tab_feature_order">功能順序</string>
+    <string name="tab_google_glass">Google 眼鏡</string>
+    <string name="tab_saved_faces">已儲存人臉</string>
+    <string name="tab_playback">播放</string>
+    <string name="tab_ai_provider">AI 供應商</string>
+    <string name="tab_about">關於</string>
+
+    <!-- Feature names -->
+    <string name="feature_quick_recognition">快速辨識</string>
+    <string name="feature_details_recognition">詳細辨識</string>
+    <string name="feature_read_text">文字辨識</string>
+    <string name="feature_floor_detection">樓層偵測</string>
+    <string name="feature_chat">對話</string>
+    <string name="feature_lyric_prompter">歌詞提示</string>
+
+    <!-- Feature descriptions -->
+    <string name="feature_desc_floor">幫助定位您所在的樓層</string>
+    <string name="feature_desc_chat">即時語音翻譯</string>
+    <string name="feature_desc_faces">人臉辨識與記憶</string>
+    <string name="feature_desc_quick">拍照即時描述場景</string>
+    <string name="feature_desc_details">詳細場景描述與後續對話</string>
+    <string name="feature_desc_read_text">多語言文字辨識</string>
+    <string name="feature_desc_lyrics">搜尋並聆聽歌詞</string>
+
+    <!-- More screen -->
+    <string name="more_app_config">應用程式設定</string>
+    <string name="more_custom_tabs">自訂分頁佈局</string>
+    <string name="more_audio_glasses">音訊眼鏡設定</string>
+
+    <!-- Settings -->
+    <string name="settings_face_recognition">人臉辨識</string>
+    <string name="settings_features">功能</string>
+    <string name="settings_details_recognition">詳細辨識</string>
+    <string name="settings_quick_recognition">快速辨識</string>
+    <string name="settings_text_recognition">文字辨識</string>
+    <string name="settings_lyric_prompter">歌詞提示</string>
+    <string name="settings_match_sensitivity">匹配靈敏度：%s%%</string>
+    <string name="settings_top_match_margin">最高匹配邊距：%s</string>
+    <string name="settings_llm_provider">LLM 供應商：%s</string>
+    <string name="settings_advance_offset">提前偏移：%s秒</string>
+
+    <!-- Google Glass -->
+    <string name="glass_audio_glasses">音訊眼鏡</string>
+    <string name="glass_connect">連接音訊眼鏡</string>
+    <string name="glass_disconnect">中斷連接</string>
+    <string name="glass_camera">眼鏡相機</string>
+    <string name="glass_use_camera">在快速/詳細/文字模式中使用眼鏡相機</string>
+    <string name="glass_xr_projected">XR 投影</string>
+    <string name="glass_how_it_works">運作方式</string>
+    <string name="glass_xr_desc">透過 XR 投影上下文連接。相機和音訊直接從眼鏡硬體存取。</string>
+    <string name="glass_bluetooth_desc">透過藍牙 HFP 連接。音訊透過藍牙傳輸。啟用「使用眼鏡相機」來拍攝照片。</string>
+
+    <!-- Common UI -->
+    <string name="btn_save">儲存</string>
+    <string name="btn_cancel">取消</string>
+    <string name="btn_delete">刪除</string>
+    <string name="btn_done">完成</string>
+    <string name="btn_ok">好</string>
+    <string name="btn_search">搜尋</string>
+    <string name="btn_send">送出</string>
+    <string name="btn_close">關閉</string>
+    <string name="btn_edit">編輯</string>
+    <string name="btn_add">新增</string>
+    <string name="btn_start">開始</string>
+    <string name="btn_stop">停止</string>
+    <string name="btn_connect">連接</string>
+    <string name="btn_disconnect">中斷連接</string>
+    <string name="btn_back">返回</string>
+    <string name="btn_not_now">稍後再說</string>
+    <string name="btn_calibrate">校準</string>
+    <string name="btn_detect_faces">偵測人臉</string>
+    <string name="btn_manage_saved_faces">管理已儲存人臉</string>
+    <string name="btn_capture">拍攝</string>
+    <string name="btn_continuous">連續</string>
+    <string name="btn_interpreter">翻譯</string>
+    <string name="btn_start_voice_chat">開始語音對話</string>
+
+    <!-- Status / Labels -->
+    <string name="status_processing">處理中…</string>
+    <string name="status_detecting">偵測中…</string>
+    <string name="status_scanning_glasses">正在搜尋眼鏡…</string>
+    <string name="status_no_faces_saved">尚未儲存任何人臉。</string>
+    <string name="status_no_glasses">未連接眼鏡。</string>
+    <string name="status_no_saved_records">無已儲存紀錄。</string>
+    <string name="status_sign_in_first">請先登入 ChatGPT。</string>
+    <string name="status_add_api_key">請在設定中加入 OpenAI API 金鑰以使用此功能。</string>
+
+    <!-- Floor detection -->
+    <string name="floor_level">樓層</string>
+    <string name="floor_saved_records">已儲存紀錄</string>
+    <string name="floor_save_record">儲存樓層紀錄</string>
+    <string name="floor_note_optional">備註（選填）</string>
+    <string name="floor_label">%s 樓</string>
+    <string name="floor_add_record">新增樓層紀錄</string>
+    <string name="floor_rename_record">重新命名紀錄</string>
+    <string name="floor_edit_record">編輯紀錄</string>
+    <string name="floor_record_name">紀錄名稱</string>
+    <string name="floor_altitude">海拔高度（公尺）</string>
+    <string name="floor_number">樓層編號</string>
+
+    <!-- Chat -->
+    <string name="chat_mode">模式</string>
+    <string name="chat_language_a">說話者 A 語言</string>
+    <string name="chat_language_b">說話者 B 語言</string>
+    <string name="chat_connecting">連線中…</string>
+
+    <!-- Faces -->
+    <string name="faces_add_person">新增人物</string>
+    <string name="faces_person_name">人物名稱</string>
+
+    <!-- Instructions -->
+    <string name="instructions_describe">將鏡頭對準要描述的物件。</string>
+    <string name="instructions_text">將鏡頭對準文字進行辨識。</string>
+    <string name="instructions_face">將鏡頭對準人臉。</string>
+    <string name="instructions_scene">拍照以描述場景。</string>
+    <string name="instructions_quick">拍照以快速描述事物</string>
+
+    <!-- Glass pairing -->
+    <string name="glass_enable_bluetooth">啟用藍牙</string>
+    <string name="glass_bluetooth_required">需要藍牙才能連接音訊眼鏡。</string>
+    <string name="glass_open_bt_settings">開啟藍牙設定以進行配對</string>
+    <string name="glass_pairing_instructions">將眼鏡置於配對模式，然後從藍牙設定中選取。</string>
+    <string name="glass_after_pairing">配對完成後，返回此處並點按「連接」。</string>
+    <string name="glass_status_bluetooth_off">藍牙已關閉。請啟用藍牙以連接眼鏡。</string>
+    <string name="glass_status_no_device">找不到眼鏡。開啟藍牙設定以配對。</string>
+    <string name="glass_scan">尋找眼鏡</string>
+    <string name="glass_stop_scan">停止掃描</string>
+    <string name="glass_scanning">正在搜尋眼鏡...</string>
+    <string name="glass_no_devices_found">找不到眼鏡。請確認眼鏡已進入配對模式。</string>
+    <string name="glass_pair">配對</string>
+    <string name="glass_pairing_with">正在與 %s 配對...</string>
+    <string name="glass_connecting">正在連接眼鏡...</string>
+    <string name="glass_permission_needed">需要藍牙權限才能尋找與配對眼鏡。</string>
+    <string name="glass_request_permission">授予藍牙權限</string>
+    <string name="glass_paired">已配對</string>
+    <string name="glass_connected_bt">已透過藍牙連接</string>
+    <string name="glass_connected_xr">已透過 Android XR 連接</string>
+    <string name="glass_no_glasses">未連接眼鏡。</string>
+
+    <!-- Glass TTS -->
+    <string name="tts_selected">已選取：%s</string>
+    <string name="tts_back">返回</string>
+
+    <!-- Translation -->
+    <string name="translate">翻譯</string>
+    <string name="target_language">目標語言</string>
+    <string name="settings_translation">翻譯</string>
+    <string name="settings_translation_enable">啟用翻譯</string>
+    <string name="settings_translation_hint">將快速辨識的結果翻譯成您選擇的語言。</string>
+
+    <!-- Quick Recognition -->
+    <string name="quick_no_api_key">請在「設定 &gt; 快速辨識」中加入您的 Moondream API 金鑰。</string>
+    <string name="quick_signup_api_key">註冊並取得 API 金鑰</string>
+
+    <!-- Faces settings -->
+    <string name="settings_speech">語音</string>
+    <string name="settings_recognition">辨識</string>
+    <string name="settings_saved_faces">已儲存人臉</string>
+    <string name="settings_recognition_log">辨識日誌</string>
+    <string name="settings_training_tips">訓練技巧</string>
+    <string name="settings_copy_all_logs">複製所有日誌</string>
+
+    <!-- Accessibility / New UI -->
+    <string name="speech_cooldown">語音冷卻：%d 秒</string>
+    <string name="full_res">全解析度</string>
+    <string name="retake">重拍</string>
+    <string name="copied_to_clipboard">已複製到剪貼簿</string>
+    <string name="recognition_log">辨識日誌</string>
+    <string name="clear_log">清除日誌</string>
+    <string name="copy_all">全部複製</string>
+    <string name="document_detection">文件偵測</string>
+    <string name="auto_read">自動朗讀</string>
+    <string name="btn_copy">複製</string>
+    <string name="btn_take_photo">拍照</string>
+    <string name="btn_sign_out">登出</string>
+    <string name="btn_refresh_models">重新整理模型</string>
+    <string name="btn_loading">載入中…</string>
+    <string name="label_name">名稱</string>
+    <string name="label_prompt">提示</string>
+    <string name="label_type">類型：%s</string>
+    <string name="label_api_key">API 金鑰</string>
+    <string name="label_model_id">模型 ID</string>
+    <string name="label_base_url">Base URL（選填）</string>
+    <string name="label_available_models">可用模型：</string>
+    <string name="label_selected">已選取</string>
+    <string name="label_signed_in">已登入 ChatGPT</string>
+    <string name="label_not_signed_in">未登入</string>
+    <string name="label_speech_cooldown_seconds">語音冷卻：%d 秒</string>
+    <string name="label_advance_offset">提前偏移：%s 秒</string>
+    <string name="settings_details_recognition_desc">使用 ChatGPT 提供詳細的場景描述。請登入您的 ChatGPT 帳號以啟用。</string>
+    <string name="settings_quick_desc">控制 AI 描述的詳細程度。</string>
+    <string name="settings_continuous_interval">連續模式間隔</string>
+    <string name="settings_control_style">操作方式</string>
+    <string name="settings_control_style_desc">選擇拍攝操作的呈現方式。</string>
+    <string name="settings_quick_buttons">快速按鈕</string>
+    <string name="settings_faces_suggest_unknown">偵測到未知人臉時顯示提示</string>
+    <string name="settings_about_lyrics">歌詞提示使用 AI 在網路上搜尋歌詞。含時間戳的歌詞（例如 YouTube 字幕）可啟用自動朗讀模式。</string>
+    <string name="settings_scene_desc_hint">請登入您的 ChatGPT 帳號以使用場景描述。</string>
+    <string name="settings_detail_buttons">詳細按鈕</string>
+    <string name="settings_detail_buttons_desc">為詳細辨識設定最多 4 個預設按鈕。</string>
+    <string name="settings_chatgpt_account">ChatGPT 帳號</string>
+    <string name="settings_sign_in_hint">從詳細辨識畫面登入以啟用場景描述。</string>
+    <string name="settings_scene_description">場景描述</string>
+    <string name="settings_moondream_api">Moondream API</string>
+    <string name="settings_moondream_hint">從 moondream.ai 取得您的 API 金鑰</string>
+    <string name="settings_caption_length">描述長度</string>
+    <string name="settings_continuous_hint">連續模式中自動拍攝的頻率。</string>
+    <string name="settings_quick_buttons_desc">為快速辨識設定最多 4 個預設按鈕。</string>
+    <string name="settings_ocr_engine">OCR 引擎</string>
+    <string name="settings_ocr_desc">由 Google MLKit 提供支援。支援拉丁、中文、日文與韓文。</string>
+    <string name="settings_features_title">功能</string>
+    <string name="settings_features_list">• 即時文字辨識\n• 多語言支援\n• 連續辨識模式</string>
+    <string name="settings_match_sensitivity_title">匹配靈敏度</string>
+    <string name="settings_top_match_margin_title">最高匹配邊距</string>
+    <string name="settings_frame_threshold_title">影格門檻</string>
+    <string name="settings_frame_threshold_value">%d 個影格</string>
+    <string name="settings_suggest_unknown_title">建議未知人臉</string>
+    <string name="settings_speech_cooldown_label">語音冷卻：%d 秒</string>
+    <string name="label_synced">同步</string>
+    <string name="label_plain">純文字</string>
+    <string name="label_saved_songs">已儲存歌曲</string>
+    <string name="label_search_hint">歌曲名稱或「歌名 - 歌手」</string>
+    <string name="label_results_count">找到 %d 個結果</string>
+    <string name="label_no_timed_lyrics">沒有可用的時間歌詞</string>
+    <string name="label_reconnect_hint">嘗試重新連線</string>
+    <string name="label_choose_two_languages">請選擇兩種不同的語言</string>
+    <string name="label_custom_prompt_title">自訂提示</string>
+    <string name="label_custom_prompt_hint">輸入提示</string>
+    <string name="label_ask_follow_up">追問</string>
+    <string name="label_captured_text">辨識文字</string>
+    <string name="label_detected_language">語言：%s</string>
+    <string name="label_capturing_samples">正在蒐集樣本… %1$d/%2$d</string>
+    <string name="label_samples_count">%s 個樣本</string>
+    <string name="label_training_tips">訓練技巧</string>
+    <string name="label_tip_lighting">請在明亮且均勻的光線下儲存人臉。</string>
+    <string name="label_tip_distance">請在舒適的對話距離拍攝。</string>
+    <string name="label_tip_refresh">若辨識結果不穩定，請儲存新的樣本。</string>
+    <string name="label_no_events">尚無辨識事件。</string>
+    <string name="btn_play_from_start">從頭播放</string>
+    <string name="btn_play_from_now">從目前位置播放</string>
+    <string name="btn_save_lyrics">儲存歌詞</string>
+    <string name="btn_search_lyrics">搜尋歌詞</string>
+    <string name="btn_rename_face">重新命名人臉</string>
+    <string name="btn_sign_in_chatgpt">使用 ChatGPT 登入</string>
+    <string name="btn_searching">搜尋中…</string>
+    <string name="label_working">處理中…</string>
+    <string name="btn_custom_prompt">提示</string>
+    <string name="label_button">按鈕 %d</string>
+    <string name="label_not_signed_in_hint">未登入 — 請從詳細分頁登入</string>
+
+    <!-- Localization additions -->
+    <string name="quick_swipe_hint">向上或向下滑動以切換操作。點按即可執行。</string>
+    <string name="details_swipe_hint">向上或向下滑動以切換操作。點按即可執行。長按使用自訂提示。</string>
+    <string name="captured_image">已拍攝影像</string>
+    <string name="move_up">上移</string>
+    <string name="move_down">下移</string>
+    <string name="describe_scene">描述場景</string>
+
+    <!-- Enum option labels -->
+    <string name="control_style_buttons">螢幕按鈕版面</string>
+    <string name="control_style_single">單一操作（上下滑動以選擇）</string>
+    <string name="caption_short">簡短</string>
+    <string name="caption_normal">一般</string>
+    <string name="caption_detailed">詳細</string>
+    <string name="interval_1_second">1 秒</string>
+    <string name="interval_2_seconds">2 秒</string>
+    <string name="interval_3_seconds">3 秒</string>
+    <string name="interval_5_seconds">5 秒</string>
+    <string name="interval_10_seconds">10 秒</string>
+    <string name="interval_30_seconds">30 秒</string>
+    <string name="interval_1_minute">1 分鐘</string>
+    <string name="interval_2_minutes">2 分鐘</string>
+
+    <!-- ViewModel status strings -->
+    <string name="status_continuous_running">連續模式執行中。</string>
+    <string name="status_ready">就緒。</string>
+    <string name="status_analyzing_scene">正在分析場景…</string>
+    <string name="error_camera_not_ready">相機尚未就緒 — 請再試一次</string>
+    <string name="status_result_ready">結果已就緒。</string>
+    <string name="status_failed">失敗：%s</string>
+    <string name="error_onnx_failed">ONNX 模型載入失敗</string>
+    <string name="status_face_engine_unavailable">人臉引擎無法使用：%s</string>
+    <string name="status_face_engine_loaded">人臉引擎已載入。掃描中…</string>
+    <string name="status_face_engine_error">人臉引擎錯誤：%s</string>
+    <string name="status_recognized_with_confidence">辨識到 %1$s（%2$s）。</string>
+    <string name="status_recognized">辨識到 %s。</string>
+    <string name="status_unknown_face_enter_name">偵測到未知人臉。輸入名稱以儲存。</string>
+    <string name="status_unknown_face_save">偵測到未知人臉。您可以儲存此人。</string>
+    <string name="status_capturing_samples_announce">正在蒐集樣本 %1$d / %2$d。</string>
+    <string name="status_error_prefix">錯誤：%s</string>
+    <string name="status_no_samples">尚未蒐集到樣本。請再試一次。</string>
+    <string name="status_saved_samples">已使用多個樣本儲存 %s。</string>
+    <string name="status_collection_cancelled">已取消蒐集。</string>
+    <string name="status_please_sign_in_first">請先登入 ChatGPT。</string>
+    <string name="status_resending_full_res">正在重新傳送全解析度…</string>
+    <string name="error_auth_expired">驗證已過期。請重新登入。</string>
+    <string name="status_full_res_ready">全解析度結果已就緒。</string>
+    <string name="status_describing_photo">正在描述照片…</string>
+    <string name="status_details_ready">詳細結果已就緒。</string>
+    <string name="error_take_photo_first">請先拍攝照片</string>
+    <string name="status_follow_up_ready">追問結果已就緒。</string>
+    <string name="status_capturing_text">正在擷取文字…</string>
+    <string name="status_text_recognized">文字辨識完成。</string>
+    <string name="status_continuous_active">連續辨識已啟用。</string>
+    <string name="status_recognition_error">辨識錯誤：%s</string>
+    <string name="status_tap_calibrate">點按「校準」以開始。</string>
+    <string name="status_floor_saved">已儲存 %d 樓。</string>
+    <string name="status_record_renamed">紀錄已重新命名為 %s。</string>
+    <string name="status_record_saved">已儲存紀錄 %s。</string>
+    <string name="status_record_updated">紀錄已更新。</string>
+
+    <!-- Floor detection service -->
+    <string name="floor_status_detecting">正在偵測樓層…</string>
+    <string name="floor_status_calibrating_stand">校準中…請保持靜止。</string>
+    <string name="floor_status_calibrating_hold">校準中…請保持不動。</string>
+    <string name="floor_status_calibrated">已校準。在樓層間移動以偵測。</string>
+    <string name="floor_status_ground">目前樓層：地面</string>
+    <string name="floor_status_floor">第 %d 樓</string>
+    <string name="floor_status_moving">移動中…偵測樓層。</string>
+
+    <!-- Chat -->
+    <string name="chat_status_ready">就緒</string>
+    <string name="chat_sign_in_first">請先登入 ChatGPT（從詳細分頁）。</string>
+    <string name="chat_connection_error">連線錯誤：%s</string>
+
+    <!-- Google Glass -->
+    <string name="glass_status_pairing">正在與眼鏡配對…</string>
+    <string name="glass_status_could_not_connect">無法連接眼鏡。</string>
+    <string name="glass_connected_announce">已透過 %s 連接眼鏡。</string>
+    <string name="glass_disconnected_announce">眼鏡已中斷連接。</string>
+
+    <!-- Lyrics -->
+    <string name="lyrics_none_found">找不到歌詞。</string>
+    <string name="lyrics_song_saved">已儲存 %1$s — %2$s。</string>
+</resources>

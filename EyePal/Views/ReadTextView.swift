@@ -96,7 +96,7 @@ private struct CapturedTextResultView: View {
             .navigationTitle("Captured Text")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                    Button(NSLocalizedString("common.done", comment: "")) {
                         dismiss()
                     }
                 }

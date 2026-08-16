@@ -5,11 +5,13 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import com.eyepal.app.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.abs
 
 class FloorDetectionService(context: Context) : SensorEventListener {
+    private val appContext = context.applicationContext
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val barometer = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
     private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -17,8 +19,12 @@ class FloorDetectionService(context: Context) : SensorEventListener {
     private val _currentFloor = MutableStateFlow(0)
     val currentFloor: StateFlow<Int> = _currentFloor
 
-    private val _statusText = MutableStateFlow("Detecting floor level...")
+    private val _statusText = MutableStateFlow(appContext.getString(R.string.floor_status_detecting))
     val statusText: StateFlow<String> = _statusText
+    private val _currentPressure = MutableStateFlow(1013.25f)
+    val currentPressure: StateFlow<Float> = _currentPressure
+    private val _baselinePressure = MutableStateFlow(1013.25f)
+    val baselinePressureFlow: StateFlow<Float> = _baselinePressure
 
     private var baselinePressure = 1013.25f
     private var isCalibrated = false
@@ -31,7 +37,7 @@ class FloorDetectionService(context: Context) : SensorEventListener {
     fun start() {
         barometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
-        _statusText.value = "Calibrating... Stand still."
+        _statusText.value = appContext.getString(R.string.floor_status_calibrating_stand)
     }
 
     fun stop() {
@@ -39,10 +45,12 @@ class FloorDetectionService(context: Context) : SensorEventListener {
     }
 
     fun calibrate() {
-        calibrationReadings.clear()
-        calibrationCount = 0
-        isCalibrated = false
-        _statusText.value = "Calibrating... Hold still."
+        synchronized(calibrationReadings) {
+            calibrationReadings.clear()
+            calibrationCount = 0
+            isCalibrated = false
+        }
+        _statusText.value = appContext.getString(R.string.floor_status_calibrating_hold)
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -54,13 +62,19 @@ class FloorDetectionService(context: Context) : SensorEventListener {
     }
 
     private fun handlePressure(pressure: Float) {
+        _currentPressure.value = pressure
         if (!isCalibrated) {
-            calibrationReadings.add(pressure)
-            calibrationCount++
-            if (calibrationCount >= 20) {
-                baselinePressure = calibrationReadings.average().toFloat()
-                isCalibrated = true
-                _statusText.value = "Calibrated. Move between floors to detect."
+            synchronized(calibrationReadings) {
+                calibrationReadings.add(pressure)
+                calibrationCount++
+                if (calibrationCount >= 20) {
+                    baselinePressure = calibrationReadings.average().toFloat()
+                    _baselinePressure.value = baselinePressure
+                    isCalibrated = true
+                }
+            }
+            if (isCalibrated) {
+                _statusText.value = appContext.getString(R.string.floor_status_calibrated)
             }
             return
         }
@@ -69,14 +83,14 @@ class FloorDetectionService(context: Context) : SensorEventListener {
         val floor = (delta / hPaPerFloor).toInt()
         if (floor != _currentFloor.value) {
             _currentFloor.value = floor
-            _statusText.value = if (floor == 0) "Current floor: Ground" else "Floor: $floor"
+            _statusText.value = if (floor == 0) appContext.getString(R.string.floor_status_ground) else appContext.getString(R.string.floor_status_floor, floor)
         }
     }
 
     private fun handleAcceleration(values: FloatArray) {
         val magnitude = abs(values[0]) + abs(values[1]) + abs(values[2])
         if (magnitude > 30) {
-            _statusText.value = "Moving... detecting floor."
+            _statusText.value = appContext.getString(R.string.floor_status_moving)
         }
     }
 

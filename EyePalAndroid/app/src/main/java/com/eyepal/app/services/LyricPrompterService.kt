@@ -9,7 +9,6 @@ import kotlinx.serialization.json.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
 import java.net.URLEncoder
 
 class LyricPrompterService(private val client: OkHttpClient = OkHttpClient()) {
@@ -20,9 +19,14 @@ class LyricPrompterService(private val client: OkHttpClient = OkHttpClient()) {
         val qq = async { searchQQMusic(title, artist) }
         val all = lrclib.await() + qq.await()
         val seen = mutableSetOf<String>()
-        all.filter { result ->
+        val deduped = all.filter { result ->
             val key = "${result.trackName.lowercase()}-${result.artistName.lowercase()}"
             seen.add(key)
+        }
+        if (deduped.isEmpty()) {
+            emptyList()
+        } else {
+            deduped
         }
     }
 
@@ -48,8 +52,7 @@ class LyricPrompterService(private val client: OkHttpClient = OkHttpClient()) {
                 "https://lrclib.net/api/search?track_name=$encodedTitle"
             }
             val request = Request.Builder().url(url).header("User-Agent", "LyricPrompter-EyePal/1.0").build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext emptyList()
+            val body = client.newCall(request).execute().use { it.body?.string() ?: return@withContext emptyList() }
             val json = Json.parseToJsonElement(body).jsonArray
             json.mapNotNull { element ->
                 val obj = element.jsonObject
@@ -84,8 +87,7 @@ class LyricPrompterService(private val client: OkHttpClient = OkHttpClient()) {
             val body = payload.toString().toRequestBody("application/json".toMediaType())
             val request = Request.Builder().url("https://u.y.qq.com/cgi-bin/musicu.fcg")
                 .header("Referer", "https://c.y.qq.com/").post(body).build()
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext emptyList()
+            val responseBody = client.newCall(request).execute().use { it.body?.string() ?: return@withContext emptyList() }
             val json = Json.parseToJsonElement(responseBody).jsonObject
             val songList = json["req_1"]?.jsonObject?.get("data")?.jsonObject
                 ?.get("body")?.jsonObject?.get("song_list")?.jsonArray ?: return@withContext emptyList()
@@ -112,8 +114,7 @@ class LyricPrompterService(private val client: OkHttpClient = OkHttpClient()) {
             val ts = System.currentTimeMillis()
             val url = "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?callback=MusicJsonCallback_lrc&pcachetime=$ts&songmid=$songMid&g_tk=5381&jsonpCallback=MusicJsonCallback_lrc&loginUin=0&hostUin=0&format=jsonp&inCharset=utf8&outCharset=utf8&notice=0&platform=yqq&needNewCode=0"
             val request = Request.Builder().url(url).header("Referer", "https://c.y.qq.com/").build()
-            val response = client.newCall(request).execute()
-            val raw = response.body?.string() ?: return null
+            val raw = client.newCall(request).execute().use { it.body?.string() ?: return null }
             val jsonStr = raw.removePrefix("MusicJsonCallback_lrc(").removeSuffix(")")
             val json = Json.parseToJsonElement(jsonStr).jsonObject
             val lyricBase64 = json["lyric"]?.jsonPrimitive?.content ?: return null
@@ -164,4 +165,5 @@ class LyricPrompterService(private val client: OkHttpClient = OkHttpClient()) {
         val secs = parts[1].toDoubleOrNull() ?: return null
         return mins * 60 + secs
     }
+
 }

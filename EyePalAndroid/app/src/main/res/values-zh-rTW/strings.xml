@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EyePal</string>
+
+    <!-- Tab names -->
+    <string name="tab_quick">快速</string>
+    <string name="tab_details">詳細</string>
+    <string name="tab_read_text">文字</string>
+    <string name="tab_faces">人臉</string>
+    <string name="tab_floor">樓層</string>
+    <string name="tab_chat">對話</string>
+    <string name="tab_lyrics">歌詞</string>
+    <string name="tab_more">更多</string>
+    <string name="tab_settings">設定</string>
+    <string name="tab_feature_order">功能順序</string>
+    <string name="tab_google_glass">Google 眼鏡</string>
+    <string name="tab_saved_faces">已儲存人臉</string>
+
+    <!-- Feature names -->
+    <string name="feature_quick_recognition">快速辨識</string>
+    <string name="feature_details_recognition">詳細辨識</string>
+    <string name="feature_read_text">文字辨識</string>
+    <string name="feature_floor_detection">樓層偵測</string>
+    <string name="feature_chat">對話</string>
+    <string name="feature_lyric_prompter">歌詞提示</string>
+
+    <!-- Feature descriptions -->
+    <string name="feature_desc_floor">幫助定位您所在的樓層</string>
+    <string name="feature_desc_chat">即時語音翻譯</string>
+    <string name="feature_desc_faces">人臉辨識與記憶</string>
+    <string name="feature_desc_quick">拍照即時描述場景</string>
+    <string name="feature_desc_details">詳細場景描述與後續對話</string>
+    <string name="feature_desc_read_text">多語言文字辨識</string>
+    <string name="feature_desc_lyrics">搜尋並聆聽歌詞</string>
+
+    <!-- More screen -->
+    <string name="more_app_config">應用程式設定</string>
+    <string name="more_custom_tabs">自訂分頁佈局</string>
+    <string name="more_audio_glasses">音訊眼鏡設定</string>
+
+    <!-- Settings -->
+    <string name="settings_face_recognition">人臉辨識</string>
+    <string name="settings_features">功能</string>
+    <string name="settings_details_recognition">詳細辨識</string>
+    <string name="settings_quick_recognition">快速辨識</string>
+    <string name="settings_text_recognition">文字辨識</string>
+    <string name="settings_lyric_prompter">歌詞提示</string>
+    <string name="settings_match_sensitivity">匹配靈敏度：%s%%</string>
+    <string name="settings_top_match_margin">最高匹配邊距：%s</string>
+    <string name="settings_llm_provider">LLM 供應商：%s</string>
+    <string name="settings_advance_offset">提前偏移：%s秒</string>
+
+    <!-- Google Glass -->
+    <string name="glass_audio_glasses">音訊眼鏡</string>
+    <string name="glass_connect">連接音訊眼鏡</string>
+    <string name="glass_disconnect">中斷連接</string>
+    <string name="glass_camera">眼鏡相機</string>
+    <string name="glass_use_camera">在快速/詳細/文字模式中使用眼鏡相機</string>
+    <string name="glass_xr_projected">XR 投影</string>
+    <string name="glass_how_it_works">運作方式</string>
+    <string name="glass_xr_desc">透過 XR 投影上下文連接。相機和音訊直接從眼鏡硬體存取。</string>
+    <string name="glass_bluetooth_desc">透過藍牙 HFP 連接。音訊透過藍牙傳輸。啟用「使用眼鏡相機」來拍攝照片。</string>
+
+    <!-- Common UI -->
+    <string name="btn_save">儲存</string>
+    <string name="btn_cancel">取消</string>
+    <string name="btn_delete">刪除</string>
+    <string name="btn_done">完成</string>
+    <string name="btn_ok">好</string>
+    <string name="btn_search">搜尋</string>
+    <string name="btn_send">送出</string>
+    <string name="btn_close">關閉</string>
+    <string name="btn_edit">編輯</string>
+    <string name="btn_add">新增</string>
+    <string name="btn_start">開始</string>
+    <string name="btn_stop">停止</string>
+    <string name="btn_connect">連接</string>
+    <string name="btn_disconnect">中斷連接</string>
+    <string name="btn_back">返回</string>
+    <string name="btn_not_now">稍後再說</string>
+    <string name="btn_calibrate">校準</string>
+    <string name="btn_detect_faces">偵測人臉</string>
+    <string name="btn_manage_saved_faces">管理已儲存人臉</string>
+    <string name="btn_capture">拍攝</string>
+    <string name="btn_continuous">連續</string>
+    <string name="btn_interpreter">翻譯</string>
+    <string name="btn_start_voice_chat">開始語音對話</string>
+
+    <!-- Status / Labels -->
+    <string name="status_processing">處理中…</string>
+    <string name="status_detecting">偵測中…</string>
+    <string name="status_scanning_glasses">正在搜尋眼鏡…</string>
+    <string name="status_no_faces_saved">尚未儲存任何人臉。</string>
+    <string name="status_no_glasses">未連接眼鏡。</string>
+    <string name="status_no_saved_records">無已儲存紀錄。</string>
+    <string name="status_sign_in_first">請先登入 ChatGPT。</string>
+    <string name="status_add_api_key">請在設定中加入 OpenAI API 金鑰以使用此功能。</string>
+
+    <!-- Floor detection -->
+    <string name="floor_level">樓層</string>
+    <string name="floor_saved_records">已儲存紀錄</string>
+    <string name="floor_save_record">儲存樓層紀錄</string>
+    <string name="floor_note_optional">備註（選填）</string>
+    <string name="floor_label">%s 樓</string>
+    <string name="floor_add_record">新增樓層紀錄</string>
+    <string name="floor_rename_record">重新命名紀錄</string>
+    <string name="floor_edit_record">編輯紀錄</string>
+    <string name="floor_record_name">紀錄名稱</string>
+    <string name="floor_altitude">海拔高度（公尺）</string>
+    <string name="floor_number">樓層編號</string>
+
+    <!-- Chat -->
+    <string name="chat_mode">模式</string>
+    <string name="chat_language_a">說話者 A 語言</string>
+    <string name="chat_language_b">說話者 B 語言</string>
+    <string name="chat_connecting">連線中…</string>
+
+    <!-- Faces -->
+    <string name="faces_add_person">新增人物</string>
+    <string name="faces_person_name">人物名稱</string>
+
+    <!-- Instructions -->
+    <string name="instructions_describe">將鏡頭對準要描述的物件。</string>
+    <string name="instructions_text">將鏡頭對準文字進行辨識。</string>
+    <string name="instructions_face">將鏡頭對準人臉。</string>
+    <string name="instructions_scene">拍照以描述場景。</string>
+    <string name="instructions_quick">拍照以快速描述事物</string>
+
+    <!-- Glass TTS -->
+    <string name="tts_selected">已選取：%s</string>
+    <string name="tts_back">返回</string>
+
+    <!-- Translation -->
+    <string name="translate">翻譯</string>
+    <string name="target_language">目標語言</string>
+
+    <!-- Accessibility / New UI -->
+    <string name="speech_cooldown">語音冷卻：%d 秒</string>
+    <string name="full_res">全解析度</string>
+    <string name="retake">重拍</string>
+    <string name="copied_to_clipboard">已複製到剪貼簿</string>
+    <string name="recognition_log">辨識日誌</string>
+    <string name="clear_log">清除日誌</string>
+    <string name="copy_all">全部複製</string>
+    <string name="document_detection">文件偵測</string>
+    <string name="auto_read">自動朗讀</string>
+    <string name="btn_copy">複製</string>
+    <string name="btn_take_photo">拍照</string>
+</resources>

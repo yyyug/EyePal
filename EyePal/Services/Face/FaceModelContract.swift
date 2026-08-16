@@ -1,10 +1,10 @@
 import Foundation
 
 enum FaceModelContract {
-    static let modelFilename = "arcface_fresh"
+    static let modelFilename = "w600k_mbf"
     static let modelExtension = "onnx"
-    static let inputName = "data"
-    static let outputName = "embedding"
+    static let inputName = "input.1"
+    static let outputName = "516"
     static let inputDimensionCount = 4
     static let inputShape = [1, 3, 112, 112]
     static let imageWidth = 112

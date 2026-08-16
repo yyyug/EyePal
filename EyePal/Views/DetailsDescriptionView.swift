@@ -65,7 +65,7 @@ struct DetailsDescriptionView: View {
                                     }
                                     .accessibilityLabel("Ask a follow-up question")
 
-                                Button("Send") {
+                                Button(NSLocalizedString("common.send", comment: "")) {
                                     viewModel.submitFollowUp()
                                 }
                                 .buttonStyle(.bordered)
@@ -122,7 +122,7 @@ struct DetailsDescriptionView: View {
                     viewModel.capturePhotoWithPrompt(promptText)
                     promptText = ""
                 }
-                Button("Cancel", role: .cancel) {
+                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
                     promptText = ""
                 }
             } message: {
@@ -200,7 +200,7 @@ struct DetailsDescriptionView: View {
                 Button {
                     viewModel.capturePhoto()
                 } label: {
-                    Label(viewModel.isProcessing ? "Working..." : "Take Photo", systemImage: "camera")
+                    Label(viewModel.isProcessing ? NSLocalizedString("common.working", comment: "") : NSLocalizedString("common.takePhoto", comment: ""), systemImage: "camera")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -334,7 +334,7 @@ private struct OpenAILoginSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
+                    Button(NSLocalizedString("common.close", comment: "")) {
                         dismiss()
                     }
                 }

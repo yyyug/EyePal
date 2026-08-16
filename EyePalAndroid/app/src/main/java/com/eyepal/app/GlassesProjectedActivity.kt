@@ -6,30 +6,31 @@ import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.xr.glimmer.onIndirectPointerGesture
 import com.eyepal.app.services.GlassInputOutputHandler
+import com.eyepal.app.services.GlassTouchpadHandler
 
 /**
- * GlassesProjectedActivity — runs ON the glasses (or AVD glasses simulation).
+ * GlassesProjectedActivity — projected to the glasses display.
  *
- * Per XR SDK docs:
- * - This activity's own context IS a projected context
- * - It handles touchpad input from the glasses
- * - It provides TTS audio feedback
- * - It shares the projected context with the phone app via a static holder
- *
- * Phone app flow:
- *   PhoneActivity → reads SharedProjectedContext → uses for CameraX / AudioRecord
- *
- * Glasses projected activity flow:
- *   GlassesProjectedActivity → receives touchpad gestures → TTS feedback
+ * Two input paths:
+ * 1. onIndirectPointerGesture (Compose) — handles real glasses touchpad via XR SDK
+ * 2. dispatchTouchEvent — fallback for emulator testing (regular touch events)
  */
 class GlassesProjectedActivity : ComponentActivity() {
     companion object {
         private const val TAG = "GlassesProjected"
-        /**
-         * Shared projected context for the phone app to access glasses hardware.
-         * Set by this activity, read by GoogleGlassService.
-         */
         var projectedContext: Context? = null
             private set
     }
@@ -38,12 +39,16 @@ class GlassesProjectedActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // This activity's base context IS the projected context for glasses hardware
         projectedContext = baseContext
-        Log.i(TAG, "Projected activity created — projected context available")
+        Log.i(TAG, "Projected activity created")
 
         glassIO = GlassInputOutputHandler(applicationContext)
         glassIO.initialize()
+
+        setContent {
+            GlassesTouchpadScreen(glassIO)
+        }
+
         glassIO.speak("EyePal connected to glasses")
     }
 
@@ -62,18 +67,13 @@ class GlassesProjectedActivity : ComponentActivity() {
         super.onDestroy()
         projectedContext = null
         glassIO.shutdown()
-        Log.i(TAG, "Projected activity destroyed — projected context released")
+        Log.i(TAG, "Projected activity destroyed")
     }
 
-    /**
-     * Receive touchpad input from glasses.
-     * Audio glasses touchpad sends MotionEvent events.
-     */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         val device = ev.source
         if (device and InputDevice.SOURCE_TOUCHSCREEN != 0 ||
             device and InputDevice.SOURCE_CLASS_POINTER != 0) {
-
             Log.d(TAG, "Touchpad event: action=${ev.actionMasked} x=${ev.x} y=${ev.y} source=${device}")
 
             glassIO.touchpadHandler.onMotionEvent(ev)
@@ -85,5 +85,39 @@ class GlassesProjectedActivity : ComponentActivity() {
             }
         }
         return super.dispatchTouchEvent(ev)
+    }
+}
+
+@Composable
+fun GlassesTouchpadScreen(glassIO: GlassInputOutputHandler) {
+    val focusRequester = remember { FocusRequester() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .onFocusChanged { state ->
+                Log.d("GlassesProjected", "Focus: ${state.isFocused}, hasFocus: ${state.hasFocus}")
+            }
+            .focusable()
+            .onIndirectPointerGesture(
+                enabled = true,
+                onClick = {
+                    Log.i("GlassesProjected", "onClick → Tap")
+                    glassIO.handleGesture(GlassTouchpadHandler.Gesture.Tap)
+                },
+                onSwipeForward = {
+                    Log.i("GlassesProjected", "onSwipeForward → next feature")
+                    glassIO.handleGesture(GlassTouchpadHandler.Gesture.SwipeRight)
+                },
+                onSwipeBackward = {
+                    Log.i("GlassesProjected", "onSwipeBackward → previous feature")
+                    glassIO.handleGesture(GlassTouchpadHandler.Gesture.SwipeLeft)
+                }
+            )
+    )
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
     }
 }

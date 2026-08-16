@@ -5,10 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.flow.first
 import androidx.lifecycle.viewModelScope
-import com.eyepal.app.data.SettingsRepository
+import com.eyepal.app.EyePalApplication
+import com.eyepal.app.R
 import com.eyepal.app.models.LyricSong
-import com.eyepal.app.services.AccessibilityAnnouncer
-import com.eyepal.app.services.LyricPrompterService
 import com.eyepal.app.services.LyricStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,6 +15,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class LyricPrompterViewModel(application: Application) : AndroidViewModel(application) {
+    private fun str(resId: Int): String = getApplication<Application>().getString(resId)
+    private fun str(resId: Int, vararg args: Any?): String = getApplication<Application>().getString(resId, *args)
+
     val searchText = mutableStateOf("")
     val searchResults = mutableStateOf<List<com.eyepal.app.models.LyricSearchResult>>(emptyList())
     val currentSong = mutableStateOf<LyricSong?>(null)
@@ -26,9 +28,10 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
     val errorMessage = mutableStateOf<String?>(null)
     val savedSongs = mutableStateOf<List<LyricSong>>(emptyList())
 
-    private val service = LyricPrompterService(context = application)
-    private val settings = SettingsRepository(application)
-    private val announcer = AccessibilityAnnouncer(application)
+    private val container = (application as EyePalApplication).container
+    private val service = container.lyricPrompterService
+    private val settings = container.settingsRepository
+    private val announcer = container.announcer
     private var playbackJob: Job? = null
 
     init {
@@ -42,7 +45,7 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val results = service.searchAllSources(input)
-                if (results.isEmpty()) { errorMessage.value = "No lyrics found." }
+                if (results.isEmpty()) { errorMessage.value = str(R.string.lyrics_none_found) }
                 else { searchResults.value = results }
             } catch (e: Exception) { errorMessage.value = e.message }
             isSearching.value = false
@@ -68,7 +71,7 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
         val savedSong = song.copy(id = System.currentTimeMillis().toString())
         savedSongs.value = listOf(savedSong) + savedSongs.value
         LyricStorage.addSong(getApplication(), savedSong)
-        announcer.announce("${song.title} by ${song.artist} saved.")
+        announcer.announce(str(R.string.lyrics_song_saved, song.title, song.artist))
     }
 
     fun deleteSong(songId: String) {
@@ -116,7 +119,6 @@ class LyricPrompterViewModel(application: Application) : AndroidViewModel(applic
             val advanceOffset = settings.lyricAdvanceOffset.first()
             if (linesWithTime.isEmpty()) { isPlaying.value = false; return@launch }
 
-            // Find the timed line closest to or at the given index
             val targetLine = linesWithTime.firstOrNull { song.lines.indexOf(it) >= index }
                 ?: linesWithTime.lastOrNull()
                 ?: return@launch

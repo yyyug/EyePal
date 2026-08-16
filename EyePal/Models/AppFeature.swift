@@ -23,40 +23,34 @@ enum AppFeature: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var displayName: String {
-        switch self {
-        case .floorDetection:
-            return "Floor Detection"
-        case .chat:
-            return "Chat"
-        case .faces:
-            return "Faces"
-        case .quickRecognition:
-            return "Quick Recognition"
-        case .detailsRecognition:
-            return "Details Recognition"
-        case .readText:
-            return "Read Text"
-        case .lyricPrompter:
-            return "Lyric Prompter"
-        }
+        NSLocalizedString(localizedKey, comment: "")
     }
 
     var tabTitle: String {
+        NSLocalizedString(tabKey, comment: "")
+    }
+
+    var localizedKey: String {
         switch self {
-        case .floorDetection:
-            return "Floor"
-        case .chat:
-            return "Chat"
-        case .faces:
-            return "Faces"
-        case .quickRecognition:
-            return "Quick"
-        case .detailsRecognition:
-            return "Details"
-        case .readText:
-            return "Read Text"
-        case .lyricPrompter:
-            return "Lyrics"
+        case .floorDetection: return "feature.floorDetection"
+        case .chat: return "feature.chat"
+        case .faces: return "feature.faceRecognition"
+        case .quickRecognition: return "feature.quickRecognition"
+        case .detailsRecognition: return "feature.detailsRecognition"
+        case .readText: return "feature.readText"
+        case .lyricPrompter: return "feature.lyricPrompter"
+        }
+    }
+
+    var tabKey: String {
+        switch self {
+        case .floorDetection: return "tab.floor"
+        case .chat: return "tab.chat"
+        case .faces: return "tab.faces"
+        case .quickRecognition: return "tab.quick"
+        case .detailsRecognition: return "tab.details"
+        case .readText: return "tab.readText"
+        case .lyricPrompter: return "tab.lyrics"
         }
     }
 
@@ -82,19 +76,19 @@ enum AppFeature: String, CaseIterable, Identifiable {
     var featureDescription: String {
         switch self {
         case .floorDetection:
-            return "Helps locate which floor you are on"
+            return NSLocalizedString("feature.floorDetection.description", comment: "")
         case .chat:
-            return "Real-time voice translation"
+            return NSLocalizedString("feature.chat.description", comment: "")
         case .faces:
-            return "Face recognition and memory"
+            return NSLocalizedString("feature.faces.description", comment: "")
         case .quickRecognition:
-            return "Snap a photo for instant scene description"
+            return NSLocalizedString("feature.quickRecognition.description", comment: "")
         case .detailsRecognition:
-            return "Detailed scene description with follow-up chat"
+            return NSLocalizedString("feature.detailsRecognition.description", comment: "")
         case .readText:
-            return "OCR text recognition in multiple languages"
+            return NSLocalizedString("feature.readText.description", comment: "")
         case .lyricPrompter:
-            return "Search and listen to song lyrics"
+            return NSLocalizedString("feature.lyricPrompter.description", comment: "")
         }
     }
 

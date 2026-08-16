@@ -15,13 +15,18 @@ class ArcFaceEmbeddingEngine(private val context: Context) {
     private var ortEnv: OrtEnvironment? = null
     private var session: OrtSession? = null
     private var isLoaded = false
+    var loadError: String? = null
+        private set
+
+    val isReady: Boolean get() = isLoaded
 
     suspend fun load() = withContext(Dispatchers.IO) {
         try {
+            loadError = null
             ortEnv = OrtEnvironment.getEnvironment()
-            val modelFile = File(context.filesDir, "arcface_fresh.onnx")
+            val modelFile = File(context.filesDir, "w600k_mbf.onnx")
             if (!modelFile.exists()) {
-                context.assets.open("arcface_fresh.onnx").use { input ->
+                context.assets.open("w600k_mbf.onnx").use { input ->
                     modelFile.outputStream().use { output -> input.copyTo(output) }
                 }
             }
@@ -36,14 +41,21 @@ class ArcFaceEmbeddingEngine(private val context: Context) {
             android.util.Log.d("ArcFace", "ArcFace engine loaded successfully")
         } catch (e: Exception) {
             android.util.Log.e("ArcFace", "Failed to load model: ${e.message}", e)
+            loadError = e.message ?: e.toString()
             isLoaded = false
         }
     }
 
     suspend fun generateEmbedding(faceBitmap: Bitmap): FloatArray? = withContext(Dispatchers.IO) {
-        if (!isLoaded || session == null || ortEnv == null) return@withContext null
+        if (!isLoaded || session == null || ortEnv == null) {
+            android.util.Log.w("ArcFace", "Embedding engine not ready${loadError?.let { ": $it" } ?: ""} — skipping frame")
+            return@withContext null
+        }
+        var inputBitmap: Bitmap? = null
+        var inputTensor: OnnxTensor? = null
+        var results: OrtSession.Result? = null
         try {
-            val inputBitmap = Bitmap.createScaledBitmap(faceBitmap, 112, 112, true)
+            inputBitmap = Bitmap.createScaledBitmap(faceBitmap, 112, 112, true)
             val rChannel = FloatArray(112 * 112)
             val gChannel = FloatArray(112 * 112)
             val bChannel = FloatArray(112 * 112)
@@ -60,15 +72,20 @@ class ArcFaceEmbeddingEngine(private val context: Context) {
             val allChannels = rChannel + gChannel + bChannel
             val floatBuffer = FloatBuffer.wrap(allChannels)
             floatBuffer.rewind()
-            val inputTensor = OnnxTensor.createTensor(ortEnv!!, floatBuffer, longArrayOf(1, 3, 112, 112))
-            val results = session!!.run(mapOf(session!!.inputNames.first() to inputTensor))
+            inputTensor = OnnxTensor.createTensor(ortEnv!!, floatBuffer, longArrayOf(1, 3, 112, 112))
+            results = session!!.run(mapOf(session!!.inputNames.first() to inputTensor))
             val output = results[0].value as Array<FloatArray>
-            results.close()
-            inputTensor.close()
             val embedding = output[0]
             val norm = kotlin.math.sqrt(embedding.sumOf { (it * it).toDouble() }).toFloat()
             if (norm > 0) FloatArray(embedding.size) { embedding[it] / norm } else embedding
-        } catch (_: Exception) { null }
+        } catch (e: Exception) {
+            android.util.Log.e("ArcFace", "Embedding generation failed: ${e.message}", e)
+            null
+        } finally {
+            results?.close()
+            inputTensor?.close()
+            inputBitmap?.recycle()
+        }
     }
 
     fun cosineSimilarity(a: FloatArray, b: FloatArray): Float {

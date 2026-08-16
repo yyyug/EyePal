@@ -30,4 +30,22 @@ object FloorRecordStorage {
         records.removeAll { it.id == id }
         saveRecords(context, records)
     }
+
+    fun renameRecord(context: Context, id: String, newName: String) {
+        val records = loadRecords(context).toMutableList()
+        val index = records.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            records[index] = records[index].copy(name = newName)
+            saveRecords(context, records)
+        }
+    }
+
+    fun updateRecord(context: Context, id: String, name: String, altitude: Double, floor: Int) {
+        val records = loadRecords(context).toMutableList()
+        val index = records.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            records[index] = records[index].copy(name = name, altitude = altitude, floor = floor)
+            saveRecords(context, records)
+        }
+    }
 }

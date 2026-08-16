@@ -64,7 +64,7 @@ struct FaceRecognitionView: View {
                         }
 
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Save") {
+                            Button(NSLocalizedString("common.save", comment: "")) {
                                 saveSuggestedFace()
                             }
                             .disabled(suggestedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

@@ -17,4 +17,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onDestroy() {
+        if (!isChangingConfigurations) {
+            (application as EyePalApplication).container.announcer.shutdown()
+        }
+        super.onDestroy()
+    }
 }

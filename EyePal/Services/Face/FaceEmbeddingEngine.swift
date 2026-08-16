@@ -15,7 +15,7 @@ enum FaceEmbeddingError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingModel:
-            return "arcface_fresh.onnx was not found in the app bundle."
+            return "w600k_mbf.onnx was not found in the app bundle."
         case .preprocessingFailed:
             return "The face image could not be converted into the embedding model input format."
         case .missingInputFeature(let name):

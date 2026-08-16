@@ -1,4 +1,349 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EyePal</string>
+
+    <!-- Tab names -->
+    <string name="tab_quick">Quick</string>
+    <string name="tab_details">Details</string>
+    <string name="tab_read_text">Read Text</string>
+    <string name="tab_faces">Faces</string>
+    <string name="tab_floor">Floor</string>
+    <string name="tab_chat">Chat</string>
+    <string name="tab_lyrics">Lyrics</string>
+    <string name="tab_more">More</string>
+    <string name="tab_settings">Settings</string>
+    <string name="tab_feature_order">Feature Order</string>
+    <string name="tab_google_glass">Google Glass</string>
+    <string name="tab_saved_faces">Saved Faces</string>
+    <string name="tab_playback">Playback</string>
+    <string name="tab_ai_provider">AI Provider</string>
+    <string name="tab_about">About</string>
+
+    <!-- Feature names -->
+    <string name="feature_quick_recognition">Quick Recognition</string>
+    <string name="feature_details_recognition">Details Recognition</string>
+    <string name="feature_read_text">Read Text</string>
+    <string name="feature_floor_detection">Floor Detection</string>
+    <string name="feature_chat">Chat</string>
+    <string name="feature_lyric_prompter">Lyric Prompter</string>
+
+    <!-- Feature descriptions -->
+    <string name="feature_desc_floor">Helps locate which floor you are on</string>
+    <string name="feature_desc_chat">Real-time voice translation</string>
+    <string name="feature_desc_faces">Face recognition and memory</string>
+    <string name="feature_desc_quick">Snap a photo for instant scene description</string>
+    <string name="feature_desc_details">Detailed scene description with follow-up chat</string>
+    <string name="feature_desc_read_text">OCR text recognition in multiple languages</string>
+    <string name="feature_desc_lyrics">Search and listen to song lyrics</string>
+
+    <!-- More screen -->
+    <string name="more_app_config">App configuration</string>
+    <string name="more_custom_tabs">Customize tab layout</string>
+    <string name="more_audio_glasses">Audio glasses settings</string>
+
+    <!-- Settings -->
+    <string name="settings_face_recognition">Face Recognition</string>
+    <string name="settings_features">Features</string>
+    <string name="settings_details_recognition">Details Recognition</string>
+    <string name="settings_quick_recognition">Quick Recognition</string>
+    <string name="settings_text_recognition">Text Recognition</string>
+    <string name="settings_lyric_prompter">Lyric Prompter</string>
+    <string name="settings_match_sensitivity">Match sensitivity: %s%%</string>
+    <string name="settings_top_match_margin">Top match margin: %s</string>
+    <string name="settings_llm_provider">LLM Provider: %s</string>
+    <string name="settings_advance_offset">Advance offset: %ss</string>
+
+    <!-- Google Glass -->
+    <string name="glass_audio_glasses">Audio Glasses</string>
+    <string name="glass_connect">Connect Audio Glasses</string>
+    <string name="glass_disconnect">Disconnect</string>
+    <string name="glass_camera">Glasses Camera</string>
+    <string name="glass_use_camera">Use glasses camera in Quick/Details/ReadText</string>
+    <string name="glass_xr_projected">XR Projected</string>
+    <string name="glass_how_it_works">How it works</string>
+    <string name="glass_xr_desc">Connected via XR Projected context. Camera and audio are accessed directly from the glasses\u0027 hardware.</string>
+    <string name="glass_bluetooth_desc">Connected via Bluetooth HFP. Audio is routed through Bluetooth. Enable \u0027Use glasses camera\u0027 to capture photos.</string>
+
+    <!-- Common UI -->
+    <string name="btn_save">Save</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_done">Done</string>
+    <string name="btn_ok">OK</string>
+    <string name="btn_search">Search</string>
+    <string name="btn_send">Send</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_edit">Edit</string>
+    <string name="btn_add">Add</string>
+    <string name="btn_start">Start</string>
+    <string name="btn_stop">Stop</string>
+    <string name="btn_connect">Connect</string>
+    <string name="btn_disconnect">Disconnect</string>
+    <string name="btn_back">Back</string>
+    <string name="btn_not_now">Not Now</string>
+    <string name="btn_calibrate">Calibrate</string>
+    <string name="btn_detect_faces">Detect Faces</string>
+    <string name="btn_manage_saved_faces">Manage Saved Faces</string>
+    <string name="btn_capture">Capture</string>
+    <string name="btn_continuous">Continuous</string>
+    <string name="btn_interpreter">Interpreter</string>
+    <string name="btn_start_voice_chat">Start Voice Chat</string>
+
+    <!-- Status / Labels -->
+    <string name="status_processing">Working…</string>
+    <string name="status_detecting">Detecting…</string>
+    <string name="status_scanning_glasses">Scanning for glasses…</string>
+    <string name="status_no_faces_saved">No faces saved yet.</string>
+    <string name="status_no_glasses">No glasses connected.</string>
+    <string name="status_no_saved_records">No saved records.</string>
+    <string name="status_sign_in_first">Sign in with ChatGPT first.</string>
+    <string name="status_add_api_key">Add OpenAI API key in Settings to use this feature.</string>
+
+    <!-- Floor detection -->
+    <string name="floor_level">Floor Level</string>
+    <string name="floor_saved_records">Saved Records</string>
+    <string name="floor_save_record">Save Floor Record</string>
+    <string name="floor_note_optional">Note (optional)</string>
+    <string name="floor_label">Floor %s</string>
+    <string name="floor_add_record">Add Floor Record</string>
+    <string name="floor_rename_record">Rename Record</string>
+    <string name="floor_edit_record">Edit Record</string>
+    <string name="floor_record_name">Record Name</string>
+    <string name="floor_altitude">Altitude (m)</string>
+    <string name="floor_number">Floor Number</string>
+
+    <!-- Chat -->
+    <string name="chat_mode">Mode</string>
+    <string name="chat_language_a">Speaker A Language</string>
+    <string name="chat_language_b">Speaker B Language</string>
+    <string name="chat_connecting">Connecting…</string>
+
+    <!-- Faces -->
+    <string name="faces_add_person">Add Person</string>
+    <string name="faces_person_name">Person\'s name</string>
+
+    <!-- Instructions -->
+    <string name="instructions_describe">Point the camera at something to describe it.</string>
+    <string name="instructions_text">Point the camera at text to recognize it.</string>
+    <string name="instructions_face">Point the camera at a face.</string>
+    <string name="instructions_scene">Take a photo to describe the scene.</string>
+    <string name="instructions_quick">Take a photo to quickly describe things</string>
+
+    <!-- Glass pairing -->
+    <string name="glass_enable_bluetooth">Enable Bluetooth</string>
+    <string name="glass_bluetooth_required">Bluetooth is required to connect audio glasses.</string>
+    <string name="glass_open_bt_settings">Open Bluetooth Settings to Pair</string>
+    <string name="glass_pairing_instructions">Put your glasses in pairing mode, then select them from the Bluetooth settings.</string>
+    <string name="glass_after_pairing">After pairing, return here and tap Connect.</string>
+    <string name="glass_status_bluetooth_off">Bluetooth is off. Enable Bluetooth to connect glasses.</string>
+    <string name="glass_status_no_device">No glasses found. Open Bluetooth settings to pair.</string>
+    <string name="glass_scan">Find Glasses</string>
+    <string name="glass_stop_scan">Stop Scanning</string>
+    <string name="glass_scanning">Scanning for glasses...</string>
+    <string name="glass_no_devices_found">No glasses found. Make sure your glasses are in pairing mode.</string>
+    <string name="glass_pair">Pair</string>
+    <string name="glass_pairing_with">Pairing with %s...</string>
+    <string name="glass_connecting">Connecting to glasses...</string>
+    <string name="glass_permission_needed">Bluetooth permission is required to find and pair glasses.</string>
+    <string name="glass_request_permission">Grant Bluetooth Permission</string>
+    <string name="glass_paired">Paired</string>
+    <string name="glass_connected_bt">Connected via Bluetooth</string>
+    <string name="glass_connected_xr">Connected via Android XR</string>
+    <string name="glass_no_glasses">No glasses connected.</string>
+
+    <!-- Glass TTS -->
+    <string name="tts_selected">Selected: %s</string>
+    <string name="tts_back">Back</string>
+
+    <!-- Translation -->
+    <string name="translate">Translate</string>
+    <string name="target_language">Target Language</string>
+    <string name="settings_translation">Translation</string>
+    <string name="settings_translation_enable">Enable Translation</string>
+    <string name="settings_translation_hint">Translate Quick Recognition results into the language you choose.</string>
+
+    <!-- Quick Recognition -->
+    <string name="quick_no_api_key">Add your Moondream API key in Settings > Quick Recognition.</string>
+    <string name="quick_signup_api_key">Sign up and get API key</string>
+
+    <!-- Faces settings -->
+    <string name="settings_speech">Speech</string>
+    <string name="settings_recognition">Recognition</string>
+    <string name="settings_saved_faces">Saved Faces</string>
+    <string name="settings_recognition_log">Recognition Log</string>
+    <string name="settings_training_tips">Training Tips</string>
+    <string name="settings_copy_all_logs">Copy All Logs</string>
+
+    <!-- Accessibility / New UI -->
+    <string name="speech_cooldown">Speech Cooldown: %d seconds</string>
+    <string name="full_res">Full Res</string>
+    <string name="retake">Retake</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="recognition_log">Recognition Log</string>
+    <string name="clear_log">Clear Log</string>
+    <string name="copy_all">Copy All</string>
+    <string name="document_detection">Document Detection</string>
+    <string name="auto_read">Auto-read</string>
+    <string name="btn_copy">Copy</string>
+    <string name="btn_take_photo">Take Photo</string>
+    <string name="btn_sign_out">Sign Out</string>
+    <string name="btn_refresh_models">Refresh Models</string>
+    <string name="btn_loading">Loading…</string>
+    <string name="label_name">Name</string>
+    <string name="label_prompt">Prompt</string>
+    <string name="label_type">Type: %s</string>
+    <string name="label_api_key">API Key</string>
+    <string name="label_model_id">Model ID</string>
+    <string name="label_base_url">Base URL (optional)</string>
+    <string name="label_available_models">Available Models:</string>
+    <string name="label_selected">Selected</string>
+    <string name="label_signed_in">Signed In with ChatGPT</string>
+    <string name="label_not_signed_in">Not signed in</string>
+    <string name="label_speech_cooldown_seconds">Speech Cooldown: %d seconds</string>
+    <string name="label_advance_offset">Advance offset: %s seconds</string>
+    <string name="settings_details_recognition_desc">Uses ChatGPT to provide detailed scene descriptions. Sign in with your ChatGPT account to enable.</string>
+    <string name="settings_quick_desc">Controls how detailed the AI description will be.</string>
+    <string name="settings_continuous_interval">Continuous Mode Interval</string>
+    <string name="settings_control_style">Control Style</string>
+    <string name="settings_control_style_desc">Choose how capture actions are presented.</string>
+    <string name="settings_quick_buttons">Quick Buttons</string>
+    <string name="settings_faces_suggest_unknown">Show prompt when unknown face detected</string>
+    <string name="settings_about_lyrics">Lyric Prompter uses AI to search for song lyrics online. Timed lyrics (from YouTube captions etc.) enable auto-read mode.</string>
+    <string name="settings_scene_desc_hint">Sign in with your ChatGPT account to use scene description.</string>
+    <string name="settings_detail_buttons">Details Buttons</string>
+    <string name="settings_detail_buttons_desc">Configure up to 4 preset buttons for Details Recognition.</string>
+    <string name="settings_chatgpt_account">ChatGPT Account</string>
+    <string name="settings_sign_in_hint">Sign in from Details Recognition screen to enable scene descriptions.</string>
+    <string name="settings_scene_description">Scene Description</string>
+    <string name="settings_moondream_api">Moondream API</string>
+    <string name="settings_moondream_hint">Get your API key from moondream.ai</string>
+    <string name="settings_caption_length">Caption Length</string>
+    <string name="settings_continuous_hint">How often to auto-capture in continuous mode.</string>
+    <string name="settings_quick_buttons_desc">Configure up to 4 preset buttons for Quick Recognition.</string>
+    <string name="settings_ocr_engine">OCR Engine</string>
+    <string name="settings_ocr_desc">Powered by Google MLKit. Supports Latin, Chinese, Japanese, and Korean scripts.</string>
+    <string name="settings_features_title">Features</string>
+    <string name="settings_features_list">• Real-time text recognition from camera\n• Multi-language support\n• Continuous recognition mode</string>
+    <string name="settings_match_sensitivity_title">Match Sensitivity</string>
+    <string name="settings_top_match_margin_title">Top Match Margin</string>
+    <string name="settings_frame_threshold_title">Frame Threshold</string>
+    <string name="settings_frame_threshold_value">%d frame(s)</string>
+    <string name="settings_suggest_unknown_title">Suggest Unknown Faces</string>
+    <string name="settings_speech_cooldown_label">Speech Cooldown: %d seconds</string>
+    <string name="label_synced">Synced</string>
+    <string name="label_plain">Plain</string>
+    <string name="label_saved_songs">Saved Songs</string>
+    <string name="label_search_hint">Song title or "Song - Artist"</string>
+    <string name="label_results_count">%d results found</string>
+    <string name="label_no_timed_lyrics">No timed lyrics available</string>
+    <string name="label_reconnect_hint">Try to reconnect</string>
+    <string name="label_choose_two_languages">Choose two different languages</string>
+    <string name="label_custom_prompt_title">Custom Prompt</string>
+    <string name="label_custom_prompt_hint">Enter prompt</string>
+    <string name="label_ask_follow_up">Ask follow-up</string>
+    <string name="label_captured_text">Captured Text</string>
+    <string name="label_detected_language">Language: %s</string>
+    <string name="label_capturing_samples">Capturing samples… %1$d/%2$d</string>
+    <string name="label_samples_count">%s samples</string>
+    <string name="label_training_tips">Training Tips</string>
+    <string name="label_tip_lighting">Save a face in bright, even lighting.</string>
+    <string name="label_tip_distance">Capture from a comfortable conversation distance.</string>
+    <string name="label_tip_refresh">If recognition is inconsistent, save a fresh sample.</string>
+    <string name="label_no_events">No recognition events yet.</string>
+    <string name="btn_play_from_start">Play from Start</string>
+    <string name="btn_play_from_now">Play from Now</string>
+    <string name="btn_save_lyrics">Save Lyrics</string>
+    <string name="btn_search_lyrics">Search Lyrics</string>
+    <string name="btn_rename_face">Rename Face</string>
+    <string name="btn_sign_in_chatgpt">Sign In with ChatGPT</string>
+    <string name="btn_searching">Searching…</string>
+    <string name="label_working">Working…</string>
+    <string name="btn_custom_prompt">Prompt</string>
+    <string name="label_button">Button %d</string>
+    <string name="label_not_signed_in_hint">Not signed in — sign in from Details tab</string>
+
+    <!-- Localization additions -->
+    <string name="quick_swipe_hint">Swipe up/down to change action. Tap to run.</string>
+    <string name="details_swipe_hint">Swipe up/down to change action. Tap to run. Long-press for custom prompt.</string>
+    <string name="captured_image">Captured image</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="describe_scene">Describe the scene</string>
+
+    <!-- Enum option labels -->
+    <string name="control_style_buttons">On-screen button layout</string>
+    <string name="control_style_single">Single control (swipe up/down to choose)</string>
+    <string name="caption_short">Short</string>
+    <string name="caption_normal">Normal</string>
+    <string name="caption_detailed">Detailed</string>
+    <string name="interval_1_second">1 second</string>
+    <string name="interval_2_seconds">2 seconds</string>
+    <string name="interval_3_seconds">3 seconds</string>
+    <string name="interval_5_seconds">5 seconds</string>
+    <string name="interval_10_seconds">10 seconds</string>
+    <string name="interval_30_seconds">30 seconds</string>
+    <string name="interval_1_minute">1 minute</string>
+    <string name="interval_2_minutes">2 minutes</string>
+
+    <!-- ViewModel status strings -->
+    <string name="status_continuous_running">Continuous mode running.</string>
+    <string name="status_ready">Ready.</string>
+    <string name="status_analyzing_scene">Analyzing scene...</string>
+    <string name="error_camera_not_ready">Camera not ready — try again</string>
+    <string name="status_result_ready">Result ready.</string>
+    <string name="status_failed">Failed: %s</string>
+    <string name="error_onnx_failed">ONNX model failed to load</string>
+    <string name="status_face_engine_unavailable">Face engine unavailable: %s</string>
+    <string name="status_face_engine_loaded">Face engine loaded. Scanning...</string>
+    <string name="status_face_engine_error">Face engine error: %s</string>
+    <string name="status_recognized_with_confidence">Recognized %1$s (%2$s).</string>
+    <string name="status_recognized">Recognized %s.</string>
+    <string name="status_unknown_face_enter_name">Unknown face detected. Enter name to save.</string>
+    <string name="status_unknown_face_save">Unknown face detected. You can save this person.</string>
+    <string name="status_capturing_samples_announce">Capturing samples %1$d of %2$d.</string>
+    <string name="status_error_prefix">Error: %s</string>
+    <string name="status_no_samples">No samples captured yet. Try again.</string>
+    <string name="status_saved_samples">%s was saved with multiple samples.</string>
+    <string name="status_collection_cancelled">Collection cancelled.</string>
+    <string name="status_please_sign_in_first">Please sign in with ChatGPT first.</string>
+    <string name="status_resending_full_res">Resending full resolution...</string>
+    <string name="error_auth_expired">Authentication expired. Please sign in again.</string>
+    <string name="status_full_res_ready">Full-res result ready.</string>
+    <string name="status_describing_photo">Describing the photo...</string>
+    <string name="status_details_ready">Details ready.</string>
+    <string name="error_take_photo_first">Take a photo first</string>
+    <string name="status_follow_up_ready">Follow-up ready.</string>
+    <string name="status_capturing_text">Capturing text...</string>
+    <string name="status_text_recognized">Text recognized.</string>
+    <string name="status_continuous_active">Continuous recognition active.</string>
+    <string name="status_recognition_error">Recognition error: %s</string>
+    <string name="status_tap_calibrate">Tap Calibrate to start.</string>
+    <string name="status_floor_saved">Floor %d saved.</string>
+    <string name="status_record_renamed">Record renamed to %s.</string>
+    <string name="status_record_saved">Record %s saved.</string>
+    <string name="status_record_updated">Record updated.</string>
+
+    <!-- Floor detection service -->
+    <string name="floor_status_detecting">Detecting floor level...</string>
+    <string name="floor_status_calibrating_stand">Calibrating... Stand still.</string>
+    <string name="floor_status_calibrating_hold">Calibrating... Hold still.</string>
+    <string name="floor_status_calibrated">Calibrated. Move between floors to detect.</string>
+    <string name="floor_status_ground">Current floor: Ground</string>
+    <string name="floor_status_floor">Floor: %d</string>
+    <string name="floor_status_moving">Moving... detecting floor.</string>
+
+    <!-- Chat -->
+    <string name="chat_status_ready">Ready</string>
+    <string name="chat_sign_in_first">Sign in with ChatGPT first (from Details tab).</string>
+    <string name="chat_connection_error">Connection error: %s</string>
+
+    <!-- Google Glass -->
+    <string name="glass_status_pairing">Pairing with glasses...</string>
+    <string name="glass_status_could_not_connect">Could not connect to glasses.</string>
+    <string name="glass_connected_announce">Glasses connected via %s.</string>
+    <string name="glass_disconnected_announce">Glasses disconnected.</string>
+
+    <!-- Lyrics -->
+    <string name="lyrics_none_found">No lyrics found.</string>
+    <string name="lyrics_song_saved">%1$s by %2$s saved.</string>
 </resources>

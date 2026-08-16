@@ -2,72 +2,202 @@ package com.eyepal.app.viewmodels
 
 import android.app.Application
 import android.graphics.Bitmap
+import androidx.camera.view.PreviewView
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
-import com.eyepal.app.services.AccessibilityAnnouncer
-import com.eyepal.app.services.CameraService
-import com.eyepal.app.services.GoogleGlassService
+import com.eyepal.app.EyePalApplication
+import com.eyepal.app.R
 import com.eyepal.app.services.GoogleGlassState
-import com.eyepal.app.services.OCRService
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.max
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ReadTextViewModel(application: Application) : AndroidViewModel(application) {
-    val statusText = mutableStateOf("Point the camera at text to recognize it.")
+    private fun str(resId: Int): String = getApplication<Application>().getString(resId)
+    private fun str(resId: Int, vararg args: Any?): String = getApplication<Application>().getString(resId, *args)
+
+    val statusText = mutableStateOf(str(R.string.instructions_text))
     val recognizedText = mutableStateOf("")
     val isProcessing = mutableStateOf(false)
+    private val processingLock = AtomicBoolean(false)
     val isContinuous = mutableStateOf(false)
     val errorMessage = mutableStateOf<String?>(null)
+    val detectedLanguage = mutableStateOf("")
+    val isDocumentMode = mutableStateOf(false)
+    val showCaptureDialog = mutableStateOf(false)
+    val capturedTextForDisplay = mutableStateOf("")
 
-    val camera = CameraService(application)
-    private val ocr = OCRService(application)
-    private val glassService = GoogleGlassService(application)
-    private val announcer = AccessibilityAnnouncer(application)
+    private val container = (application as EyePalApplication).container
+    val camera = container.cameraService
+    private val ocr = container.ocrService
+    private val glassService = container.glassService
+    private val announcer = container.announcer
+    private val settings = container.settingsRepository
     private var continuousJob: Job? = null
     private var lastAnnouncedText = ""
+    private var lastFrameText = ""
+    private var stableCount = 0
+    private var documentStableCount = 0
+    private var storedLifecycleOwner: LifecycleOwner? = null
+    private var storedPreview: PreviewView? = null
+    private var cameraStarted = false
+
+    companion object {
+        private const val STABILITY_THRESHOLD = 0.8f
+        private const val STABLE_ANNOUNCE_COUNT = 3
+        private const val DOCUMENT_FRAME_WIDTH = 1080
+        private const val DOCUMENT_FRAME_HEIGHT = 1920
+        private const val DOCUMENT_TEXT_COVERAGE_THRESHOLD = 0.5f
+        private const val DOCUMENT_STABLE_COUNT_THRESHOLD = 3
+    }
 
     fun startCamera(previewView: android.view.View) {
-        if (GoogleGlassState.useGlassCamera.value) return
-        val lifecycleOwner = (previewView.context as? androidx.lifecycle.LifecycleOwner) ?: return
-        camera.startCamera(lifecycleOwner, previewView as androidx.camera.view.PreviewView) { bitmap ->
+        if (GoogleGlassState.useGlassCamera.value || cameraStarted) return
+        val lo = (previewView.context as? LifecycleOwner) ?: return
+        storedLifecycleOwner = lo
+        storedPreview = previewView as? PreviewView
+        cameraStarted = true
+        camera.startCamera(lo, storedPreview!!) { bitmap ->
             if (isContinuous.value && !isProcessing.value) recognizeFrame(bitmap)
         }
     }
 
-    fun stopCamera() { camera.stopCamera() }
-
-    fun captureAndRecognize() {
-        if (isProcessing.value) return
-        isProcessing.value = true
-        statusText.value = "Capturing text..."
-        viewModelScope.launch {
-            try {
-                val bitmap = if (GoogleGlassState.useGlassCamera.value) glassService.capturePhotoFromGlasses() else camera.capturePhoto()
-                    ?: throw Exception("Failed to capture")
-                val text = ocr.recognizeText(bitmap!!)
-                recognizedText.value = text
-                statusText.value = "Text recognized."
-                announcer.announce(text)
-            } catch (e: Exception) { errorMessage.value = e.message; statusText.value = "Failed." }
-            isProcessing.value = false
+    fun startCamera() {
+        if (cameraStarted) return
+        val lo = storedLifecycleOwner ?: return
+        val pv = storedPreview ?: return
+        if (GoogleGlassState.useGlassCamera.value) return
+        cameraStarted = true
+        camera.startCamera(lo, pv) { bitmap ->
+            if (isContinuous.value && !isProcessing.value) recognizeFrame(bitmap)
         }
     }
 
-    fun startContinuous() { isContinuous.value = true; statusText.value = "Continuous recognition active." }
+    fun stopCamera() { cameraStarted = false; camera.stopCamera() }
 
-    fun stopContinuous() { isContinuous.value = false; if (!isProcessing.value) statusText.value = "Ready." }
+    fun captureAndRecognize() {
+        if (!processingLock.compareAndSet(false, true)) return
+        isProcessing.value = true
+        statusText.value = str(R.string.status_capturing_text)
+        viewModelScope.launch {
+            try {
+                var bitmap: Bitmap? = null
+                for (attempt in 1..3) {
+                    bitmap = if (GoogleGlassState.useGlassCamera.value) glassService.capturePhotoFromGlasses() else camera.capturePhoto()
+                    if (bitmap != null) break
+                    kotlinx.coroutines.delay(500)
+                }
+                if (bitmap == null) throw Exception(str(R.string.error_camera_not_ready))
+                val result = ocr.recognizeText(bitmap)
+                recognizedText.value = result.text
+                detectedLanguage.value = result.detectedLanguage
+                statusText.value = str(R.string.status_text_recognized)
+                capturedTextForDisplay.value = result.text
+                showCaptureDialog.value = true
+                announcer.announce(result.text)
+            } catch (e: Exception) { errorMessage.value = e.message; statusText.value = str(R.string.status_failed, e.message) }
+            isProcessing.value = false
+            processingLock.set(false)
+        }
+    }
+
+    fun startContinuous() { isContinuous.value = true; statusText.value = str(R.string.status_continuous_active) }
+
+    fun stopContinuous() { isContinuous.value = false; if (!isProcessing.value) statusText.value = str(R.string.status_ready) }
 
     private fun recognizeFrame(bitmap: Bitmap) {
-        if (isProcessing.value) return
+        if (!processingLock.compareAndSet(false, true)) return
         isProcessing.value = true
         viewModelScope.launch {
             try {
-                val text = ocr.recognizeText(bitmap)
-                if (text.isNotBlank() && text != lastAnnouncedText) { recognizedText.value = text; lastAnnouncedText = text; announcer.announce(text, minimumInterval = 3000) }
-            } catch (_: Exception) {}
+                val result = ocr.recognizeText(bitmap)
+                errorMessage.value = null
+                val text = result.text
+                if (text.isNotBlank() && text != lastAnnouncedText) {
+                    detectedLanguage.value = result.detectedLanguage
+
+                    val similarity = textSimilarity(text, lastFrameText)
+                    if (similarity >= STABILITY_THRESHOLD) {
+                        stableCount++
+                    } else {
+                        stableCount = 1
+                        lastFrameText = text
+                    }
+
+                    if (stableCount >= STABLE_ANNOUNCE_COUNT && text != lastAnnouncedText) {
+                        recognizedText.value = text
+                        lastAnnouncedText = text
+                        val textCooldownMs = (settings.readTextSpeechCooldown.first() * 1000).toLong()
+                        announcer.announce(text, minimumInterval = textCooldownMs)
+                    } else {
+                        recognizedText.value = text
+                    }
+
+                    if (isDocumentMode.value) {
+                        val coverage = calculateTextCoverage(result.textBlocks, bitmap.width, bitmap.height)
+                        if (coverage > DOCUMENT_TEXT_COVERAGE_THRESHOLD) {
+                            documentStableCount++
+                            if (documentStableCount >= DOCUMENT_STABLE_COUNT_THRESHOLD) {
+                                documentStableCount = 0
+                                capturedTextForDisplay.value = text
+                                showCaptureDialog.value = true
+                            }
+                        } else {
+                            documentStableCount = 0
+                        }
+                    }
+                } else if (text.isBlank()) {
+                    lastAnnouncedText = ""
+                    lastFrameText = ""
+                    stableCount = 0
+                }
+            } catch (e: Exception) {
+                if (errorMessage.value != e.message) {
+                    errorMessage.value = e.message
+                    statusText.value = str(R.string.status_recognition_error, e.message)
+                }
+            }
             isProcessing.value = false
+            processingLock.set(false)
         }
+    }
+
+    private fun textSimilarity(a: String, b: String): Float {
+        if (a.isEmpty() && b.isEmpty()) return 1.0f
+        if (a.isEmpty() || b.isEmpty()) return 0.0f
+        val distance = levenshteinDistance(a, b)
+        return 1.0f - distance.toFloat() / max(a.length, b.length)
+    }
+
+    private fun levenshteinDistance(s1: String, s2: String): Int {
+        val len1 = s1.length
+        val len2 = s2.length
+        val dp = Array(len1 + 1) { IntArray(len2 + 1) }
+        for (i in 0..len1) dp[i][0] = i
+        for (j in 0..len2) dp[0][j] = j
+        for (i in 1..len1) {
+            for (j in 1..len2) {
+                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
+                dp[i][j] = minOf(
+                    dp[i - 1][j] + 1,
+                    dp[i][j - 1] + 1,
+                    dp[i - 1][j - 1] + cost
+                )
+            }
+        }
+        return dp[len1][len2]
+    }
+
+    private fun calculateTextCoverage(blocks: List<com.eyepal.app.services.TextBlockInfo>, frameWidth: Int, frameHeight: Int): Float {
+        if (blocks.isEmpty()) return 0f
+        val frameArea = (frameWidth * frameHeight).toFloat()
+        if (frameArea <= 0f) return 0f
+        val totalTextArea = blocks.sumOf { it.bounds.width().toLong() * it.bounds.height().toLong() }.toFloat()
+        return totalTextArea / frameArea
     }
 
     override fun onCleared() { super.onCleared(); ocr.close() }

@@ -27,7 +27,7 @@
         A10000010000000000000010 /* FaceRecognitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000010 /* FaceRecognitionView.swift */; };
 		A10000010000000000000011 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000011 /* SettingsView.swift */; };
 		A10000010000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000012 /* Assets.xcassets */; };
-		A1000001000000000000001A /* arcface_fresh.onnx in Resources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000001A /* arcface_fresh.onnx */; };
+		A1000001000000000000001A /* w600k_mbf.onnx in Resources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000001A /* w600k_mbf.onnx */; };
 		A1000001000000000000001B /* OpenAISubscriptionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000001B /* OpenAISubscriptionStore.swift */; };
 		A1000001000000000000001C /* OpenAIDetailsDescriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000001C /* OpenAIDetailsDescriptionService.swift */; };
 		A1000001000000000000001D /* DetailsDescriptionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000001D /* DetailsDescriptionViewModel.swift */; };
@@ -72,7 +72,7 @@
 		A10001010000000000000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A10001010000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10001010000000000000019 /* EyePal-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = EyePal-Bridging-Header.h; sourceTree = "<group>"; };
-		A1000101000000000000001A /* arcface_fresh.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; name = arcface_fresh.onnx; path = tools/face_model/models/arcface_fresh.onnx; sourceTree = SOURCE_ROOT; };
+		A1000101000000000000001A /* w600k_mbf.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; name = w600k_mbf.onnx; path = tools/face_model/models/w600k_mbf.onnx; sourceTree = SOURCE_ROOT; };
 		A1000101000000000000001B /* OpenAISubscriptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAISubscriptionStore.swift; sourceTree = "<group>"; };
 		A1000101000000000000001C /* OpenAIDetailsDescriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIDetailsDescriptionService.swift; sourceTree = "<group>"; };
 		A1000101000000000000001D /* DetailsDescriptionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsDescriptionViewModel.swift; sourceTree = "<group>"; };
@@ -119,7 +119,7 @@
 				A10001010000000000000013 /* Info.plist */,
 				A10001010000000000000012 /* Assets.xcassets */,
 				A10001010000000000000019 /* EyePal-Bridging-Header.h */,
-				A1000101000000000000001A /* arcface_fresh.onnx */,
+				A1000101000000000000001A /* w600k_mbf.onnx */,
 				A10001010000000000000001 /* EyePalApp.swift */,
                 A10001010000000000000002 /* RootTabView.swift */,
                 A10003000000000000000004 /* Models */,
@@ -309,7 +309,7 @@
             buildActionMask = 2147483647;
             files = (
 				A10000010000000000000012 /* Assets.xcassets in Resources */,
-				A1000001000000000000001A /* arcface_fresh.onnx in Resources */,
+				A1000001000000000000001A /* w600k_mbf.onnx in Resources */,
 			);
             runOnlyForDeploymentPostprocessing = 0;
         };

@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                NavigationLink("Feature Order") {
+                NavigationLink(NSLocalizedString("settings.featureOrder", comment: "")) {
                     FeatureOrderSettingsView()
                         .environmentObject(settingsStore)
                 }
@@ -47,7 +47,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(NSLocalizedString("tab.settings", comment: ""))
     }
 }
 
@@ -503,13 +503,13 @@ private struct DetailsDescriptionSettingsView: View {
 
             if openAIStore.isSignedIn {
                 Section {
-                    Button("Sign Out", role: .destructive) {
+                    Button(NSLocalizedString("common.signOut", comment: ""), role: .destructive) {
                         showSignOutConfirmation = true
                     }
                 }
-                .alert("Sign Out", isPresented: $showSignOutConfirmation) {
-                    Button("Cancel", role: .cancel) {}
-                    Button("Sign Out", role: .destructive) {
+                .alert(NSLocalizedString("common.signOut", comment: ""), isPresented: $showSignOutConfirmation) {
+                    Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
+                    Button(NSLocalizedString("common.signOut", comment: ""), role: .destructive) {
                         openAIStore.signOut()
                     }
                 } message: {
@@ -868,7 +868,7 @@ private struct FaceRecognitionSettingsView: View {
             }
 
             Section("Saved Faces") {
-                NavigationLink("Manage Saved Faces") {
+                NavigationLink(NSLocalizedString("feature.savedFaces", comment: "")) {
                     SavedFacesView()
                 }
             }
@@ -950,7 +950,7 @@ private struct SavedFacesView: View {
                             Button(role: .destructive) {
                                 viewModel.deleteFaces(at: IndexSet(integer: viewModel.profiles.firstIndex(where: { $0.id == profile.id }) ?? 0))
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                             }
                         }
                         .contextMenu {
@@ -958,7 +958,7 @@ private struct SavedFacesView: View {
                                 draftName = profile.name
                                 renamingProfile = profile
                             } label: {
-                                Label("Rename", systemImage: "pencil")
+                                Label(NSLocalizedString("common.rename", comment: ""), systemImage: "pencil")
                             }
                         }
                         .accessibilityAction(named: Text("Rename \(profile.name)")) {
@@ -983,11 +983,11 @@ private struct SavedFacesView: View {
         .alert("Rename Face", isPresented: Binding(get: { renamingProfile != nil }, set: { if !$0 { renamingProfile = nil } })) {
             TextField("Person's name", text: $draftName)
                 .textInputAutocapitalization(.words)
-            Button("Cancel", role: .cancel) {
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
                 renamingProfile = nil
                 draftName = ""
             }
-            Button("Save") {
+            Button(NSLocalizedString("common.save", comment: "")) {
                 guard let renamingProfile else { return }
                 viewModel.renameProfile(id: renamingProfile.id, newName: draftName)
                 self.renamingProfile = nil

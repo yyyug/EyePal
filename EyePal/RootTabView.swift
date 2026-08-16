@@ -20,7 +20,7 @@ struct RootTabView: View {
             MoreView()
                 .environmentObject(floorStore)
                 .tabItem {
-                    Label("More", systemImage: "ellipsis.circle")
+                    Label(NSLocalizedString("tab.more", comment: ""), systemImage: "ellipsis.circle")
                 }
                 .tag("more")
         }

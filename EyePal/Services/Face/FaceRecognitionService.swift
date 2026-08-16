@@ -31,7 +31,7 @@ final class FaceRecognitionService {
     private var pendingUnknownEmbeddings: [[Float]] = []
     private var pendingUnknownJPEGData: Data?
 
-    var recognitionThreshold: Float = 0.95
+    var recognitionThreshold: Float = 0.65
     var suggestionFrameThreshold = 6
     var minimumSuggestionInterval: TimeInterval = 10
     var knownMatchFrameThreshold = 1
@@ -133,6 +133,14 @@ final class FaceRecognitionService {
         return profiles
     }
 
+    private static let referenceLandmarks: [(x: Double, y: Double)] = [
+        (38.2946, 51.6963), // left eye
+        (73.5318, 51.5014), // right eye
+        (56.0252, 71.7366), // nose
+        (41.5493, 92.3655), // left mouth corner
+        (70.7299, 92.2041)  // right mouth corner
+    ]
+
     private func extractPrimaryFace(from sampleBuffer: CMSampleBuffer) throws -> CGImage {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw FaceEmbeddingError.invalidOutput
@@ -148,9 +156,7 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.noFaceDetected
         }
 
-        guard let landmarks = observation.landmarks,
-              let leftEye = landmarks.leftEye?.normalizedPoints.first,
-              let rightEye = landmarks.rightEye?.normalizedPoints.first else {
+        guard let landmarks = observation.landmarks else {
             throw FaceEmbeddingError.noFaceDetected
         }
 
@@ -158,36 +164,37 @@ final class FaceRecognitionService {
         let pixelW = CVPixelBufferGetWidth(pixelBuffer)
         let pixelH = CVPixelBufferGetHeight(pixelBuffer)
 
-        let leX = bb.origin.x + leftEye.x * bb.width
-        let leY = bb.origin.y + leftEye.y * bb.height
-        let reX = bb.origin.x + rightEye.x * bb.width
-        let reY = bb.origin.y + rightEye.y * bb.height
+        func toPixel(_ points: [CGPoint]?) -> CGPoint? {
+            guard let pts = points, !pts.isEmpty else { return nil }
+            let cx = pts.map(\.x).reduce(0, +) / Double(pts.count)
+            let cy = pts.map(\.y).reduce(0, +) / Double(pts.count)
+            return CGPoint(x: bb.origin.x + cx * bb.width, y: bb.origin.y + cy * bb.height)
+        }
 
-        let eyeCenterX = (leX + reX) / 2
-        let eyeCenterY = (leY + reY) / 2
-        let eyeDistX = (reX - leX) * Double(pixelW)
-        let eyeDistY = (reY - leY) * Double(pixelH)
-        let eyeDist = sqrt(eyeDistX * eyeDistX + eyeDistY * eyeDistY)
+        func outerLipsCorner(_ pickLeft: Bool) -> CGPoint? {
+            guard let pts = landmarks.outerLips?.normalizedPoints, pts.count >= 2 else { return nil }
+            let sorted = pts.sorted { pickLeft ? ($0.x < $1.x) : ($0.x > $1.x) }
+            let pt = sorted[0]
+            return CGPoint(x: bb.origin.x + pt.x * bb.width, y: bb.origin.y + pt.y * bb.height)
+        }
 
-        let cropSize = min(eyeDist * 2.8, Double(min(pixelW, pixelH)))
-        let centerX = eyeCenterX * Double(pixelW)
-        let centerY = eyeCenterY * Double(pixelH)
-
-        let cropRect = CGRect(
-            x: max(0, centerX - cropSize / 2),
-            y: max(0, centerY - cropSize / 2),
-            width: cropSize,
-            height: cropSize
-        ).intersection(CGRect(x: 0, y: 0, width: Double(pixelW), height: Double(pixelH)))
-
-        guard cropRect.width > 10, cropRect.height > 10 else {
+        guard let lePx = toPixel(landmarks.leftEye?.normalizedPoints),
+              let rePx = toPixel(landmarks.rightEye?.normalizedPoints),
+              let nosePx = toPixel(landmarks.nose?.normalizedPoints),
+              let lmPx = outerLipsCorner(true),
+              let rmPx = outerLipsCorner(false) else {
             throw FaceEmbeddingError.noFaceDetected
         }
 
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
-        let cropped = ciImage.cropped(to: cropRect)
+        let srcPoints: [(Double, Double)] = [
+            (lePx.x * Double(pixelW), lePx.y * Double(pixelH)),
+            (rePx.x * Double(pixelW), rePx.y * Double(pixelH)),
+            (nosePx.x * Double(pixelW), nosePx.y * Double(pixelH)),
+            (lmPx.x * Double(pixelW), lmPx.y * Double(pixelH)),
+            (rmPx.x * Double(pixelW), rmPx.y * Double(pixelH))
+        ]
 
-        guard let cgImage = context.createCGImage(cropped, from: cropped.extent) else {
+        guard let affine = computeAffineAffine(srcPoints: srcPoints, dstPoints: Self.referenceLandmarks) else {
             throw FaceEmbeddingError.preprocessingFailed
         }
 
@@ -204,6 +211,25 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.preprocessingFailed
         }
 
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
+        let affineFilter = CIFilter(name: "CIAffineTransform")!
+        affineFilter.setValue(ciImage, forKey: kCIInputImageKey)
+        let transform = CGAffineTransform(
+            a: CGFloat(affine[0]), b: CGFloat(affine[2]),
+            c: CGFloat(affine[1]), d: CGFloat(affine[3]),
+            tx: CGFloat(affine[4]), ty: CGFloat(affine[5])
+        )
+        affineFilter.setValue(NSValue(cgAffineTransform: transform), forKey: "inputTransform")
+
+        guard let alignedCI = affineFilter.outputImage else {
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+
+        let alignedCrop = alignedCI.cropped(to: CGRect(x: 0, y: 0, width: 112, height: 112))
+        guard let cgImage = context.createCGImage(alignedCrop, from: alignedCrop.extent) else {
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+
         outputContext.interpolationQuality = .high
         outputContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
 
@@ -211,6 +237,52 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.preprocessingFailed
         }
 
+        return result
+    }
+
+    private func computeAffineAffine(srcPoints: [(Double, Double)], dstPoints: [(Double, Double)]) -> [Double]? {
+        guard srcPoints.count == 5, dstPoints.count == 5 else { return nil }
+        let n = 5
+        var A = [[Double]](repeating: [Double](repeating: 0, count: 6), count: 2 * n)
+        var b = [Double](repeating: 0, count: 2 * n)
+        for i in 0..<n {
+            let (sx, sy) = srcPoints[i]
+            let (dx, dy) = dstPoints[i]
+            A[2 * i] = [sx, sy, 1, 0, 0, 0]
+            A[2 * i + 1] = [0, 0, 0, sx, sy, 1]
+            b[2 * i] = dx
+            b[2 * i + 1] = dy
+        }
+        let At = (0..<6).map { j in (0..<2 * n).map { i in A[i][j] } }
+        var AtA = [[Double]](repeating: [Double](repeating: 0, count: 6), count: 6)
+        var Atb = [Double](repeating: 0, count: 6)
+        for i in 0..<6 {
+            for j in 0..<6 {
+                AtA[i][j] = (0..<2 * n).reduce(0) { $0 + At[i][$1] * At[$1][j] }
+            }
+            Atb[i] = (0..<2 * n).reduce(0) { $0 + At[i][$1] * b[$1] }
+        }
+        return solveLinearSystem(AtA, Atb)
+    }
+
+    private func solveLinearSystem(_ A: [[Double]], _ b: [Double]) -> [Double]? {
+        let n = b.count
+        var a = A; var x = b
+        for i in 0..<n {
+            var maxRow = i
+            for k in (i + 1)..<n where abs(a[k][i]) > abs(a[maxRow][i]) { maxRow = k }
+            a.swapAt(i, maxRow); x.swapAt(i, maxRow)
+            guard abs(a[i][i]) > 1e-12 else { return nil }
+            for k in (i + 1)..<n {
+                let f = a[k][i] / a[i][i]
+                for j in i..<n { a[k][j] -= f * a[i][j] }
+                x[k] -= f * x[i]
+            }
+        }
+        var result = [Double](repeating: 0, count: n)
+        for i in stride(from: n - 1, through: 0, by: -1) {
+            result[i] = (x[i] - (i + 1..<n).reduce(0) { $0 + a[i][$1] * result[$1] }) / a[i][i]
+        }
         return result
     }
 
