@@ -79,15 +79,15 @@ struct QuickRecognitionView: View {
 
                 translationView
             }
-            .navigationTitle("Quick Recognition")
+            .navigationTitle(NSLocalizedString("feature.quickRecognition", comment: ""))
             .alert(
-                "Quick Recognition Error",
+                NSLocalizedString("quick.recognitionError", comment: ""),
                 isPresented: Binding(
                     get: { viewModel.errorMessage != nil },
                     set: { if !$0 { viewModel.errorMessage = nil } }
                 )
             ) {
-                Button("OK") {
+                Button(NSLocalizedString("common.ok", comment: "")) {
                     viewModel.errorMessage = nil
                 }
             } message: {

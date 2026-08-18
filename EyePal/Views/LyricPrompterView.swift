@@ -18,17 +18,17 @@ struct LyricPrompterView: View {
                     viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
                     viewModel.loadSaved()
                 }
-                .sheet(isPresented: $showLyricsSheet) {
-                    if let song = viewModel.currentSong {
-                        LyricDisplayView(song: song, viewModel: viewModel)
-                    }
-                }
-                .alert("Error", isPresented: Binding(
+                .alert(NSLocalizedString("common.error", comment: ""), isPresented: Binding(
                     get: { viewModel.errorMessage != nil },
                     set: { if !$0 { viewModel.errorMessage = nil } }
                 )) {
-                    Button("OK") { viewModel.errorMessage = nil }
+                    Button(NSLocalizedString("common.ok", comment: "")) { viewModel.errorMessage = nil }
                 } message: { Text(viewModel.errorMessage ?? "") }
+        }
+        .sheet(isPresented: $showLyricsSheet) {
+            if let song = viewModel.currentSong {
+                LyricDisplayView(song: song, viewModel: viewModel)
+            }
         }
     }
 
@@ -54,25 +54,25 @@ struct LyricPrompterView: View {
                 }.listStyle(.plain)
             } else {
                 Spacer()
-                Text("No saved lyrics yet.").foregroundStyle(.secondary)
+                Text(NSLocalizedString("lyric.noSaved", comment: "")).foregroundStyle(.secondary)
                 Spacer()
             }
 
             VStack(spacing: 12) {
-                TextField("Song title or \"Song - Artist\"", text: $viewModel.searchText)
+                TextField(NSLocalizedString("lyric.searchPlaceholder", comment: ""), text: $viewModel.searchText)
                     .textFieldStyle(.roundedBorder)
                     .submitLabel(.search)
                     .onSubmit { Task { await performSearch() } }
 
                 Button { Task { await performSearch() } } label: {
-                    Label(viewModel.isSearching ? "Searching..." : "Search Lyrics", systemImage: "magnifyingglass").frame(maxWidth: .infinity)
+                    Label(viewModel.isSearching ? NSLocalizedString("lyric.searching", comment: "") : NSLocalizedString("lyric.searchLyrics", comment: ""), systemImage: "magnifyingglass").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isSearching || viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding()
         }
-        .navigationTitle("Lyric Prompter")
+        .navigationTitle(NSLocalizedString("feature.lyricPrompter", comment: ""))
     }
 
     private func performSearch() async {
@@ -102,16 +102,16 @@ struct LyricPrompterView: View {
                             Text(result.artistName).font(.subheadline).foregroundStyle(.secondary)
                             if let album = result.albumName { Text(album).font(.caption).foregroundStyle(.secondary) }
                             HStack(spacing: 8) {
-                                if result.hasSyncedLyrics { Label("Synced", systemImage: "waveform").font(.caption).foregroundStyle(.green) }
-                                else { Label("Plain", systemImage: "text.alignleft").font(.caption).foregroundStyle(.secondary) }
+                                if result.hasSyncedLyrics { Label(NSLocalizedString("lyric.synced", comment: ""), systemImage: "waveform").font(.caption).foregroundStyle(.green) }
+                                else { Label(NSLocalizedString("lyric.plain", comment: ""), systemImage: "text.alignleft").font(.caption).foregroundStyle(.secondary) }
                             }
                         }
                     }
                 }
-            } header: { Text("\(viewModel.searchResults.count) results found") }
+            } header: { Text("\(viewModel.searchResults.count) \(NSLocalizedString("lyric.resultsFound", comment: ""))") }
 
             if !viewModel.searchLog.isEmpty {
-                Section("Debug Log") {
+                Section(NSLocalizedString("lyric.debugLog", comment: "")) {
                     ForEach(viewModel.searchLog, id: \.self) { entry in
                         Text(entry).font(.caption).foregroundStyle(.secondary)
                     }
@@ -119,7 +119,7 @@ struct LyricPrompterView: View {
             }
         }
         .listStyle(.plain)
-        .navigationTitle("Search Results")
+        .navigationTitle(NSLocalizedString("lyric.searchResults", comment: ""))
     }
 }
 
@@ -136,14 +136,14 @@ private struct LyricDisplayView: View {
                 if song.hasTimestamps {
                     HStack(spacing: 12) {
                         Button { viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromStart(offset: settingsStore.lyricAdvanceOffset) } label: {
-                            Label(viewModel.isPlaying ? "Stop" : "Play from Start", systemImage: viewModel.isPlaying ? "stop.circle" : "play.circle").frame(maxWidth: .infinity)
+                            Label(viewModel.isPlaying ? NSLocalizedString("common.stop", comment: "") : NSLocalizedString("lyric.playFromStart", comment: ""), systemImage: viewModel.isPlaying ? "stop.circle" : "play.circle").frame(maxWidth: .infinity)
                         }.buttonStyle(.bordered)
                         Button { viewModel.isPlaying ? viewModel.stopPlayback() : viewModel.playFromNow(offset: settingsStore.lyricAdvanceOffset) } label: {
-                            Label(viewModel.isPlaying ? "Stop" : "Play from Now", systemImage: viewModel.isPlaying ? "stop.circle" : "forward.circle").frame(maxWidth: .infinity)
+                            Label(viewModel.isPlaying ? NSLocalizedString("common.stop", comment: "") : NSLocalizedString("lyric.playFromNow", comment: ""), systemImage: viewModel.isPlaying ? "stop.circle" : "forward.circle").frame(maxWidth: .infinity)
                         }.buttonStyle(.bordered)
                     }.padding(.horizontal).padding(.vertical, 8)
                 } else {
-                    HStack { Spacer(); Text("No timed lyrics available").font(.caption).foregroundStyle(.secondary); Spacer() }.padding(.vertical, 8)
+                    HStack { Spacer(); Text(NSLocalizedString("lyric.noTimedLyrics", comment: "")).font(.caption).foregroundStyle(.secondary); Spacer() }.padding(.vertical, 8)
                 }
 
                 ScrollView {
@@ -159,7 +159,7 @@ private struct LyricDisplayView: View {
                     .padding(.vertical)
                 }
 
-                Button { viewModel.saveCurrentSong(); dismiss() } label: { Label("Save Lyrics", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }
+                Button { viewModel.saveCurrentSong(); dismiss() } label: { Label(NSLocalizedString("lyric.saveLyrics", comment: ""), systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent).padding()
             }
             .navigationTitle(song.title)

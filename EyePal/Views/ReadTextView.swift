@@ -52,7 +52,7 @@ struct ReadTextView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .padding()
             }
-            .navigationTitle("Read Text")
+            .navigationTitle(NSLocalizedString("feature.readText", comment: ""))
             .sheet(item: $viewModel.capturedResult, onDismiss: {
                 viewModel.dismissCapturedResult()
             }) { result in
@@ -93,7 +93,7 @@ private struct CapturedTextResultView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
             }
-            .navigationTitle("Captured Text")
+            .navigationTitle(NSLocalizedString("read.capturedText", comment: ""))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(NSLocalizedString("common.done", comment: "")) {

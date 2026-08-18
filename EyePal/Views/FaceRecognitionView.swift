@@ -31,7 +31,7 @@ struct FaceRecognitionView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .padding()
             }
-            .navigationTitle("Face Recognition")
+            .navigationTitle(NSLocalizedString("feature.faceRecognition", comment: ""))
             .sheet(item: $viewModel.pendingSuggestion) { suggestion in
                 NavigationStack {
                     Form {
@@ -45,8 +45,8 @@ struct FaceRecognitionView: View {
                             }
                         }
 
-                        Section("New Face") {
-                            TextField("Person's name", text: $suggestedName)
+                        Section(NSLocalizedString("face.newFace", comment: "")) {
+                            TextField(NSLocalizedString("face.personName", comment: ""), text: $suggestedName)
                                 .textInputAutocapitalization(.words)
                                 .submitLabel(.done)
                                 .onSubmit {
@@ -54,10 +54,10 @@ struct FaceRecognitionView: View {
                                 }
                         }
                     }
-                    .navigationTitle("Add Person")
+                    .navigationTitle(NSLocalizedString("face.addPerson", comment: ""))
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Not Now") {
+                            Button(NSLocalizedString("face.notNow", comment: "")) {
                                 suggestedName = ""
                                 viewModel.dismissSuggestion()
                             }
@@ -72,8 +72,8 @@ struct FaceRecognitionView: View {
                     }
                 }
             }
-            .alert("Face Recognition Error", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if (!$0) { viewModel.errorMessage = nil } }), actions: {
-                Button("OK") {
+            .alert(NSLocalizedString("face.recognitionError", comment: ""), isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if (!$0) { viewModel.errorMessage = nil } }), actions: {
+                Button(NSLocalizedString("common.ok", comment: "")) {
                     viewModel.errorMessage = nil
                 }
             }, message: {

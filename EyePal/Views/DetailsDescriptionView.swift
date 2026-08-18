@@ -43,11 +43,11 @@ struct DetailsDescriptionView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     if !openAIStore.isSignedIn {
-                        Text("Sign in with ChatGPT to use scene description.")
+                        Text(NSLocalizedString("details.signInPrompt", comment: ""))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Button("Sign In with ChatGPT") {
+                        Button(NSLocalizedString("details.signInChatGPT", comment: "")) {
                             openAIStore.beginSignIn()
                         }
                         .buttonStyle(.borderedProminent)
@@ -57,13 +57,13 @@ struct DetailsDescriptionView: View {
 
                         if !viewModel.descriptionText.isEmpty {
                             HStack(spacing: 8) {
-                                TextField("Ask a follow-up question", text: $viewModel.followUpQuestion)
+                                TextField(NSLocalizedString("details.followUpQuestion", comment: ""), text: $viewModel.followUpQuestion)
                                     .textFieldStyle(.roundedBorder)
                                     .submitLabel(.send)
                                     .onSubmit {
                                         viewModel.submitFollowUp()
                                     }
-                                    .accessibilityLabel("Ask a follow-up question")
+                                    .accessibilityLabel(NSLocalizedString("details.followUpQuestion", comment: ""))
 
                                 Button(NSLocalizedString("common.send", comment: "")) {
                                     viewModel.submitFollowUp()
@@ -79,7 +79,7 @@ struct DetailsDescriptionView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .padding()
             }
-            .navigationTitle("Details Description")
+            .navigationTitle(NSLocalizedString("feature.detailsRecognition", comment: ""))
             .sheet(item: $openAIStore.authRequest, onDismiss: {
                 openAIStore.cancelSignIn()
             }) { authRequest in
@@ -91,34 +91,34 @@ struct DetailsDescriptionView: View {
                 }
             }
             .alert(
-                "OpenAI Sign-In Error",
+                NSLocalizedString("details.openAISignInError", comment: ""),
                 isPresented: Binding(
                     get: { openAIStore.authErrorMessage != nil },
                     set: { if !$0 { openAIStore.authErrorMessage = nil } }
                 )
             ) {
-                Button("OK") {
+                Button(NSLocalizedString("common.ok", comment: "")) {
                     openAIStore.authErrorMessage = nil
                 }
             } message: {
                 Text(openAIStore.authErrorMessage ?? "")
             }
             .alert(
-                "Details Description Error",
+                NSLocalizedString("details.descriptionError", comment: ""),
                 isPresented: Binding(
                     get: { viewModel.errorMessage != nil },
                     set: { if !$0 { viewModel.errorMessage = nil } }
                 )
             ) {
-                Button("OK") {
+                Button(NSLocalizedString("common.ok", comment: "")) {
                     viewModel.errorMessage = nil
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
-            .alert("Take Photo With Prompt", isPresented: $showPromptComposer) {
-                TextField("Prompt", text: $promptText)
-                Button("Send") {
+            .alert(NSLocalizedString("details.takePhotoWithPrompt", comment: ""), isPresented: $showPromptComposer) {
+                TextField(NSLocalizedString("details.prompt", comment: ""), text: $promptText)
+                Button(NSLocalizedString("common.send", comment: "")) {
                     viewModel.capturePhotoWithPrompt(promptText)
                     promptText = ""
                 }
@@ -126,7 +126,7 @@ struct DetailsDescriptionView: View {
                     promptText = ""
                 }
             } message: {
-                Text("Enter a custom prompt and send it with a new photo.")
+                Text(NSLocalizedString("details.promptMessage", comment: ""))
             }
         }
         .onAppear {
@@ -206,7 +206,7 @@ struct DetailsDescriptionView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isProcessing)
 
-                Button("Prompt") {
+                Button(NSLocalizedString("details.promptButton", comment: "")) {
                     showPromptComposer = true
                 }
                 .buttonStyle(.bordered)
@@ -330,7 +330,7 @@ private struct OpenAILoginSheet: View {
                 onCallback(callbackURL)
                 dismiss()
             }
-            .navigationTitle("ChatGPT Sign In")
+            .navigationTitle(NSLocalizedString("details.chatGPTSignIn", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

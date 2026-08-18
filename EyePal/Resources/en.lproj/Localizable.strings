@@ -50,6 +50,7 @@
 "common.working" = "Working...";
 "common.back" = "Back";
 "common.rename" = "Rename";
+"common.error" = "Error";
 
 /* Common prompts and descriptions */
 "common.noFacesSaved" = "No faces have been saved yet.";
@@ -58,6 +59,49 @@
 "common.pointCameraToDescribe" = "Point the camera at something to describe it.";
 "common.takePhotoToDescribe" = "Take a photo to describe the scene.";
 "common.takePhotoToQuickDescribe" = "Take a photo to quickly describe things";
+
+/* Lyric Prompter */
+"lyric.noSaved" = "No saved lyrics yet.";
+"lyric.searchPlaceholder" = "Song title or \"Song - Artist\"";
+"lyric.searching" = "Searching...";
+"lyric.searchLyrics" = "Search Lyrics";
+"lyric.synced" = "Synced";
+"lyric.plain" = "Plain";
+"lyric.resultsFound" = "results found";
+"lyric.debugLog" = "Debug Log";
+"lyric.searchResults" = "Search Results";
+"lyric.playFromStart" = "Play from Start";
+"lyric.playFromNow" = "Play from Now";
+"lyric.noTimedLyrics" = "No timed lyrics available";
+"lyric.saveLyrics" = "Save Lyrics";
+
+/* Face Recognition */
+"face.newFace" = "New Face";
+"face.personName" = "Person's name";
+"face.addPerson" = "Add Person";
+"face.notNow" = "Not Now";
+"face.recognitionError" = "Face Recognition Error";
+
+/* Quick Recognition */
+"quick.recognitionError" = "Quick Recognition Error";
+
+/* Read Text */
+"read.capturedText" = "Captured Text";
+
+/* Details Description */
+"details.signInPrompt" = "Sign in with ChatGPT to use scene description.";
+"details.signInChatGPT" = "Sign In with ChatGPT";
+"details.followUpQuestion" = "Ask a follow-up question";
+"details.openAISignInError" = "OpenAI Sign-In Error";
+"details.descriptionError" = "Details Description Error";
+"details.takePhotoWithPrompt" = "Take Photo With Prompt";
+"details.prompt" = "Prompt";
+"details.promptMessage" = "Enter a custom prompt and send it with a new photo.";
+"details.promptButton" = "Prompt";
+"details.chatGPTSignIn" = "ChatGPT Sign In";
+
+/* Chat */
+"chat.error" = "Chat Error";
 
 /* Settings labels */
 "settings.general" = "General";

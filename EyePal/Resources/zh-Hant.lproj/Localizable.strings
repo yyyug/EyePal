@@ -50,6 +50,7 @@
 "common.working" = "處理中...";
 "common.back" = "返回";
 "common.rename" = "重新命名";
+"common.error" = "錯誤";
 
 /* Common prompts and descriptions */
 "common.noFacesSaved" = "尚未儲存任何人臉。";
@@ -58,6 +59,49 @@
 "common.pointCameraToDescribe" = "將鏡頭對準要描述的物件。";
 "common.takePhotoToDescribe" = "拍照以描述場景。";
 "common.takePhotoToQuickDescribe" = "拍照以快速描述事物";
+
+/* Lyric Prompter */
+"lyric.noSaved" = "尚無儲存的歌詞。";
+"lyric.searchPlaceholder" = "歌曲名稱或「歌名 - 歌手」";
+"lyric.searching" = "搜尋中...";
+"lyric.searchLyrics" = "搜尋歌詞";
+"lyric.synced" = "同步";
+"lyric.plain" = "純文字";
+"lyric.resultsFound" = "個結果";
+"lyric.debugLog" = "偵錯日誌";
+"lyric.searchResults" = "搜尋結果";
+"lyric.playFromStart" = "從頭播放";
+"lyric.playFromNow" = "從目前播放";
+"lyric.noTimedLyrics" = "無計時歌詞";
+"lyric.saveLyrics" = "儲存歌詞";
+
+/* Face Recognition */
+"face.newFace" = "新人臉";
+"face.personName" = "人名";
+"face.addPerson" = "新增人員";
+"face.notNow" = "暫不";
+"face.recognitionError" = "人臉辨識錯誤";
+
+/* Quick Recognition */
+"quick.recognitionError" = "快速辨識錯誤";
+
+/* Read Text */
+"read.capturedText" = "擷取文字";
+
+/* Details Description */
+"details.signInPrompt" = "使用 ChatGPT 登入以使用場景描述。";
+"details.signInChatGPT" = "使用 ChatGPT 登入";
+"details.followUpQuestion" = "提問";
+"details.openAISignInError" = "OpenAI 登入錯誤";
+"details.descriptionError" = "詳細描述錯誤";
+"details.takePhotoWithPrompt" = "附提示拍照";
+"details.prompt" = "提示";
+"details.promptMessage" = "輸入自訂提示並附上新照片送出。";
+"details.promptButton" = "提示";
+"details.chatGPTSignIn" = "ChatGPT 登入";
+
+/* Chat */
+"chat.error" = "對話錯誤";
 
 /* Settings labels */
 "settings.general" = "一般";

@@ -77,16 +77,16 @@ struct RealtimeChatView: View {
                 }
             }
         }
-        .navigationTitle("Chat")
+        .navigationTitle(NSLocalizedString("feature.chat", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .alert(
-            "Chat Error",
+            NSLocalizedString("chat.error", comment: ""),
             isPresented: Binding(
                 get: { controller.errorMessage != nil },
                 set: { if !$0 { controller.errorMessage = nil } }
             )
         ) {
-            Button("OK") {
+            Button(NSLocalizedString("common.ok", comment: "")) {
                 controller.errorMessage = nil
             }
         } message: {
