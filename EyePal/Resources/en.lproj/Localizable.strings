@@ -14,12 +14,14 @@
 "feature.detailsRecognition" = "Details Recognition";
 "feature.readText" = "Read Text";
 "feature.floorDetection" = "Floor Detection";
-"feature.lyricPrompter" = "Lyric Prompter";
+"feature.lyricPrompter" = "Lyrics";
 "feature.faceRecognition" = "Face Recognition";
 "feature.chat" = "Chat";
 "feature.googleGlass" = "Google Glass";
 "feature.savedFaces" = "Saved Faces";
 "feature.featureOrder" = "Feature Order";
+"feature.maps" = "Maps";
+"feature.devices" = "Devices";
 
 /* Feature descriptions */
 "feature.floorDetection.description" = "Helps locate which floor you are on";
@@ -76,11 +78,26 @@
 "lyric.saveLyrics" = "Save Lyrics";
 
 /* Face Recognition */
+"face.pointCamera" = "Point the camera at a face.";
+"face.loadingFaces" = "Loading saved faces...";
+"face.starting" = "Starting camera...";
+"face.savedWithSamples" = "saved with face samples.";
+"face.recognized" = "Recognized";
+"face.scanning" = "Scanning for known faces...";
+"face.unknownDetected" = "Unknown face detected.";
+"face.capturing" = "Capturing face samples";
 "face.newFace" = "New Face";
 "face.personName" = "Person's name";
 "face.addPerson" = "Add Person";
 "face.notNow" = "Not Now";
 "face.recognitionError" = "Face Recognition Error";
+"face.savedFaces" = "Saved Faces";
+
+/* Presets */
+"preset.product" = "Product";
+"preset.dish" = "Dish";
+"preset.shortText" = "Short Text";
+"preset.custom" = "Custom";
 
 /* Quick Recognition */
 "quick.recognitionError" = "Quick Recognition Error";
@@ -116,6 +133,7 @@
 "settings.voiceVolume" = "Voice Volume";
 "settings.otherVolume" = "Other Volume";
 "settings.featureOrder" = "Feature Order";
+"settings.features" = "Features";
 
 /* Voiceover/TTS */
 "voiceover.back" = "Back";

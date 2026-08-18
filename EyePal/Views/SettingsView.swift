@@ -18,29 +18,29 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Features") {
-                NavigationLink("Details Recognition") {
+            Section(NSLocalizedString("settings.features", comment: "")) {
+                NavigationLink(NSLocalizedString("feature.detailsRecognition", comment: "")) {
                     DetailsDescriptionSettingsView()
                         .environmentObject(settingsStore)
                         .environmentObject(openAIStore)
                 }
 
-                NavigationLink("Quick Recognition") {
+                NavigationLink(NSLocalizedString("feature.quickRecognition", comment: "")) {
                     QuickRecognitionSettingsView()
                         .environmentObject(settingsStore)
                 }
 
-                NavigationLink("Text Recognition") {
+                NavigationLink(NSLocalizedString("feature.readText", comment: "")) {
                     ReadTextRecognitionSettingsView()
                         .environmentObject(settingsStore)
                 }
 
-                NavigationLink("Faces") {
+                NavigationLink(NSLocalizedString("feature.faceRecognition", comment: "")) {
                     FaceRecognitionSettingsView()
                         .environmentObject(settingsStore)
                 }
 
-                NavigationLink("Lyric Prompter") {
+                NavigationLink(NSLocalizedString("feature.lyricPrompter", comment: "")) {
                     LyricPrompterSettingsView()
                         .environmentObject(settingsStore)
                         .environmentObject(openAIStore)
@@ -91,7 +91,7 @@ private struct FeatureOrderSettingsView: View {
             }
         }
         .environment(\.editMode, .constant(.active))
-        .navigationTitle("Feature Order")
+        .navigationTitle(NSLocalizedString("settings.featureOrder", comment: ""))
     }
 }
 
@@ -246,7 +246,7 @@ private struct MapsSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Maps")
+        .navigationTitle(NSLocalizedString("feature.maps", comment: ""))
         .onChange(of: settingsStore.mapsMaxDistanceMeters) { _ in
             applyMapsAudioSettings()
         }
@@ -327,7 +327,7 @@ private struct MapsDevicesSettingsView: View {
                 Text("Facing heading: \(Int(monitor.currentHeading.rounded()))°")
             }
         }
-        .navigationTitle("Devices")
+        .navigationTitle(NSLocalizedString("feature.devices", comment: ""))
         .onAppear { monitor.start() }
         .onDisappear { monitor.stop() }
     }
@@ -522,7 +522,7 @@ private struct DetailsDescriptionSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Details Recognition")
+        .navigationTitle(NSLocalizedString("feature.detailsRecognition", comment: ""))
     }
 
     private func detailsPresetKindBinding(for slot: RecognitionButtonSlot) -> Binding<RecognitionPresetKind> {
@@ -660,7 +660,7 @@ private struct QuickRecognitionSettingsView: View {
 
             translationSection
         }
-        .navigationTitle("Quick Recognition")
+        .navigationTitle(NSLocalizedString("feature.quickRecognition", comment: ""))
         #if canImport(Translation)
         .task {
             if #available(iOS 18.0, *) {
@@ -910,7 +910,7 @@ private struct FaceRecognitionSettingsView: View {
                 Text("If recognition is inconsistent, save a fresh sample for that person.")
             }
         }
-        .navigationTitle("Face Recognition")
+        .navigationTitle(NSLocalizedString("feature.faceRecognition", comment: ""))
     }
 }
 
@@ -929,7 +929,7 @@ private struct ReadTextRecognitionSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Text Recognition")
+        .navigationTitle(NSLocalizedString("feature.readText", comment: ""))
     }
 }
 
@@ -969,7 +969,7 @@ private struct SavedFacesView: View {
                 .onDelete(perform: viewModel.deleteFaces)
             }
         }
-        .navigationTitle("Saved Faces")
+        .navigationTitle(NSLocalizedString("face.savedFaces", comment: ""))
         .task {
             viewModel.loadProfiles()
         }
@@ -1213,7 +1213,7 @@ private struct LyricPrompterSettingsView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Lyric Prompter")
+        .navigationTitle(NSLocalizedString("feature.lyricPrompter", comment: ""))
         .onAppear {
             availableModels = defaultModels(for: selectedProvider.wrappedValue)
             if settingsStore.lyricModelID.isEmpty || !availableModels.contains(settingsStore.lyricModelID) {

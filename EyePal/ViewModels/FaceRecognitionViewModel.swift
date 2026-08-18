@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class FaceRecognitionViewModel: ObservableObject {
-    @Published var statusText = "Point the camera at a face."
+    @Published var statusText = NSLocalizedString("face.pointCamera", comment: "")
     @Published var recognizedName: String?
     @Published var pendingSuggestion: FaceSuggestion?
     @Published var errorMessage: String?
@@ -31,13 +31,13 @@ final class FaceRecognitionViewModel: ObservableObject {
     }
 
     func start() {
-        statusText = "Loading saved faces."
+        statusText = NSLocalizedString("face.loadingFaces", comment: "")
 
         Task {
             do {
                 _ = try await recognitionService.loadProfiles()
                 recognitionService.loadEmbeddingEngine()
-                statusText = "Starting face recognition."
+                statusText = NSLocalizedString("face.starting", comment: "")
                 camera.start()
             } catch {
                 errorMessage = error.localizedDescription
@@ -56,7 +56,7 @@ final class FaceRecognitionViewModel: ObservableObject {
             do {
                 _ = try await recognitionService.saveFace(name: name, suggestion: pendingSuggestion)
                 self.pendingSuggestion = nil
-                statusText = "\(name) was saved with multiple samples for on-device recognition."
+                statusText = "\(name) " + NSLocalizedString("face.savedWithSamples", comment: "")
                 announcer.announce(statusText, minimumInterval: 0)
                 camera.start()
             } catch {
@@ -80,7 +80,7 @@ final class FaceRecognitionViewModel: ObservableObject {
             if let match {
                 pendingSuggestion = nil
                 recognizedName = match.name
-                statusText = "Recognized \(match.name)."
+                statusText = NSLocalizedString("face.recognized", comment: "") + " \(match.name)."
                 sampleProgress = nil
                 let now = Date()
                 if match.name != lastLogName || now.timeIntervalSince(lastLogTime) >= 3.0 {
@@ -91,18 +91,18 @@ final class FaceRecognitionViewModel: ObservableObject {
                 announcer.announce(match.name, minimumInterval: settingsStore?.faceSpeechCooldown ?? 2.5)
             } else {
                 recognizedName = nil
-                statusText = "Scanning for known faces."
+                statusText = NSLocalizedString("face.scanning", comment: "")
             }
 
             if let suggestion, pendingSuggestion == nil, settingsStore?.suggestUnknownFaces ?? true {
                 pendingSuggestion = suggestion
                 sampleProgress = nil
                 camera.stop()
-                announcer.announce("Unknown face detected. A few samples were captured, and you can add this person.", minimumInterval: 3)
+                announcer.announce(NSLocalizedString("face.unknownDetected", comment: ""), minimumInterval: 3)
             }
         } onSampleCollected: { [weak self] current, target in
             Task { @MainActor in
-                self?.sampleProgress = "Capturing samples... \(current)/\(target)"
+                self?.sampleProgress = NSLocalizedString("face.capturing", comment: "") + " \(current)/\(target)"
                 self?.settingsStore?.appendFaceLog("Sample collected: \(current)/\(target)")
             }
         } onLog: { [weak self] message in

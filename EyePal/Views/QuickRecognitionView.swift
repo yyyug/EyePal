@@ -165,7 +165,7 @@ struct QuickRecognitionView: View {
             HStack(spacing: 12) {
                 ForEach(quickPresetEntries, id: \.slot) { entry in
                     quickPresetButton(
-                        title: entry.preset.title,
+                        title: entry.preset.localizedTitle,
                         systemImage: entry.preset.systemImageName
                     ) {
                         viewModel.takePresetPhoto(entry.preset)
@@ -181,7 +181,7 @@ struct QuickRecognitionView: View {
             performSelectedAction()
         } label: {
             Label(
-                viewModel.isProcessing ? "Working..." : selectedActionTitle,
+                viewModel.isProcessing ? NSLocalizedString("common.working", comment: "") : selectedActionTitle,
                 systemImage: selectedActionSymbol
             )
             .frame(maxWidth: .infinity)
@@ -189,9 +189,6 @@ struct QuickRecognitionView: View {
         }
         .buttonStyle(.borderedProminent)
         .disabled(viewModel.isProcessing || viewModel.isContinuousCapture)
-        .accessibilityLabel("Capture action")
-        .accessibilityValue(selectedActionTitle)
-        .accessibilityHint("Swipe up or down to choose an action. Double tap to run the selected action.")
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment:
@@ -213,7 +210,7 @@ struct QuickRecognitionView: View {
     private var selectedActionTitle: String {
         switch selectedAction {
         case .takePhoto:
-            return "Take Photo"
+            return NSLocalizedString("common.takePhoto", comment: "")
         case .preset(let slot):
             return settingsStore.quickPreset(for: slot).title
         }

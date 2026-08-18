@@ -128,6 +128,16 @@ struct QuickQueryPreset: Identifiable, Equatable {
 
     var id: String { title }
 
+    var localizedTitle: String {
+        switch title {
+        case "Product": return NSLocalizedString("preset.product", comment: "")
+        case "Dish": return NSLocalizedString("preset.dish", comment: "")
+        case "Short Text": return NSLocalizedString("preset.shortText", comment: "")
+        case "Custom": return NSLocalizedString("preset.custom", comment: "")
+        default: return title
+        }
+    }
+
     static let builtIn: [QuickQueryPreset] = [
         QuickQueryPreset(
             title: "Product",

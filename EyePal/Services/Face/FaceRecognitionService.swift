@@ -84,7 +84,13 @@ final class FaceRecognitionService {
 
                 do {
                     let faceImage = try self.extractPrimaryFace(from: sampleBuffer)
-                    let embedding = try await self.embeddingEngine.embedding(for: faceImage)
+                    let embedding: [Float]
+                    do {
+                        embedding = try await self.embeddingEngine.embedding(for: faceImage)
+                    } catch {
+                        await MainActor.run { onLog?("[Face] Embedding engine error: \(error.localizedDescription)") }
+                        throw error
+                    }
                     let rankedCandidates = self.rankedCandidates(for: embedding)
 
                     if let match = self.confirmedMatch(for: rankedCandidates) {
@@ -234,14 +240,15 @@ final class FaceRecognitionService {
         }
 
         let srcPoints: [(Double, Double)] = [
-            (lePx.x * Double(pixelW), lePx.y * Double(pixelH)),
-            (rePx.x * Double(pixelW), rePx.y * Double(pixelH)),
-            (nosePx.x * Double(pixelW), nosePx.y * Double(pixelH)),
-            (lmPx.x * Double(pixelW), lmPx.y * Double(pixelH)),
-            (rmPx.x * Double(pixelW), rmPx.y * Double(pixelH))
+            (lePx.x * Double(pixelH), lePx.y * Double(pixelW)),
+            (rePx.x * Double(pixelH), rePx.y * Double(pixelW)),
+            (nosePx.x * Double(pixelH), nosePx.y * Double(pixelW)),
+            (lmPx.x * Double(pixelH), lmPx.y * Double(pixelW)),
+            (rmPx.x * Double(pixelH), rmPx.y * Double(pixelW))
         ]
 
         guard let affine = computeAffineAffine(srcPoints: srcPoints, dstPoints: Self.referenceLandmarks) else {
+            onLog?("[Face] Affine computation failed — singular matrix")
             throw FaceEmbeddingError.preprocessingFailed
         }
 
@@ -255,6 +262,7 @@ final class FaceRecognitionService {
             space: CGColorSpace(name: CGColorSpace.sRGB)!,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
+            onLog?("[Face] Output CGContext creation failed")
             throw FaceEmbeddingError.preprocessingFailed
         }
 
@@ -269,11 +277,13 @@ final class FaceRecognitionService {
         affineFilter.setValue(NSValue(cgAffineTransform: transform), forKey: "inputTransform")
 
         guard let alignedCI = affineFilter.outputImage else {
+            onLog?("[Face] CIAffineTransform output is nil")
             throw FaceEmbeddingError.preprocessingFailed
         }
 
-        let alignedCrop = alignedCI.cropped(to: CGRect(x: 0, y: 0, width: 112, height: 112))
+        let alignedCrop = alignedCI.clamped(to: CGRect(x: 0, y: 0, width: 112, height: 112)).cropped(to: CGRect(x: 0, y: 0, width: 112, height: 112))
         guard let cgImage = context.createCGImage(alignedCrop, from: alignedCrop.extent) else {
+            onLog?("[Face] CIContext.createCGImage failed — extent=\(alignedCrop.extent)")
             throw FaceEmbeddingError.preprocessingFailed
         }
 
@@ -281,6 +291,7 @@ final class FaceRecognitionService {
         outputContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
 
         guard let result = outputContext.makeImage() else {
+            onLog?("[Face] outputContext.makeImage() failed")
             throw FaceEmbeddingError.preprocessingFailed
         }
 

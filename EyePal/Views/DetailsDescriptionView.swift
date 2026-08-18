@@ -216,7 +216,7 @@ struct DetailsDescriptionView: View {
             HStack(spacing: 12) {
                 ForEach(detailsPresetEntries, id: \.slot) { entry in
                     quickPresetButton(
-                        title: entry.preset.title,
+                        title: entry.preset.localizedTitle,
                         systemImage: entry.preset.systemImageName
                     ) {
                         viewModel.capturePresetPhoto(entry.preset)
@@ -231,7 +231,7 @@ struct DetailsDescriptionView: View {
             performSelectedAction()
         } label: {
             Label(
-                viewModel.isProcessing ? "Working..." : selectedActionTitle,
+                viewModel.isProcessing ? NSLocalizedString("common.working", comment: "") : selectedActionTitle,
                 systemImage: selectedActionSymbol
             )
             .frame(maxWidth: .infinity)
@@ -239,9 +239,6 @@ struct DetailsDescriptionView: View {
         }
         .buttonStyle(.borderedProminent)
         .disabled(viewModel.isProcessing)
-        .accessibilityLabel("Capture action")
-        .accessibilityValue(selectedActionTitle)
-        .accessibilityHint("Swipe up or down to choose an action. Double tap to run the selected action.")
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment:
@@ -293,7 +290,7 @@ struct DetailsDescriptionView: View {
     private var selectedActionTitle: String {
         switch selectedAction {
         case .takePhoto:
-            return "Take Photo"
+            return NSLocalizedString("common.takePhoto", comment: "")
         case .preset(let slot):
             return settingsStore.detailsPreset(for: slot).title
         }

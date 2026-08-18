@@ -14,12 +14,14 @@
 "feature.detailsRecognition" = "詳細辨識";
 "feature.readText" = "文字辨識";
 "feature.floorDetection" = "樓層偵測";
-"feature.lyricPrompter" = "歌詞提示";
+"feature.lyricPrompter" = "歌詞";
 "feature.faceRecognition" = "人臉辨識";
 "feature.chat" = "對話";
 "feature.googleGlass" = "Google 眼鏡";
 "feature.savedFaces" = "已儲存人臉";
 "feature.featureOrder" = "功能順序";
+"feature.maps" = "地圖";
+"feature.devices" = "裝置";
 
 /* Feature descriptions */
 "feature.floorDetection.description" = "幫助定位您所在的樓層";
@@ -76,11 +78,26 @@
 "lyric.saveLyrics" = "儲存歌詞";
 
 /* Face Recognition */
+"face.pointCamera" = "將鏡頭對準人臉。";
+"face.loadingFaces" = "正在載入已儲存的人臉...";
+"face.starting" = "正在啟動相機...";
+"face.savedWithSamples" = "已儲存人臉樣本。";
+"face.recognized" = "已辨識";
+"face.scanning" = "正在掃描已知人臉...";
+"face.unknownDetected" = "偵測到未知人臉。";
+"face.capturing" = "正在擷取人臉樣本";
 "face.newFace" = "新人臉";
 "face.personName" = "人名";
 "face.addPerson" = "新增人員";
 "face.notNow" = "暫不";
 "face.recognitionError" = "人臉辨識錯誤";
+"face.savedFaces" = "已儲存人臉";
+
+/* Presets */
+"preset.product" = "商品";
+"preset.dish" = "菜餚";
+"preset.shortText" = "短文字";
+"preset.custom" = "自訂";
 
 /* Quick Recognition */
 "quick.recognitionError" = "快速辨識錯誤";
@@ -116,6 +133,7 @@
 "settings.voiceVolume" = "語音音量";
 "settings.otherVolume" = "其他音量";
 "settings.featureOrder" = "功能順序";
+"settings.features" = "功能";
 
 /* Voiceover/TTS */
 "voiceover.back" = "返回";

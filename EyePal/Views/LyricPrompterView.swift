@@ -6,7 +6,7 @@ struct LyricPrompterView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = LyricPrompterViewModel()
     @State private var showResults = false
-    @State private var showLyricsSheet = false
+    @State private var displayedSong: LyricSong?
 
     var body: some View {
         NavigationStack {
@@ -25,11 +25,14 @@ struct LyricPrompterView: View {
                     Button(NSLocalizedString("common.ok", comment: "")) { viewModel.errorMessage = nil }
                 } message: { Text(viewModel.errorMessage ?? "") }
         }
-        .sheet(isPresented: $showLyricsSheet) {
-            if let song = viewModel.currentSong {
-                LyricDisplayView(song: song, viewModel: viewModel)
-            }
+        .fullScreenCover(item: $displayedSong) { song in
+            LyricDisplayView(song: song, viewModel: viewModel)
         }
+    }
+
+    private func openSong(_ song: LyricSong) {
+        viewModel.currentSong = song
+        displayedSong = song
     }
 
     private var songListView: some View {
@@ -39,8 +42,7 @@ struct LyricPrompterView: View {
                     ForEach(viewModel.savedSongs) { song in
                         Button {
                             viewModel.selectSong(song)
-                            viewModel.currentSong = song
-                            showLyricsSheet = true
+                            openSong(song)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(song.title).font(.headline)
@@ -88,7 +90,9 @@ struct LyricPrompterView: View {
                 ForEach(viewModel.searchResults) { result in
                     Button {
                         viewModel.loadSelectedResult(result)
-                        showLyricsSheet = true
+                        if let song = viewModel.currentSong {
+                            openSong(song)
+                        }
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
