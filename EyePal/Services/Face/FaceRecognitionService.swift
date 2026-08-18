@@ -118,6 +118,30 @@ final class FaceRecognitionService {
         let sampleEmbeddings = suggestion.sampleEmbeddings.filter { !$0.isEmpty }
         guard !sampleEmbeddings.isEmpty else { return profiles }
 
+        if let idx = profiles.firstIndex(where: { $0.name.caseInsensitiveCompare(trimmedName) == .orderedSame }) {
+            profiles[idx].sampleEmbeddings.append(contentsOf: sampleEmbeddings)
+            if let jpegData = suggestion.jpegData {
+                profiles[idx].sampleImageFilename = try await faceStore.saveImage(jpegData, for: profiles[idx].id)
+            }
+            try await faceStore.saveProfiles(profiles)
+            logProfileSimilarityDiagnostics(newProfile: profiles[idx])
+            resetUnknownTracking()
+            return profiles
+        }
+
+        let newMean = meanEmbedding(sampleEmbeddings)
+        if !newMean.isEmpty {
+            for existing in profiles {
+                let existingMean = meanEmbedding(existing.sampleEmbeddings)
+                guard !existingMean.isEmpty else { continue }
+                let sim = cosineSimilarity(newMean, existingMean)
+                if sim >= 0.60 {
+                    onLog?("Duplicate save blocked: \(trimmedName) vs \(existing.name) similarity \(String(format: "%.4f", sim))")
+                    return profiles
+                }
+            }
+        }
+
         var profile = FaceProfile(name: trimmedName, sampleEmbeddings: sampleEmbeddings)
         if let jpegData = suggestion.jpegData {
             profile.sampleImageFilename = try await faceStore.saveImage(jpegData, for: profile.id)
