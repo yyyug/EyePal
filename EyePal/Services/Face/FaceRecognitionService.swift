@@ -3,6 +3,20 @@ import CoreImage
 import UIKit
 import Vision
 
+private enum FaceConfig {
+    static let recognitionThreshold: Float = 0.65
+    static let suggestionFrameThreshold = 6
+    static let minimumSuggestionInterval: TimeInterval = 10
+    static let knownMatchFrameThreshold = 1
+    static let minimumTopMatchMargin: Float = 0.02
+    static let borderlineKnownThreshold: Float = 0.90
+    static let enrollmentSampleTarget = 4
+    static let minimumEnrollmentSamples = 3
+    static let enrollmentMinimumFaceSize: CGFloat = 112
+    static let duplicateWarningThreshold: Float = 0.60
+    static let sampleDistinctSimilarity: Float = 0.995
+}
+
 struct FaceMatch: Equatable {
     let name: String
     let confidence: Float
@@ -31,14 +45,14 @@ final class FaceRecognitionService {
     private var pendingUnknownEmbeddings: [[Float]] = []
     private var pendingUnknownJPEGData: Data?
 
-    var recognitionThreshold: Float = 0.65
-    var suggestionFrameThreshold = 6
-    var minimumSuggestionInterval: TimeInterval = 10
-    var knownMatchFrameThreshold = 1
-    var minimumTopMatchMargin: Float = 0.02
-    var borderlineKnownThreshold: Float = 0.90
-    var enrollmentSampleTarget = 4
-    var minimumEnrollmentSamples = 3
+    var recognitionThreshold: Float = FaceConfig.recognitionThreshold
+    var suggestionFrameThreshold = FaceConfig.suggestionFrameThreshold
+    var minimumSuggestionInterval: TimeInterval = FaceConfig.minimumSuggestionInterval
+    var knownMatchFrameThreshold = FaceConfig.knownMatchFrameThreshold
+    var minimumTopMatchMargin: Float = FaceConfig.minimumTopMatchMargin
+    var borderlineKnownThreshold: Float = FaceConfig.borderlineKnownThreshold
+    var enrollmentSampleTarget = FaceConfig.enrollmentSampleTarget
+    var minimumEnrollmentSamples = FaceConfig.minimumEnrollmentSamples
 
     func loadProfiles() async throws -> [FaceProfile] {
         let loaded = try await faceStore.loadProfiles()
@@ -189,6 +203,13 @@ final class FaceRecognitionService {
         let bb = observation.boundingBox
         let pixelW = CVPixelBufferGetWidth(pixelBuffer)
         let pixelH = CVPixelBufferGetHeight(pixelBuffer)
+
+        let faceWidthPx = bb.width * CGFloat(pixelH)
+        let faceHeightPx = bb.height * CGFloat(pixelW)
+        guard faceWidthPx >= FaceConfig.enrollmentMinimumFaceSize,
+              faceHeightPx >= FaceConfig.enrollmentMinimumFaceSize else {
+            throw FaceEmbeddingError.noFaceDetected
+        }
 
         func toPixel(_ points: [CGPoint]?) -> CGPoint? {
             guard let pts = points, !pts.isEmpty else { return nil }
@@ -413,7 +434,7 @@ final class FaceRecognitionService {
     private func collectUnknownSample(embedding: [Float], faceImage: CGImage) {
         if pendingUnknownEmbeddings.count < enrollmentSampleTarget {
             let isDistinctEnough = pendingUnknownEmbeddings.allSatisfy { savedEmbedding in
-                cosineSimilarity(savedEmbedding, embedding) < 0.995
+                cosineSimilarity(savedEmbedding, embedding) < FaceConfig.sampleDistinctSimilarity
             }
 
             if isDistinctEnough || pendingUnknownEmbeddings.isEmpty {
@@ -438,9 +459,19 @@ final class FaceRecognitionService {
             let sim = cosineSimilarity(newMean, existingMean)
             let msg = "Diagnostics: \(newProfile.name) vs \(existing.name) similarity \(String(format: "%.4f", sim))"
             onLog?(msg)
-            if sim >= 0.60 {
-                onLog?("WARNING: \(newProfile.name) vs \(existing.name) similarity \(String(format: "%.4f", sim)) >= 0.60 — high cross-profile similarity!")
+            if sim >= FaceConfig.duplicateWarningThreshold {
+                onLog?("WARNING: \(newProfile.name) vs \(existing.name) similarity \(String(format: "%.4f", sim)) >= \(FaceConfig.duplicateWarningThreshold) — high cross-profile similarity!")
             }
+        }
+
+        let selfScores = newProfile.sampleEmbeddings
+            .filter { !$0.isEmpty }
+            .map { cosineSimilarity($0, newMean) }
+        if !selfScores.isEmpty {
+            let minS = selfScores.min() ?? 0
+            let maxS = selfScores.max() ?? 0
+            let meanS = selfScores.reduce(0, +) / Float(selfScores.count)
+            onLog?("SelfScore \(newProfile.name): min=\(String(format: "%.4f", minS)) max=\(String(format: "%.4f", maxS)) mean=\(String(format: "%.4f", meanS))")
         }
     }
 
