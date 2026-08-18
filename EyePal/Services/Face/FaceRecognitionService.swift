@@ -258,7 +258,7 @@ final class FaceRecognitionService {
         var Atb = [Double](repeating: 0, count: 6)
         for i in 0..<6 {
             for j in 0..<6 {
-                AtA[i][j] = (0..<2 * n).reduce(0) { $0 + At[i][$1] * At[$1][j] }
+                AtA[i][j] = (0..<2 * n).reduce(0) { $0 + At[i][$1] * A[$1][j] }
             }
             Atb[i] = (0..<2 * n).reduce(0) { $0 + At[i][$1] * b[$1] }
         }
