@@ -51,6 +51,13 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             clean build
 
+      - name: Bundle Localized Strings
+        run: |
+          APP_PATH="build/Build/Products/Release-iphoneos/EyePal.app"
+          mkdir -p "$APP_PATH/en.lproj" "$APP_PATH/zh-Hant.lproj"
+          cp EyePal/Resources/en.lproj/Localizable.strings "$APP_PATH/en.lproj/"
+          cp EyePal/Resources/zh-Hant.lproj/Localizable.strings "$APP_PATH/zh-Hant.lproj/"
+
       - name: Package Unsigned IPA
         run: |
           APP_PATH="build/Build/Products/Release-iphoneos/EyePal.app"
