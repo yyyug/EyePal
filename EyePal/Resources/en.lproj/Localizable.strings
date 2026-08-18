@@ -61,6 +61,7 @@
 "common.pointCameraToDescribe" = "Point the camera at something to describe it.";
 "common.takePhotoToDescribe" = "Take a photo to describe the scene.";
 "common.takePhotoToQuickDescribe" = "Take a photo to quickly describe things";
+"common.capturedImageHint" = "Captured image, tap to resend in full resolution";
 
 /* Lyric Prompter */
 "lyric.noSaved" = "No saved lyrics yet.";
@@ -92,6 +93,9 @@
 "face.notNow" = "Not Now";
 "face.recognitionError" = "Face Recognition Error";
 "face.savedFaces" = "Saved Faces";
+"face.savedFacesError" = "Saved Faces Error";
+"face.renameFace" = "Rename Face";
+"face.renameMessage" = "Enter a new name for this saved face.";
 
 /* Presets */
 "preset.product" = "Product";
@@ -101,6 +105,9 @@
 
 /* Quick Recognition */
 "quick.recognitionError" = "Quick Recognition Error";
+"quick.apiKeyPrompt" = "Add your Moondream API key in Settings > Quick Recognition.";
+"quick.signupLink" = "Sign up and get API key";
+"quick.resultLabel" = "Quick recognition result";
 
 /* Read Text */
 "read.capturedText" = "Captured Text";
@@ -120,20 +127,149 @@
 /* Chat */
 "chat.error" = "Chat Error";
 
-/* Settings labels */
+/* Feature Order Settings */
+"featureOrder.tab" = "Tab";
+"featureOrder.moreTab" = "More";
+"featureOrder.dragHint" = "Drag to reorder. You can also use the Move Up and Move Down actions.";
+"featureOrder.moveUp" = "Move Up";
+"featureOrder.moveDown" = "Move Down";
+
+/* Settings - General */
 "settings.general" = "General";
 "settings.speech" = "Speech";
 "settings.behavior" = "Behavior";
 "settings.translation" = "Translation";
 "settings.playback" = "Playback";
 "settings.about" = "About";
-"settings.aiProvider" = "AI Provider";
+"settings.features" = "Features";
+"settings.featureOrder" = "Feature Order";
 "settings.useMetricUnits" = "Use Metric Units";
 "settings.mixAudioWithOtherApps" = "Mix Audio With Other Apps";
 "settings.voiceVolume" = "Voice Volume";
 "settings.otherVolume" = "Other Volume";
-"settings.featureOrder" = "Feature Order";
-"settings.features" = "Features";
+
+/* Settings - Audio Beacon */
+"settings.audioBeacon" = "Audio Beacon";
+"settings.beaconStyle" = "Beacon Style";
+"settings.beaconMelodies" = "Beacon Melodies";
+"settings.beaconAudioEnabled" = "Beacon Audio Enabled";
+"settings.beaconAlerts" = "Beacon Alerts";
+"settings.beaconVolume" = "Beacon Volume";
+"settings.voiceAndOtherAudio" = "Voice and Other Audio";
+
+/* Settings - Callouts */
+"settings.callouts" = "Callouts";
+"settings.automaticCallouts" = "Automatic Callouts";
+"settings.poiCallouts" = "POI Callouts";
+"settings.mobilityCallouts" = "Mobility Callouts";
+"settings.beaconCallouts" = "Beacon Callouts";
+"settings.autoCalloutInterval" = "Auto Callout Interval";
+
+/* Settings - Street Preview & Spatial Audio */
+"settings.streetPreview" = "Street Preview";
+"settings.includeUnnamedRoads" = "Include Unnamed Roads";
+"settings.spatialAudio" = "Spatial Audio";
+"settings.maximumDistance" = "Maximum Distance";
+"settings.reverbBlend" = "Reverb Blend";
+"settings.headTracking" = "Head Tracking";
+"settings.headTrackingHelp" = "Use AirPods motion sensors for immersive audio";
+"settings.backgroundAudio" = "Background Audio";
+"settings.spatialAudioDesc" = "High-quality HRTF spatial audio with 3D rendering.";
+"settings.mapsCalloutHelp" = "Maps callout controls are available on the Maps tab: My Location, Around Me, Ahead of Me, Nearby Markers, and Along Street Guide.";
+
+/* Settings - Devices */
+"settings.devicesSection" = "Devices";
+"settings.headphonesAndGPS" = "Headphones and GPS";
+"settings.audio" = "Audio";
+"settings.output" = "Output";
+"settings.headphoneMotion" = "Headphone motion";
+"settings.available" = "Available";
+"settings.unavailable" = "Unavailable";
+"settings.location" = "Location";
+"settings.authorization" = "Authorization";
+"settings.gps" = "GPS";
+"settings.requestLocationPermission" = "Request Location Permission";
+"settings.openSystemSettings" = "Open System Settings";
+"settings.heading" = "Heading";
+"settings.facingHeading" = "Facing heading:";
+"settings.aiProvider" = "AI Provider";
+
+/* Settings - Details Recognition */
+"settings.actionControls" = "Action Controls";
+"settings.controlStyle" = "Control Style";
+"settings.detailsButtons" = "Details Buttons";
+"settings.detailsButtonsHelp" = "Each button can use Product, Dish, Short Text, or your own Custom prompt.";
+"settings.signOutConfirm" = "Are you sure you want to sign out of ChatGPT?";
+"settings.notSignedIn" = "Not signed in.";
+
+/* Settings - Quick Recognition */
+"settings.apiKey" = "API Key";
+"settings.sectionTakePhoto" = "Take Photo";
+"settings.captionLength" = "Caption Length";
+"settings.captionLengthHelp" = "This setting applies to Take Photo only. Continuous mode uses the short caption style.";
+"settings.continuousMode" = "Continuous Mode";
+"settings.captureFrequency" = "Capture Frequency";
+"settings.captureFrequencyHelp" = "Choose how often Continuous mode takes a picture. Each completed result is announced when available.";
+"settings.quickButtons" = "Quick Buttons";
+"settings.quickButtonsHelp" = "Set each button to Product, Dish, Short Text, or a Custom prompt.";
+"settings.enableTranslation" = "Enable Translation";
+"settings.targetLanguage" = "Target Language";
+"settings.loadingLanguages" = "Loading available languages...";
+"settings.noTranslationLangs" = "No translation languages are currently available on this device.";
+"settings.chooseLanguage" = "Choose a language";
+"settings.translationHelp" = "Translate Quick Recognition results into the language you choose below.";
+"settings.translationUnavailable" = "Translation is unavailable on this device.";
+
+/* Settings - Recognition Button Editor */
+"settings.use" = "Use";
+"settings.useHelp" = "Choose what this button does in the camera tab.";
+"settings.custom" = "Custom";
+"settings.buttonName" = "Button Name";
+"settings.prompt" = "Prompt";
+"settings.customHelp" = "This custom name and prompt are used when this button is set to Custom.";
+
+/* Settings - Face Recognition */
+"settings.recognition" = "Recognition";
+"settings.speechDelay" = "Speech delay";
+"settings.secondsUnit" = "seconds";
+"settings.matchSensitivity" = "Match sensitivity";
+"settings.topMatchMargin" = "Top match margin";
+"settings.minGapPrefix" = "Min gap between best and 2nd-best: ";
+"settings.suggestUnknownFaces" = "Suggest unknown faces";
+"settings.savedFacesSection" = "Saved Faces";
+"settings.recognitionLog" = "Recognition Log";
+"settings.noLogEntries" = "No log entries yet.";
+"settings.copyAllLogs" = "Copy All Logs";
+"settings.clearLog" = "Clear Log";
+"settings.trainingTips" = "Training Tips";
+"settings.tip1" = "Save a face in bright, even lighting.";
+"settings.tip2" = "Capture the person from a comfortable conversation distance.";
+"settings.tip3" = "If recognition is inconsistent, save a fresh sample for that person.";
+
+/* Settings - Lyric Prompter */
+"settings.provider" = "Provider";
+"settings.signedInWithChatGPT" = "Signed in with ChatGPT";
+"settings.notSignedInLabel" = "Not signed in";
+"settings.baseURLOptional" = "Base URL (optional)";
+"settings.model" = "Model";
+"settings.loadingModels" = "Loading models...";
+"settings.refreshModels" = "Refresh Models";
+"settings.advanceOffset" = "Advance offset";
+"settings.secondsBeforeLyric" = "seconds before lyric time";
+"settings.lyricAbout1" = "Lyric Prompter uses AI to search for song lyrics online.";
+"settings.lyricAbout2" = "Timed lyrics (from YouTube captions etc.) enable auto-read mode.";
+"settings.enterAPIKeyFirst" = "Enter an API key first.";
+
+/* Settings - Maps Device Status */
+"settings.authAlways" = "Always";
+"settings.authWhenInUse" = "When In Use";
+"settings.authDenied" = "Denied";
+"settings.authRestricted" = "Restricted";
+"settings.authNotDetermined" = "Not determined";
+"settings.authUnknown" = "Unknown";
+"settings.gpsPermissionRequired" = "Permission required";
+"settings.unknown" = "Unknown";
+"settings.unableToLoadLanguages" = "Unable to load translation languages right now.";
 
 /* Voiceover/TTS */
 "voiceover.back" = "Back";

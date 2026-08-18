@@ -68,7 +68,7 @@ private struct FeatureOrderSettingsView: View {
                             Text(feature.featureDescription)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Text(settingsStore.tabFeatures.contains(feature) ? "Tab" : "More")
+                            Text(settingsStore.tabFeatures.contains(feature) ? NSLocalizedString("featureOrder.tab", comment: "") : NSLocalizedString("featureOrder.moreTab", comment: ""))
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
@@ -79,11 +79,11 @@ private struct FeatureOrderSettingsView: View {
                             .foregroundStyle(.tertiary)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityHint("Drag to reorder. You can also use the Move Up and Move Down actions.")
-                    .accessibilityAction(named: Text("Move Up")) {
+                    .accessibilityHint(NSLocalizedString("featureOrder.dragHint", comment: ""))
+                    .accessibilityAction(named: Text(NSLocalizedString("featureOrder.moveUp", comment: ""))) {
                         settingsStore.moveFeature(feature, by: -1)
                     }
-                    .accessibilityAction(named: Text("Move Down")) {
+                    .accessibilityAction(named: Text(NSLocalizedString("featureOrder.moveDown", comment: ""))) {
                         settingsStore.moveFeature(feature, by: 1)
                     }
                 }
@@ -130,25 +130,25 @@ private struct MapsSettingsView: View {
     
     var body: some View {
         Form {
-            Section("General") {
-                Toggle("Use Metric Units", isOn: $settingsStore.mapsMetricUnits)
-                Toggle("Mix Audio With Other Apps", isOn: $settingsStore.mapsMixAudioWithOthers)
+            Section(NSLocalizedString("settings.general", comment: "")) {
+                Toggle(NSLocalizedString("settings.useMetricUnits", comment: ""), isOn: $settingsStore.mapsMetricUnits)
+                Toggle(NSLocalizedString("settings.mixAudioWithOtherApps", comment: ""), isOn: $settingsStore.mapsMixAudioWithOthers)
             }
 
-            Section("Audio Beacon") {
-                Picker("Beacon Style", selection: $settingsStore.mapsBeaconStyle) {
+            Section(NSLocalizedString("settings.audioBeacon", comment: "")) {
+                Picker(NSLocalizedString("settings.beaconStyle", comment: ""), selection: $settingsStore.mapsBeaconStyle) {
                     ForEach(MapsBeaconStyle.allCases, id: \.rawValue) { style in
                         Text(style.displayName).tag(style.rawValue)
                     }
                 }
 
-                Toggle("Beacon Melodies", isOn: $settingsStore.mapsBeaconMelodiesEnabled)
-                Toggle("Beacon Audio Enabled", isOn: $settingsStore.mapsBeaconAudioEnabled)
-                Toggle("Beacon Alerts", isOn: $settingsStore.mapsBeaconAlertsEnabled)
+                Toggle(NSLocalizedString("settings.beaconMelodies", comment: ""), isOn: $settingsStore.mapsBeaconMelodiesEnabled)
+                Toggle(NSLocalizedString("settings.beaconAudioEnabled", comment: ""), isOn: $settingsStore.mapsBeaconAudioEnabled)
+                Toggle(NSLocalizedString("settings.beaconAlerts", comment: ""), isOn: $settingsStore.mapsBeaconAlertsEnabled)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Beacon Volume")
+                        Text(NSLocalizedString("settings.beaconVolume", comment: ""))
                         Spacer()
                         Text(String(format: "%.2f", settingsStore.mapsBeaconVolume))
                             .foregroundStyle(.secondary)
@@ -157,10 +157,10 @@ private struct MapsSettingsView: View {
                 }
             }
 
-            Section("Voice and Other Audio") {
+            Section(NSLocalizedString("settings.voiceAndOtherAudio", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Voice Volume")
+                        Text(NSLocalizedString("settings.voiceVolume", comment: ""))
                         Spacer()
                         Text(String(format: "%.2f", settingsStore.mapsVoiceVolume))
                             .foregroundStyle(.secondary)
@@ -170,7 +170,7 @@ private struct MapsSettingsView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Other Volume")
+                        Text(NSLocalizedString("settings.otherVolume", comment: ""))
                         Spacer()
                         Text(String(format: "%.2f", settingsStore.mapsOtherVolume))
                             .foregroundStyle(.secondary)
@@ -179,18 +179,18 @@ private struct MapsSettingsView: View {
                 }
             }
 
-            Section("Callouts") {
-                Toggle("Automatic Callouts", isOn: $settingsStore.mapsAutoCalloutsEnabled)
-                Toggle("POI Callouts", isOn: poiCalloutsBinding)
+            Section(NSLocalizedString("settings.callouts", comment: "")) {
+                Toggle(NSLocalizedString("settings.automaticCallouts", comment: ""), isOn: $settingsStore.mapsAutoCalloutsEnabled)
+                Toggle(NSLocalizedString("settings.poiCallouts", comment: ""), isOn: poiCalloutsBinding)
                     .disabled(!settingsStore.mapsAutoCalloutsEnabled)
-                Toggle("Mobility Callouts", isOn: mobilityCalloutsBinding)
+                Toggle(NSLocalizedString("settings.mobilityCallouts", comment: ""), isOn: mobilityCalloutsBinding)
                     .disabled(!settingsStore.mapsAutoCalloutsEnabled)
-                Toggle("Beacon Callouts", isOn: $settingsStore.mapsDestinationSenseEnabled)
+                Toggle(NSLocalizedString("settings.beaconCallouts", comment: ""), isOn: $settingsStore.mapsDestinationSenseEnabled)
                     .disabled(!settingsStore.mapsAutoCalloutsEnabled)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Auto Callout Interval")
+                        Text(NSLocalizedString("settings.autoCalloutInterval", comment: ""))
                         Spacer()
                         Text("\(Int(settingsStore.mapsAutoCalloutIntervalSeconds))s")
                             .foregroundStyle(.secondary)
@@ -199,14 +199,14 @@ private struct MapsSettingsView: View {
                 }
             }
 
-            Section("Street Preview") {
-                Toggle("Include Unnamed Roads", isOn: $settingsStore.mapsPreviewIncludeUnnamedRoads)
+            Section(NSLocalizedString("settings.streetPreview", comment: "")) {
+                Toggle(NSLocalizedString("settings.includeUnnamedRoads", comment: ""), isOn: $settingsStore.mapsPreviewIncludeUnnamedRoads)
             }
 
-            Section("Spatial Audio") {
+            Section(NSLocalizedString("settings.spatialAudio", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Maximum Distance")
+                        Text(NSLocalizedString("settings.maximumDistance", comment: ""))
                         Spacer()
                         Text("\(Int(settingsStore.mapsMaxDistanceMeters)) m")
                             .foregroundStyle(.secondary)
@@ -216,7 +216,7 @@ private struct MapsSettingsView: View {
                 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Reverb Blend")
+                        Text(NSLocalizedString("settings.reverbBlend", comment: ""))
                         Spacer()
                         Text(String(format: "%.2f", settingsStore.mapsReverbBlend))
                             .foregroundStyle(.secondary)
@@ -224,24 +224,24 @@ private struct MapsSettingsView: View {
                     Slider(value: $settingsStore.mapsReverbBlend, in: 0...0.5, step: 0.05)
                 }
                 
-                Toggle("Head Tracking", isOn: $settingsStore.mapsHeadTrackingEnabled)
-                    .help("Use AirPods motion sensors for immersive audio")
+                Toggle(NSLocalizedString("settings.headTracking", comment: ""), isOn: $settingsStore.mapsHeadTrackingEnabled)
+                    .help(NSLocalizedString("settings.headTrackingHelp", comment: ""))
 
-                Toggle("Background Audio", isOn: $settingsStore.mapsBackgroundAudioEnabled)
+                Toggle(NSLocalizedString("settings.backgroundAudio", comment: ""), isOn: $settingsStore.mapsBackgroundAudioEnabled)
 
-                Text("High-quality HRTF spatial audio with 3D rendering.")
+                Text(NSLocalizedString("settings.spatialAudioDesc", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             Section {
-                Text("Maps callout controls are available on the Maps tab: My Location, Around Me, Ahead of Me, Nearby Markers, and Along Street Guide.")
+                Text(NSLocalizedString("settings.mapsCalloutHelp", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            Section("Devices") {
-                NavigationLink("Headphones and GPS") {
+            Section(NSLocalizedString("settings.devicesSection", comment: "")) {
+                NavigationLink(NSLocalizedString("settings.headphonesAndGPS", comment: "")) {
                     MapsDevicesSettingsView()
                 }
             }
@@ -297,34 +297,34 @@ private struct MapsDevicesSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Audio") {
-                LabeledContent("Output") {
+            Section(NSLocalizedString("settings.audio", comment: "")) {
+                LabeledContent(NSLocalizedString("settings.output", comment: "")) {
                     Text(monitor.audioOutputName)
                 }
-                LabeledContent("Headphone motion") {
-                    Text(monitor.headphoneMotionAvailable ? "Available" : "Unavailable")
+                LabeledContent(NSLocalizedString("settings.headphoneMotion", comment: "")) {
+                    Text(monitor.headphoneMotionAvailable ? NSLocalizedString("settings.available", comment: "") : NSLocalizedString("settings.unavailable", comment: ""))
                 }
             }
 
-            Section("Location") {
-                LabeledContent("Authorization") {
+            Section(NSLocalizedString("settings.location", comment: "")) {
+                LabeledContent(NSLocalizedString("settings.authorization", comment: "")) {
                     Text(monitor.locationPermissionLabel)
                 }
-                LabeledContent("GPS") {
+                LabeledContent(NSLocalizedString("settings.gps", comment: "")) {
                     Text(monitor.gpsStatusText)
                 }
 
-                Button("Request Location Permission") {
+                Button(NSLocalizedString("settings.requestLocationPermission", comment: "")) {
                     monitor.requestLocationPermission()
                 }
 
-                Button("Open System Settings") {
+                Button(NSLocalizedString("settings.openSystemSettings", comment: "")) {
                     monitor.openSystemSettings()
                 }
             }
 
-            Section("Heading") {
-                Text("Facing heading: \(Int(monitor.currentHeading.rounded()))°")
+            Section(NSLocalizedString("settings.heading", comment: "")) {
+                Text(NSLocalizedString("settings.facingHeading", comment: "") + " \(Int(monitor.currentHeading.rounded()))°")
             }
         }
         .navigationTitle(NSLocalizedString("feature.devices", comment: ""))
@@ -335,10 +335,10 @@ private struct MapsDevicesSettingsView: View {
 
 @MainActor
 private final class MapsDevicesMonitor: NSObject, ObservableObject, CLLocationManagerDelegate, UserHeadingProviderDelegate {
-    @Published var audioOutputName = "Unknown"
+    @Published var audioOutputName = ""
     @Published var headphoneMotionAvailable = false
-    @Published var locationPermissionLabel = "Not determined"
-    @Published var gpsStatusText = "Unavailable"
+    @Published var locationPermissionLabel = ""
+    @Published var gpsStatusText = ""
     @Published var currentHeading: Double = 0
 
     private let locationManager = CLLocationManager()
@@ -388,7 +388,7 @@ private final class MapsDevicesMonitor: NSObject, ObservableObject, CLLocationMa
             manager.startUpdatingLocation()
         } else {
             manager.stopUpdatingLocation()
-            gpsStatusText = "Permission required"
+            gpsStatusText = NSLocalizedString("settings.gpsPermissionRequired", comment: "")
         }
     }
 
@@ -406,23 +406,23 @@ private final class MapsDevicesMonitor: NSObject, ObservableObject, CLLocationMa
 
     private func refreshAudioRoute() {
         let route = AVAudioSession.sharedInstance().currentRoute
-        audioOutputName = route.outputs.first?.portName ?? "Unknown"
+        audioOutputName = route.outputs.first?.portName ?? NSLocalizedString("settings.unknown", comment: "")
     }
 
     private func refreshLocationAuthorizationLabel() {
         switch locationManager.authorizationStatus {
         case .authorizedAlways:
-            locationPermissionLabel = "Always"
+            locationPermissionLabel = NSLocalizedString("settings.authAlways", comment: "")
         case .authorizedWhenInUse:
-            locationPermissionLabel = "When In Use"
+            locationPermissionLabel = NSLocalizedString("settings.authWhenInUse", comment: "")
         case .denied:
-            locationPermissionLabel = "Denied"
+            locationPermissionLabel = NSLocalizedString("settings.authDenied", comment: "")
         case .restricted:
-            locationPermissionLabel = "Restricted"
+            locationPermissionLabel = NSLocalizedString("settings.authRestricted", comment: "")
         case .notDetermined:
-            locationPermissionLabel = "Not determined"
+            locationPermissionLabel = NSLocalizedString("settings.authNotDetermined", comment: "")
         @unknown default:
-            locationPermissionLabel = "Unknown"
+            locationPermissionLabel = NSLocalizedString("settings.authUnknown", comment: "")
         }
     }
 
@@ -471,15 +471,15 @@ private struct DetailsDescriptionSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Action Controls") {
-                Picker("Control Style", selection: selectedActionControlStyle) {
+            Section(NSLocalizedString("settings.actionControls", comment: "")) {
+                Picker(NSLocalizedString("settings.controlStyle", comment: ""), selection: selectedActionControlStyle) {
                     ForEach(RecognitionActionControlStyle.allCases) { style in
                         Text(style.displayName).tag(style)
                     }
                 }
             }
 
-            Section("Details Buttons") {
+            Section(NSLocalizedString("settings.detailsButtons", comment: "")) {
                 ForEach(RecognitionButtonSlot.allCases) { slot in
                     NavigationLink {
                         RecognitionButtonSettingsEditor(
@@ -496,7 +496,7 @@ private struct DetailsDescriptionSettingsView: View {
                     }
                 }
 
-                Text("Each button can use Product, Dish, Short Text, or your own Custom prompt.")
+                Text(NSLocalizedString("settings.detailsButtonsHelp", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -513,11 +513,11 @@ private struct DetailsDescriptionSettingsView: View {
                         openAIStore.signOut()
                     }
                 } message: {
-                    Text("Are you sure you want to sign out of ChatGPT?")
+                    Text(NSLocalizedString("settings.signOutConfirm", comment: ""))
                 }
             } else {
                 Section {
-                    Text("Not signed in.")
+                    Text(NSLocalizedString("settings.notSignedIn", comment: ""))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -601,37 +601,37 @@ private struct QuickRecognitionSettingsView: View {
     var body: some View {
         Form {
             Section {
-                SecureField("API Key", text: $settingsStore.quickMoondreamAPIKey)
+                SecureField(NSLocalizedString("settings.apiKey", comment: ""), text: $settingsStore.quickMoondreamAPIKey)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
 
-            Section("Take Photo") {
-                Picker("Caption Length", selection: selectedCaptionLength) {
+            Section(NSLocalizedString("settings.sectionTakePhoto", comment: "")) {
+                Picker(NSLocalizedString("settings.captionLength", comment: ""), selection: selectedCaptionLength) {
                     ForEach(QuickCaptionLength.allCases) { length in
                         Text(length.displayName).tag(length)
                     }
                 }
 
-                Text("This setting applies to Take Photo only. Continuous mode uses the short caption style.")
+                Text(NSLocalizedString("settings.captionLengthHelp", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            Section("Continuous Mode") {
-                Picker("Capture Frequency", selection: selectedContinuousCaptureInterval) {
+            Section(NSLocalizedString("settings.continuousMode", comment: "")) {
+                Picker(NSLocalizedString("settings.captureFrequency", comment: ""), selection: selectedContinuousCaptureInterval) {
                     ForEach(QuickContinuousCaptureInterval.allCases) { interval in
                         Text(interval.displayName).tag(interval)
                     }
                 }
 
-                Text("Choose how often Continuous mode takes a picture. Each completed result is announced when available.")
+                Text(NSLocalizedString("settings.captureFrequencyHelp", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            Section("Quick Buttons") {
-                Picker("Control Style", selection: selectedActionControlStyle) {
+            Section(NSLocalizedString("settings.quickButtons", comment: "")) {
+                Picker(NSLocalizedString("settings.controlStyle", comment: ""), selection: selectedActionControlStyle) {
                     ForEach(RecognitionActionControlStyle.allCases) { style in
                         Text(style.displayName).tag(style)
                     }
@@ -653,7 +653,7 @@ private struct QuickRecognitionSettingsView: View {
                     }
                 }
 
-                Text("Set each button to Product, Dish, Short Text, or a Custom prompt.")
+                Text(NSLocalizedString("settings.quickButtonsHelp", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -675,13 +675,13 @@ private struct QuickRecognitionSettingsView: View {
     private var translationSection: some View {
         #if canImport(Translation)
         if #available(iOS 18.0, *) {
-            Section("Translation") {
-                Toggle("Enable Translation", isOn: $settingsStore.quickCaptionTranslationEnabled)
+            Section(NSLocalizedString("settings.translation", comment: "")) {
+                Toggle(NSLocalizedString("settings.enableTranslation", comment: ""), isOn: $settingsStore.quickCaptionTranslationEnabled)
                     .disabled(!translationLanguageStore.hasAvailableLanguages)
 
                 if translationLanguageStore.isLoading {
-                    LabeledContent("Target Language") {
-                        Text("Loading available languages...")
+                    LabeledContent(NSLocalizedString("settings.targetLanguage", comment: "")) {
+                        Text(NSLocalizedString("settings.loadingLanguages", comment: ""))
                             .foregroundStyle(.secondary)
                     }
                 } else if let errorMessage = translationLanguageStore.errorMessage {
@@ -689,12 +689,12 @@ private struct QuickRecognitionSettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else if translationLanguageStore.availableLanguages.isEmpty {
-                    Text("No translation languages are currently available on this device.")
+                    Text(NSLocalizedString("settings.noTranslationLangs", comment: ""))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {
-                    Picker("Target Language", selection: $settingsStore.quickCaptionTranslationTargetLanguage) {
-                        Text("Choose a language").tag("")
+                    Picker(NSLocalizedString("settings.targetLanguage", comment: ""), selection: $settingsStore.quickCaptionTranslationTargetLanguage) {
+                        Text(NSLocalizedString("settings.chooseLanguage", comment: "")).tag("")
 
                         ForEach(translationLanguageStore.availableLanguages) { language in
                             Text(language.displayName).tag(language.identifier)
@@ -703,20 +703,20 @@ private struct QuickRecognitionSettingsView: View {
                     .disabled(!settingsStore.quickCaptionTranslationEnabled)
                 }
 
-                Text("Translate Quick Recognition results into the language you choose below.")
+                Text(NSLocalizedString("settings.translationHelp", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         } else {
-            Section("Translation") {
-                Text("Translation is unavailable on this device.")
+            Section(NSLocalizedString("settings.translation", comment: "")) {
+                Text(NSLocalizedString("settings.translationUnavailable", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
         #else
-        Section("Translation") {
-            Text("Translation is unavailable on this device.")
+        Section(NSLocalizedString("settings.translation", comment: "")) {
+            Text(NSLocalizedString("settings.translationUnavailable", comment: ""))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -800,25 +800,25 @@ private struct RecognitionButtonSettingsEditor: View {
 
     var body: some View {
         Form {
-            Section("Behavior") {
-                Picker("Use", selection: $selectedKind) {
+            Section(NSLocalizedString("settings.behavior", comment: "")) {
+                Picker(NSLocalizedString("settings.use", comment: ""), selection: $selectedKind) {
                     ForEach(RecognitionPresetKind.allCases) { kind in
                         Text(kind.displayName).tag(kind)
                     }
                 }
 
-                Text("Choose what this button does in the camera tab.")
+                Text(NSLocalizedString("settings.useHelp", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             if selectedKind == .custom {
-                Section("Custom") {
-                    TextField("Button Name", text: $customTitle)
+                Section(NSLocalizedString("settings.custom", comment: "")) {
+                    TextField(NSLocalizedString("settings.buttonName", comment: ""), text: $customTitle)
                         .textInputAutocapitalization(.words)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Prompt")
+                        Text(NSLocalizedString("settings.prompt", comment: ""))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -826,7 +826,7 @@ private struct RecognitionButtonSettingsEditor: View {
                             .frame(minHeight: 120)
                     }
 
-                    Text("This custom name and prompt are used when this button is set to Custom.")
+                    Text(NSLocalizedString("settings.customHelp", comment: ""))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -841,55 +841,55 @@ private struct FaceRecognitionSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Speech") {
+            Section(NSLocalizedString("settings.speech", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Speech delay")
+                    Text(NSLocalizedString("settings.speechDelay", comment: ""))
                     Slider(value: $settingsStore.faceSpeechCooldown, in: 1...6, step: 0.5)
-                    Text("\(settingsStore.faceSpeechCooldown.formatted(.number.precision(.fractionLength(1)))) seconds")
+                    Text("\(settingsStore.faceSpeechCooldown.formatted(.number.precision(.fractionLength(1)))) ") + Text(NSLocalizedString("settings.secondsUnit", comment: ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section("Recognition") {
+            Section(NSLocalizedString("settings.recognition", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Match sensitivity")
+                    Text(NSLocalizedString("settings.matchSensitivity", comment: ""))
                     Slider(value: $settingsStore.faceMatchThreshold, in: 0.30...0.90, step: 0.01)
                     Text(settingsStore.faceMatchThreshold.formatted(.percent.precision(.fractionLength(0))))
 
-                    Text("Top match margin")
-                    Text("Min gap between best and 2nd-best: \(settingsStore.faceMatchMargin, specifier: "%.3f")")
+                    Text(NSLocalizedString("settings.topMatchMargin", comment: ""))
+                    Text(NSLocalizedString("settings.minGapPrefix", comment: "") + String(format: "%.3f", settingsStore.faceMatchMargin))
                     Slider(value: $settingsStore.faceMatchMargin, in: 0.01...0.10, step: 0.005)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Toggle("Suggest unknown faces", isOn: $settingsStore.suggestUnknownFaces)
+                Toggle(NSLocalizedString("settings.suggestUnknownFaces", comment: ""), isOn: $settingsStore.suggestUnknownFaces)
             }
 
-            Section("Saved Faces") {
+            Section(NSLocalizedString("settings.savedFacesSection", comment: "")) {
                 NavigationLink(NSLocalizedString("feature.savedFaces", comment: "")) {
                     SavedFacesView()
                 }
             }
 
-            Section("Recognition Log") {
+            Section(NSLocalizedString("settings.recognitionLog", comment: "")) {
                 if settingsStore.faceRecognitionLogs.isEmpty {
-                    Text("No log entries yet.")
+                    Text(NSLocalizedString("settings.noLogEntries", comment: ""))
                         .foregroundStyle(.secondary)
                 } else {
                     Button {
                         let logText = settingsStore.faceRecognitionLogs.map { "[\($0.formattedTime)] \($0.message)" }.joined(separator: "\n")
                         UIPasteboard.general.string = logText
                     } label: {
-                        Label("Copy All Logs", systemImage: "doc.on.doc")
+                        Label(NSLocalizedString("settings.copyAllLogs", comment: ""), systemImage: "doc.on.doc")
                     }
 
                     Button(role: .destructive) {
                         FaceRecognitionLogStore.shared.clear()
                         settingsStore.faceRecognitionLogs = []
                     } label: {
-                        Label("Clear Log", systemImage: "trash")
+                        Label(NSLocalizedString("settings.clearLog", comment: ""), systemImage: "trash")
                     }
 
                     ForEach(settingsStore.faceRecognitionLogs) { entry in
@@ -904,10 +904,10 @@ private struct FaceRecognitionSettingsView: View {
                 }
             }
 
-            Section("Training Tips") {
-                Text("Save a face in bright, even lighting.")
-                Text("Capture the person from a comfortable conversation distance.")
-                Text("If recognition is inconsistent, save a fresh sample for that person.")
+            Section(NSLocalizedString("settings.trainingTips", comment: "")) {
+                Text(NSLocalizedString("settings.tip1", comment: ""))
+                Text(NSLocalizedString("settings.tip2", comment: ""))
+                Text(NSLocalizedString("settings.tip3", comment: ""))
             }
         }
         .navigationTitle(NSLocalizedString("feature.faceRecognition", comment: ""))
@@ -919,11 +919,11 @@ private struct ReadTextRecognitionSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Speech") {
+            Section(NSLocalizedString("settings.speech", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Speech delay")
+                    Text(NSLocalizedString("settings.speechDelay", comment: ""))
                     Slider(value: $settingsStore.readTextSpeechCooldown, in: 1...6, step: 0.5)
-                    Text("\(settingsStore.readTextSpeechCooldown.formatted(.number.precision(.fractionLength(1)))) seconds")
+                    Text("\(settingsStore.readTextSpeechCooldown.formatted(.number.precision(.fractionLength(1)))) ") + Text(NSLocalizedString("settings.secondsUnit", comment: ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -941,7 +941,7 @@ private struct SavedFacesView: View {
     var body: some View {
         List {
             if viewModel.profiles.isEmpty {
-                Text("No faces have been saved yet.")
+                Text(NSLocalizedString("common.noFacesSaved", comment: ""))
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(viewModel.profiles) { profile in
@@ -961,7 +961,7 @@ private struct SavedFacesView: View {
                                 Label(NSLocalizedString("common.rename", comment: ""), systemImage: "pencil")
                             }
                         }
-                        .accessibilityAction(named: Text("Rename \(profile.name)")) {
+                        .accessibilityAction(named: Text(NSLocalizedString("common.rename", comment: "") + " \(profile.name)")) {
                             draftName = profile.name
                             renamingProfile = profile
                         }
@@ -973,15 +973,15 @@ private struct SavedFacesView: View {
         .task {
             viewModel.loadProfiles()
         }
-        .alert("Saved Faces Error", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
-            Button("OK") {
+        .alert(NSLocalizedString("face.savedFacesError", comment: ""), isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
+            Button(NSLocalizedString("common.ok", comment: "")) {
                 viewModel.errorMessage = nil
             }
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
-        .alert("Rename Face", isPresented: Binding(get: { renamingProfile != nil }, set: { if !$0 { renamingProfile = nil } })) {
-            TextField("Person's name", text: $draftName)
+        .alert(NSLocalizedString("face.renameFace", comment: ""), isPresented: Binding(get: { renamingProfile != nil }, set: { if !$0 { renamingProfile = nil } })) {
+            TextField(NSLocalizedString("face.personName", comment: ""), text: $draftName)
                 .textInputAutocapitalization(.words)
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
                 renamingProfile = nil
@@ -994,7 +994,7 @@ private struct SavedFacesView: View {
                 draftName = ""
             }
         } message: {
-            Text("Enter a new name for this saved face.")
+            Text(NSLocalizedString("face.renameMessage", comment: ""))
         }
     }
 }
@@ -1084,11 +1084,11 @@ private final class TranslationLanguageStore: ObservableObject {
                     .map(TranslationLanguageOption.init)
                     .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
             } catch {
-                errorMessage = "Unable to load translation languages right now."
+                errorMessage = NSLocalizedString("settings.unableToLoadLanguages", comment: "")
                 availableLanguages = []
             }
         } else {
-            errorMessage = "Translation is unavailable on this device."
+            errorMessage = NSLocalizedString("settings.translationUnavailable", comment: "")
             availableLanguages = []
         }
 
@@ -1138,8 +1138,8 @@ private struct LyricPrompterSettingsView: View {
 
     var body: some View {
         Form {
-            Section("AI Provider") {
-                Picker("Provider", selection: selectedProvider) {
+            Section(NSLocalizedString("settings.aiProvider", comment: "")) {
+                Picker(NSLocalizedString("settings.provider", comment: ""), selection: selectedProvider) {
                     ForEach(LyricLLMProvider.allCases) { provider in
                         Text(provider.displayName).tag(provider)
                     }
@@ -1147,33 +1147,33 @@ private struct LyricPrompterSettingsView: View {
 
                 if selectedProvider.wrappedValue == .codex {
                     if openAIStore.isSignedIn {
-                        Label("Signed in with ChatGPT", systemImage: "checkmark.circle.fill")
+                        Label(NSLocalizedString("settings.signedInWithChatGPT", comment: ""), systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                     } else {
-                        Label("Not signed in", systemImage: "xmark.circle")
+                        Label(NSLocalizedString("settings.notSignedInLabel", comment: ""), systemImage: "xmark.circle")
                             .foregroundStyle(.red)
                     }
                 } else {
-                    TextField("API Key", text: $settingsStore.lyricAPIKey)
+                    TextField(NSLocalizedString("settings.apiKey", comment: ""), text: $settingsStore.lyricAPIKey)
                         .textContentType(.password)
                         .autocorrectionDisabled()
 
-                    TextField("Base URL (optional)", text: $settingsStore.lyricBaseURL)
+                    TextField(NSLocalizedString("settings.baseURLOptional", comment: ""), text: $settingsStore.lyricBaseURL)
                         .keyboardType(.URL)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
             }
 
-            Section("Model") {
+            Section(NSLocalizedString("settings.model", comment: "")) {
                 if isLoadingModels {
                     HStack {
                         ProgressView()
-                        Text("Loading models...")
+                        Text(NSLocalizedString("settings.loadingModels", comment: ""))
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Picker("Model", selection: $settingsStore.lyricModelID) {
+                    Picker(NSLocalizedString("settings.model", comment: ""), selection: $settingsStore.lyricModelID) {
                         ForEach(availableModels, id: \.self) { model in
                             Text(model).tag(model)
                         }
@@ -1189,26 +1189,26 @@ private struct LyricPrompterSettingsView: View {
                 Button {
                     Task { await loadModels() }
                 } label: {
-                    Label("Refresh Models", systemImage: "arrow.clockwise")
+                    Label(NSLocalizedString("settings.refreshModels", comment: ""), systemImage: "arrow.clockwise")
                 }
                 .disabled(isLoadingModels)
             }
 
-            Section("Playback") {
+            Section(NSLocalizedString("settings.playback", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Advance offset")
+                    Text(NSLocalizedString("settings.advanceOffset", comment: ""))
                     Slider(value: $settingsStore.lyricAdvanceOffset, in: 0...5, step: 0.5)
-                    Text("\(settingsStore.lyricAdvanceOffset.formatted(.number.precision(.fractionLength(1)))) seconds before lyric time")
+                    Text(settingsStore.lyricAdvanceOffset.formatted(.number.precision(.fractionLength(1)))) + Text(" " + NSLocalizedString("settings.secondsBeforeLyric", comment: ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section("About") {
-                Text("Lyric Prompter uses AI to search for song lyrics online.")
+            Section(NSLocalizedString("settings.about", comment: "")) {
+                Text(NSLocalizedString("settings.lyricAbout1", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Text("Timed lyrics (from YouTube captions etc.) enable auto-read mode.")
+                Text(NSLocalizedString("settings.lyricAbout2", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -1243,7 +1243,7 @@ private struct LyricPrompterSettingsView: View {
         case .gemini:
             let key = settingsStore.lyricAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty else {
-                modelError = "Enter an API key first."
+                modelError = NSLocalizedString("settings.enterAPIKeyFirst", comment: "")
                 isLoadingModels = false
                 return
             }
@@ -1259,7 +1259,7 @@ private struct LyricPrompterSettingsView: View {
         case .openai:
             let key = settingsStore.lyricAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty else {
-                modelError = "Enter an API key first."
+                modelError = NSLocalizedString("settings.enterAPIKeyFirst", comment: "")
                 isLoadingModels = false
                 return
             }

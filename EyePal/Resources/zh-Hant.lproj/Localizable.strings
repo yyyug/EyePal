@@ -61,6 +61,7 @@
 "common.pointCameraToDescribe" = "將鏡頭對準要描述的物件。";
 "common.takePhotoToDescribe" = "拍照以描述場景。";
 "common.takePhotoToQuickDescribe" = "拍照以快速描述事物";
+"common.capturedImageHint" = "已擷取的圖片，點選以重新傳送全解析度圖片";
 
 /* Lyric Prompter */
 "lyric.noSaved" = "尚無儲存的歌詞。";
@@ -92,6 +93,9 @@
 "face.notNow" = "暫不";
 "face.recognitionError" = "人臉辨識錯誤";
 "face.savedFaces" = "已儲存人臉";
+"face.savedFacesError" = "已儲存人臉錯誤";
+"face.renameFace" = "重新命名臉部";
+"face.renameMessage" = "為此已儲存的人臉輸入新名稱。";
 
 /* Presets */
 "preset.product" = "商品";
@@ -101,6 +105,9 @@
 
 /* Quick Recognition */
 "quick.recognitionError" = "快速辨識錯誤";
+"quick.apiKeyPrompt" = "請在設定 > 快速辨識中加入您的 Moondream API 金鑰。";
+"quick.signupLink" = "註冊並取得 API 金鑰";
+"quick.resultLabel" = "快速辨識結果";
 
 /* Read Text */
 "read.capturedText" = "擷取文字";
@@ -120,20 +127,149 @@
 /* Chat */
 "chat.error" = "對話錯誤";
 
-/* Settings labels */
+/* Feature Order Settings */
+"featureOrder.tab" = "分頁";
+"featureOrder.moreTab" = "更多";
+"featureOrder.dragHint" = "拖曳以重新排序。您也可以使用上移和下移操作。";
+"featureOrder.moveUp" = "上移";
+"featureOrder.moveDown" = "下移";
+
+/* Settings - General */
 "settings.general" = "一般";
 "settings.speech" = "語音";
 "settings.behavior" = "行為";
 "settings.translation" = "翻譯";
 "settings.playback" = "播放";
 "settings.about" = "關於";
-"settings.aiProvider" = "AI 供應商";
+"settings.features" = "功能";
+"settings.featureOrder" = "功能順序";
 "settings.useMetricUnits" = "使用公制單位";
 "settings.mixAudioWithOtherApps" = "與其他應用程式混合音訊";
 "settings.voiceVolume" = "語音音量";
 "settings.otherVolume" = "其他音量";
-"settings.featureOrder" = "功能順序";
-"settings.features" = "功能";
+
+/* Settings - Audio Beacon */
+"settings.audioBeacon" = "音訊信標";
+"settings.beaconStyle" = "信標樣式";
+"settings.beaconMelodies" = "信標旋律";
+"settings.beaconAudioEnabled" = "信標音訊";
+"settings.beaconAlerts" = "信標提醒";
+"settings.beaconVolume" = "信標音量";
+"settings.voiceAndOtherAudio" = "語音與其他音訊";
+
+/* Settings - Callouts */
+"settings.callouts" = "語音提示";
+"settings.automaticCallouts" = "自動語音提示";
+"settings.poiCallouts" = "地點語音提示";
+"settings.mobilityCallouts" = "行動語音提示";
+"settings.beaconCallouts" = "信標語音提示";
+"settings.autoCalloutInterval" = "自動提示間隔";
+
+/* Settings - Street Preview & Spatial Audio */
+"settings.streetPreview" = "街景預覽";
+"settings.includeUnnamedRoads" = "包含未命名道路";
+"settings.spatialAudio" = "空間音訊";
+"settings.maximumDistance" = "最大距離";
+"settings.reverbBlend" = "混響混合";
+"settings.headTracking" = "頭部追蹤";
+"settings.headTrackingHelp" = "使用 AirPods 動作感測器實現沉浸式音訊";
+"settings.backgroundAudio" = "背景音訊";
+"settings.spatialAudioDesc" = "高品質 HRTF 空間音訊搭配 3D 渲染。";
+"settings.mapsCalloutHelp" = "地圖語音提示控制可在地圖分頁使用：我的位置、周邊、前方、附近標記和沿路指引。";
+
+/* Settings - Devices */
+"settings.devicesSection" = "裝置";
+"settings.headphonesAndGPS" = "耳機與 GPS";
+"settings.audio" = "音訊";
+"settings.output" = "輸出";
+"settings.headphoneMotion" = "耳機動作";
+"settings.available" = "可用";
+"settings.unavailable" = "不可用";
+"settings.location" = "位置";
+"settings.authorization" = "授權";
+"settings.gps" = "GPS";
+"settings.requestLocationPermission" = "請求位置權限";
+"settings.openSystemSettings" = "開啟系統設定";
+"settings.heading" = "方位";
+"settings.facingHeading" = "面向方位：";
+"settings.aiProvider" = "AI 供應商";
+
+/* Settings - Details Recognition */
+"settings.actionControls" = "操作控制";
+"settings.controlStyle" = "控制樣式";
+"settings.detailsButtons" = "詳細按鈕";
+"settings.detailsButtonsHelp" = "每個按鈕可設定為商品、菜餚、短文字或自訂提示。";
+"settings.signOutConfirm" = "您確定要登出 ChatGPT 嗎？";
+"settings.notSignedIn" = "未登入。";
+
+/* Settings - Quick Recognition */
+"settings.apiKey" = "API 金鑰";
+"settings.sectionTakePhoto" = "拍照";
+"settings.captionLength" = "說明長度";
+"settings.captionLengthHelp" = "此設定僅適用於拍照。連續模式使用簡短說明樣式。";
+"settings.continuousMode" = "連續模式";
+"settings.captureFrequency" = "擷取頻率";
+"settings.captureFrequencyHelp" = "選擇連續模式的拍照頻率。每個完成的結果將在可用時播報。";
+"settings.quickButtons" = "快速按鈕";
+"settings.quickButtonsHelp" = "將每個按鈕設定為商品、菜餚、短文字或自訂提示。";
+"settings.enableTranslation" = "啟用翻譯";
+"settings.targetLanguage" = "目標語言";
+"settings.loadingLanguages" = "正在載入可用語言...";
+"settings.noTranslationLangs" = "此裝置目前無可用的翻譯語言。";
+"settings.chooseLanguage" = "選擇語言";
+"settings.translationHelp" = "將快速辨識結果翻譯為您選擇的語言。";
+"settings.translationUnavailable" = "此裝置不支援翻譯功能。";
+
+/* Settings - Recognition Button Editor */
+"settings.use" = "用途";
+"settings.useHelp" = "選擇此按鈕在相機分頁中的功能。";
+"settings.custom" = "自訂";
+"settings.buttonName" = "按鈕名稱";
+"settings.prompt" = "提示";
+"settings.customHelp" = "此自訂名稱和提示用於此按鈕設定為自訂時。";
+
+/* Settings - Face Recognition */
+"settings.recognition" = "辨識";
+"settings.speechDelay" = "語音延遲";
+"settings.secondsUnit" = "秒";
+"settings.matchSensitivity" = "匹配靈敏度";
+"settings.topMatchMargin" = "最佳匹配間距";
+"settings.minGapPrefix" = "最佳與次佳匹配最小間距：";
+"settings.suggestUnknownFaces" = "建議未知人臉";
+"settings.savedFacesSection" = "已儲存人臉";
+"settings.recognitionLog" = "辨識日誌";
+"settings.noLogEntries" = "尚無日誌記錄。";
+"settings.copyAllLogs" = "複製所有日誌";
+"settings.clearLog" = "清除日誌";
+"settings.trainingTips" = "訓練提示";
+"settings.tip1" = "在明亮均勻的光線下儲存人臉。";
+"settings.tip2" = "以舒適的對話距離擷取人員。";
+"settings.tip3" = "如果辨識不穩定，請為該人員儲存新的樣本。";
+
+/* Settings - Lyric Prompter */
+"settings.provider" = "供應商";
+"settings.signedInWithChatGPT" = "已登入 ChatGPT";
+"settings.notSignedInLabel" = "未登入";
+"settings.baseURLOptional" = "基礎網址（選填）";
+"settings.model" = "模型";
+"settings.loadingModels" = "正在載入模型...";
+"settings.refreshModels" = "重新整理模型";
+"settings.advanceOffset" = "提前偏移";
+"settings.secondsBeforeLyric" = "秒（歌詞時間之前）";
+"settings.lyricAbout1" = "歌詞提示使用 AI 在線上搜尋歌曲歌詞。";
+"settings.lyricAbout2" = "計時歌詞（來自 YouTube 字幕等）支援自動朗讀模式。";
+"settings.enterAPIKeyFirst" = "請先輸入 API 金鑰。";
+
+/* Settings - Maps Device Status */
+"settings.authAlways" = "永遠允許";
+"settings.authWhenInUse" = "使用時允許";
+"settings.authDenied" = "已拒絕";
+"settings.authRestricted" = "受限";
+"settings.authNotDetermined" = "尚未決定";
+"settings.authUnknown" = "未知";
+"settings.gpsPermissionRequired" = "需要權限";
+"settings.unknown" = "未知";
+"settings.unableToLoadLanguages" = "目前無法載入翻譯語言。";
 
 /* Voiceover/TTS */
 "voiceover.back" = "返回";

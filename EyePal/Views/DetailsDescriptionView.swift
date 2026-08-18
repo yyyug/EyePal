@@ -178,7 +178,7 @@ struct DetailsDescriptionView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(viewModel.isProcessing)
-                        .accessibilityLabel("Captured image, tap to resend in full resolution")
+                        .accessibilityLabel(NSLocalizedString("common.capturedImageHint", comment: ""))
                     }
 
                     if !viewModel.descriptionText.isEmpty {
@@ -249,7 +249,7 @@ struct DetailsDescriptionView: View {
                 break
             }
         }
-        .accessibilityAction(named: Text("Take Photo With Prompt")) {
+        .accessibilityAction(named: Text(NSLocalizedString("details.takePhotoWithPrompt", comment: ""))) {
             selectedActionIndex = 0
             showPromptComposer = true
         }

@@ -42,11 +42,11 @@ struct QuickRecognitionView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     if settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text("Add your Moondream API key in Settings > Quick Recognition.")
+                        Text(NSLocalizedString("quick.apiKeyPrompt", comment: ""))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Link("Sign up and get API key", destination: URL(string: "https://moondream.ai/")!)
+                        Link(NSLocalizedString("quick.signupLink", comment: ""), destination: URL(string: "https://moondream.ai/")!)
                             .font(.subheadline.weight(.semibold))
                     }
 
@@ -125,7 +125,7 @@ struct QuickRecognitionView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Captured image, tap to resend in full resolution")
+                    .accessibilityLabel(NSLocalizedString("common.capturedImageHint", comment: ""))
                     .disabled(viewModel.isProcessing)
                 }
 
@@ -135,7 +135,7 @@ struct QuickRecognitionView: View {
                         .scrollContentBackground(.hidden)
                         .padding(8)
                         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .accessibilityLabel("Quick recognition result")
+                        .accessibilityLabel(NSLocalizedString("quick.resultLabel", comment: ""))
                 }
             }
         }
