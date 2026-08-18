@@ -43,6 +43,7 @@ final class FaceRecognitionService {
     func loadProfiles() async throws -> [FaceProfile] {
         let loaded = try await faceStore.loadProfiles()
         profiles = loaded
+        logInterProfileSimilarities()
         return loaded
     }
 
@@ -123,6 +124,7 @@ final class FaceRecognitionService {
         }
         profiles.append(profile)
         try await faceStore.saveProfiles(profiles)
+        logProfileSimilarityDiagnostics(newProfile: profile)
         resetUnknownTracking()
         return profiles
     }
@@ -314,9 +316,8 @@ final class FaceRecognitionService {
                 let validEmbeddings = profile.sampleEmbeddings.filter { !$0.isEmpty }
                 guard !validEmbeddings.isEmpty else { return nil }
 
-                let confidence = validEmbeddings
-                    .map { cosineSimilarity(embedding, $0) }
-                    .max() ?? -1
+                let scores = validEmbeddings.map { cosineSimilarity(embedding, $0) }
+                let confidence = scores.reduce(0, +) / Float(scores.count)
 
                 return CandidateMatch(profile: profile, confidence: confidence)
             }
@@ -401,6 +402,50 @@ final class FaceRecognitionService {
         if pendingUnknownJPEGData == nil {
             pendingUnknownJPEGData = UIImage(cgImage: faceImage).jpegData(compressionQuality: 0.8)
         }
+    }
+
+    private func logProfileSimilarityDiagnostics(newProfile: FaceProfile) {
+        let newMean = meanEmbedding(newProfile.sampleEmbeddings)
+        guard !newMean.isEmpty else { return }
+
+        for existing in profiles where existing.id != newProfile.id {
+            let existingMean = meanEmbedding(existing.sampleEmbeddings)
+            guard !existingMean.isEmpty else { continue }
+            let sim = cosineSimilarity(newMean, existingMean)
+            let msg = "Diagnostics: \(newProfile.name) vs \(existing.name) similarity \(String(format: "%.4f", sim))"
+            onLog?(msg)
+            if sim >= 0.60 {
+                onLog?("WARNING: \(newProfile.name) vs \(existing.name) similarity \(String(format: "%.4f", sim)) >= 0.60 — high cross-profile similarity!")
+            }
+        }
+    }
+
+    private func logInterProfileSimilarities() {
+        guard profiles.count >= 2 else { return }
+        for i in 0..<profiles.count {
+            for j in (i + 1)..<profiles.count {
+                let meanA = meanEmbedding(profiles[i].sampleEmbeddings)
+                let meanB = meanEmbedding(profiles[j].sampleEmbeddings)
+                guard !meanA.isEmpty, !meanB.isEmpty else { continue }
+                let sim = cosineSimilarity(meanA, meanB)
+                let msg = "Inter-profile: \(profiles[i].name) vs \(profiles[j].name) similarity \(String(format: "%.4f", sim))"
+                onLog?(msg)
+            }
+        }
+    }
+
+    private func meanEmbedding(_ embeddings: [[Float]]) -> [Float] {
+        let valid = embeddings.filter { !$0.isEmpty }
+        guard !valid.isEmpty, let dim = valid.first?.count else { return [] }
+        var result = [Float](repeating: 0, count: dim)
+        for emb in valid {
+            for i in 0..<dim { result[i] += emb[i] }
+        }
+        let count = Float(valid.count)
+        for i in 0..<dim { result[i] /= count }
+        let mag = sqrt(result.reduce(0) { $0 + $1 * $1 })
+        guard mag > 0 else { return result }
+        return result.map { $0 / mag }
     }
 
     private func resetUnknownTracking() {
