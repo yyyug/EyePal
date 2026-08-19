@@ -96,6 +96,8 @@
 "face.savedFacesError" = "已儲存人臉錯誤";
 "face.renameFace" = "重新命名臉部";
 "face.renameMessage" = "為此已儲存的人臉輸入新名稱。";
+"face.cameraUnauthorized" = "人臉辨識需要相機權限。";
+"face.cameraFailed" = "相機錯誤：";
 
 /* Presets */
 "preset.product" = "商品";

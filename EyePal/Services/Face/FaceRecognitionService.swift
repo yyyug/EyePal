@@ -121,7 +121,7 @@ final class FaceRecognitionService {
                     }
                 } catch {
                     if case FaceEmbeddingError.noFaceDetected = error {
-                        // silently skip — no face in frame
+                        await MainActor.run { onLog?("[Face] No face detected in frame") }
                     } else {
                         await MainActor.run { onLog?("Error: \(error.localizedDescription)") }
                     }

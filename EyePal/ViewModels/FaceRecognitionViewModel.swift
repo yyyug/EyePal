@@ -1,4 +1,5 @@
 import AVFoundation
+import Combine
 import Foundation
 
 @MainActor
@@ -8,17 +9,24 @@ final class FaceRecognitionViewModel: ObservableObject {
     @Published var pendingSuggestion: FaceSuggestion?
     @Published var errorMessage: String?
     @Published var sampleProgress: String?
+    @Published var cameraState: CameraPipeline.State = .idle
 
     let camera = CameraPipeline()
 
     private let recognitionService = FaceRecognitionService()
     private let announcer = AccessibilityAnnouncementCenter()
     private weak var settingsStore: SettingsStore?
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
         camera.onSampleBuffer = { [weak self] sampleBuffer in
             self?.handle(sampleBuffer: sampleBuffer)
         }
+        camera.$state.sink { [weak self] newState in
+            Task { @MainActor in
+                self?.cameraState = newState
+            }
+        }.store(in: &cancellables)
     }
 
     func bind(settings: SettingsStore) {

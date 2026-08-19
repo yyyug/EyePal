@@ -96,6 +96,8 @@
 "face.savedFacesError" = "Saved Faces Error";
 "face.renameFace" = "Rename Face";
 "face.renameMessage" = "Enter a new name for this saved face.";
+"face.cameraUnauthorized" = "Camera access is required for face recognition.";
+"face.cameraFailed" = "Camera error:";
 
 /* Presets */
 "preset.product" = "Product";

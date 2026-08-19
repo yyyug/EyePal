@@ -14,6 +14,9 @@ struct LyricPrompterView: View {
                 .navigationDestination(isPresented: $showResults) {
                     resultsListView
                 }
+                .fullScreenCover(item: $displayedSong) { song in
+                    LyricDisplayView(song: song, viewModel: viewModel)
+                }
                 .onAppear {
                     viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
                     viewModel.loadSaved()
@@ -24,9 +27,6 @@ struct LyricPrompterView: View {
                 )) {
                     Button(NSLocalizedString("common.ok", comment: "")) { viewModel.errorMessage = nil }
                 } message: { Text(viewModel.errorMessage ?? "") }
-        }
-        .fullScreenCover(item: $displayedSong) { song in
-            LyricDisplayView(song: song, viewModel: viewModel)
         }
     }
 
@@ -124,6 +124,9 @@ struct LyricPrompterView: View {
         }
         .listStyle(.plain)
         .navigationTitle(NSLocalizedString("lyric.searchResults", comment: ""))
+        .fullScreenCover(item: $displayedSong) { song in
+            LyricDisplayView(song: song, viewModel: viewModel)
+        }
     }
 }
 

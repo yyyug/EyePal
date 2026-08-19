@@ -12,7 +12,15 @@ struct FaceRecognitionView: View {
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    if let sampleProgress = viewModel.sampleProgress {
+                    if case .unauthorized = viewModel.cameraState {
+                        Text(NSLocalizedString("face.cameraUnauthorized", comment: ""))
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                    } else if case .failed(let msg) = viewModel.cameraState {
+                        Text(NSLocalizedString("face.cameraFailed", comment: "") + " \(msg)")
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                    } else if let sampleProgress = viewModel.sampleProgress {
                         Text(sampleProgress)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
