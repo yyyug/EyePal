@@ -38,6 +38,7 @@
 "common.delete" = "刪除";
 "common.done" = "完成";
 "common.ok" = "好";
+"common.back" = "返回";
 "common.search" = "搜尋";
 "common.send" = "送出";
 "common.close" = "關閉";

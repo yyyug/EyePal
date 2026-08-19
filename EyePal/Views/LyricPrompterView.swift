@@ -10,23 +10,26 @@ struct LyricPrompterView: View {
 
     var body: some View {
         NavigationStack {
-            songListView
-                .navigationDestination(isPresented: $showResults) {
+            Group {
+                if showResults {
                     resultsListView
+                } else {
+                    songListView
                 }
-                .fullScreenCover(item: $displayedSong) { song in
-                    LyricDisplayView(song: song, viewModel: viewModel)
-                }
-                .onAppear {
-                    viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
-                    viewModel.loadSaved()
-                }
-                .alert(NSLocalizedString("common.error", comment: ""), isPresented: Binding(
-                    get: { viewModel.errorMessage != nil },
-                    set: { if !$0 { viewModel.errorMessage = nil } }
-                )) {
-                    Button(NSLocalizedString("common.ok", comment: "")) { viewModel.errorMessage = nil }
-                } message: { Text(viewModel.errorMessage ?? "") }
+            }
+            .fullScreenCover(item: $displayedSong) { song in
+                LyricDisplayView(song: song, viewModel: viewModel)
+            }
+            .onAppear {
+                viewModel.bind(settings: settingsStore, openAIStore: openAIStore)
+                viewModel.loadSaved()
+            }
+            .alert(NSLocalizedString("common.error", comment: ""), isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )) {
+                Button(NSLocalizedString("common.ok", comment: "")) { viewModel.errorMessage = nil }
+            } message: { Text(viewModel.errorMessage ?? "") }
         }
     }
 
@@ -124,8 +127,15 @@ struct LyricPrompterView: View {
         }
         .listStyle(.plain)
         .navigationTitle(NSLocalizedString("lyric.searchResults", comment: ""))
-        .fullScreenCover(item: $displayedSong) { song in
-            LyricDisplayView(song: song, viewModel: viewModel)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    showResults = false
+                } label: {
+                    Label(NSLocalizedString("common.back", comment: ""), systemImage: "chevron.left")
+                        .labelStyle(.iconOnly)
+                }
+            }
         }
     }
 }

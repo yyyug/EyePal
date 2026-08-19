@@ -38,6 +38,7 @@
 "common.delete" = "Delete";
 "common.done" = "Done";
 "common.ok" = "OK";
+"common.back" = "Back";
 "common.search" = "Search";
 "common.send" = "Send";
 "common.close" = "Close";
