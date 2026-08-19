@@ -149,14 +149,13 @@ final class LyricPrompterViewModel: ObservableObject {
         playbackTask = Task { [weak self] in
             guard let self else { return }
             let linesWithTime = song.lines.filter { $0.startTime != nil }
-            guard let first = linesWithTime.first else {
+            guard linesWithTime.count >= 2 else {
                 await MainActor.run { self.isPlaying = false }
                 return
             }
-            // First line already focused by view, announce it
-            await MainActor.run {
-                self.announcer.announce(first.text, minimumInterval: 0)
-            }
+            // First line is already focused by the view — VoiceOver reads it.
+            // Start the timer from the first line's timestamp so we announce
+            // the second line when its time arrives.
             for i in 1..<linesWithTime.count {
                 guard !Task.isCancelled else { break }
                 let prev = linesWithTime[i - 1]
