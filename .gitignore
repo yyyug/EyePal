@@ -20,3 +20,13 @@ EyePalAndroid/.kotlin/
 EyePalAndroid/gradlew
 EyePalAndroid/gradlew.bat
 EyePalAndroid/gradle/
+
+# Build artifacts
+EyePal-unsigned.ipa
+Payload/
+buffalo_sc.zip
+buffalo_sc/
+gestures/
+touchpad_events.txt
+webrtc_check/
+_dream_query*.py

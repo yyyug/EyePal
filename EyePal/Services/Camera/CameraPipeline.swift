@@ -118,7 +118,6 @@ final class CameraPipeline: NSObject, ObservableObject {
                 throw CameraError.cannotAddOutput
             }
             session.addOutput(videoOutput)
-            videoOutput.connection(with: .video)?.videoRotationAngle = 90
 
             session.commitConfiguration()
             isConfigured = true

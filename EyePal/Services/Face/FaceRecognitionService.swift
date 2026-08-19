@@ -209,6 +209,7 @@ final class FaceRecognitionService {
         let bb = observation.boundingBox
         let pixelW = CVPixelBufferGetWidth(pixelBuffer)
         let pixelH = CVPixelBufferGetHeight(pixelBuffer)
+        onLog?("[Face] Buffer \(pixelW)×\(pixelH), Vision faces: \(request.results?.count ?? 0)")
 
         let faceWidthPx = bb.width * CGFloat(pixelH)
         let faceHeightPx = bb.height * CGFloat(pixelW)
