@@ -192,11 +192,33 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.invalidOutput
         }
 
+        let pixelW = CVPixelBufferGetWidth(pixelBuffer)
+        let pixelH = CVPixelBufferGetHeight(pixelBuffer)
+        let isPortraitBuffer = pixelH > pixelW
+        // Buffer is delivered in the sensor's native (landscape) orientation.
+        // .right tells Vision the image is rotated 90° CW (i.e. device held in
+        // portrait with back camera). If the buffer is already portrait, use .up.
+        let orientation: CGImagePropertyOrientation = isPortraitBuffer ? .up : .right
+
+        // Build an upright portrait CGImage once; use it for BOTH Vision detection
+        // and the affine alignment below so all coordinates agree.
+        let uprightCI = CIImage(cvPixelBuffer: pixelBuffer).oriented(orientation)
+        let uprightRect = uprightCI.extent
+        guard let uprightImage = context.createCGImage(uprightCI, from: uprightRect) else {
+            onLog?("[Face] createCGImage upright failed \(uprightRect)")
+            throw FaceEmbeddingError.preprocessingFailed
+        }
+        let imgW = uprightImage.width
+        let imgH = uprightImage.height
+        onLog?("[Face] Buffer \(pixelW)×\(pixelH), upright \(imgW)×\(imgH), orient \(orientation.rawValue)")
+
         let request = VNDetectFaceLandmarksRequest()
-        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
+        let handler = VNImageRequestHandler(cgImage: uprightImage, orientation: .up, options: [:])
         try handler.perform([request])
 
-        guard let observation = (request.results as? [VNFaceObservation])?.max(by: {
+        let faces = request.results as? [VNFaceObservation] ?? []
+        onLog?("[Face] Vision faces: \(faces.count)")
+        guard let observation = faces.max(by: {
             $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
         }) else {
             throw FaceEmbeddingError.noFaceDetected
@@ -207,14 +229,12 @@ final class FaceRecognitionService {
         }
 
         let bb = observation.boundingBox
-        let pixelW = CVPixelBufferGetWidth(pixelBuffer)
-        let pixelH = CVPixelBufferGetHeight(pixelBuffer)
-        onLog?("[Face] Buffer \(pixelW)×\(pixelH), Vision faces: \(request.results?.count ?? 0)")
 
-        let faceWidthPx = bb.width * CGFloat(pixelH)
-        let faceHeightPx = bb.height * CGFloat(pixelW)
+        let faceWidthPx = bb.width * CGFloat(imgW)
+        let faceHeightPx = bb.height * CGFloat(imgH)
         guard faceWidthPx >= FaceConfig.enrollmentMinimumFaceSize,
               faceHeightPx >= FaceConfig.enrollmentMinimumFaceSize else {
+            onLog?("[Face] Face too small: \(faceWidthPx)×\(faceHeightPx)")
             throw FaceEmbeddingError.noFaceDetected
         }
 
@@ -241,11 +261,11 @@ final class FaceRecognitionService {
         }
 
         let srcPoints: [(Double, Double)] = [
-            (lePx.x * Double(pixelH), lePx.y * Double(pixelW)),
-            (rePx.x * Double(pixelH), rePx.y * Double(pixelW)),
-            (nosePx.x * Double(pixelH), nosePx.y * Double(pixelW)),
-            (lmPx.x * Double(pixelH), lmPx.y * Double(pixelW)),
-            (rmPx.x * Double(pixelH), rmPx.y * Double(pixelW))
+            (lePx.x * Double(imgW), lePx.y * Double(imgH)),
+            (rePx.x * Double(imgW), rePx.y * Double(imgH)),
+            (nosePx.x * Double(imgW), nosePx.y * Double(imgH)),
+            (lmPx.x * Double(imgW), lmPx.y * Double(imgH)),
+            (rmPx.x * Double(imgW), rmPx.y * Double(imgH))
         ]
 
         guard let affine = computeAffineAffine(srcPoints: srcPoints, dstPoints: Self.referenceLandmarks) else {
@@ -267,9 +287,8 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.preprocessingFailed
         }
 
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
         let affineFilter = CIFilter(name: "CIAffineTransform")!
-        affineFilter.setValue(ciImage, forKey: kCIInputImageKey)
+        affineFilter.setValue(CIImage(cgImage: uprightImage), forKey: kCIInputImageKey)
         let transform = CGAffineTransform(
             a: CGFloat(affine[0]), b: CGFloat(affine[2]),
             c: CGFloat(affine[1]), d: CGFloat(affine[3]),
