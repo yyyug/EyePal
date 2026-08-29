@@ -260,12 +260,16 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.noFaceDetected
         }
 
+        // Vision normalized coords use a bottom-left origin. The InsightFace
+        // reference landmarks use a top-left origin (y=0 = top of image), so
+        // flip Y to convert srcPoints into the same top-left convention as
+        // dstPoints. This keeps the affine solve and the resulting crop upright.
         let srcPoints: [(Double, Double)] = [
-            (lePx.x * Double(imgW), lePx.y * Double(imgH)),
-            (rePx.x * Double(imgW), rePx.y * Double(imgH)),
-            (nosePx.x * Double(imgW), nosePx.y * Double(imgH)),
-            (lmPx.x * Double(imgW), lmPx.y * Double(imgH)),
-            (rmPx.x * Double(imgW), rmPx.y * Double(imgH))
+            (lePx.x * Double(imgW), Double(imgH) - lePx.y * Double(imgH)),
+            (rePx.x * Double(imgW), Double(imgH) - rePx.y * Double(imgH)),
+            (nosePx.x * Double(imgW), Double(imgH) - nosePx.y * Double(imgH)),
+            (lmPx.x * Double(imgW), Double(imgH) - lmPx.y * Double(imgH)),
+            (rmPx.x * Double(imgW), Double(imgH) - rmPx.y * Double(imgH))
         ]
 
         guard let affine = computeAffineAffine(srcPoints: srcPoints, dstPoints: Self.referenceLandmarks) else {
@@ -287,28 +291,27 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.preprocessingFailed
         }
 
-        let affineFilter = CIFilter(name: "CIAffineTransform")!
-        affineFilter.setValue(CIImage(cgImage: uprightImage), forKey: kCIInputImageKey)
-        let transform = CGAffineTransform(
-            a: CGFloat(affine[0]), b: CGFloat(affine[2]),
-            c: CGFloat(affine[1]), d: CGFloat(affine[3]),
-            tx: CGFloat(affine[4]), ty: CGFloat(affine[5])
-        )
-        affineFilter.setValue(NSValue(cgAffineTransform: transform), forKey: "inputTransform")
-
-        guard let alignedCI = affineFilter.outputImage else {
-            onLog?("[Face] CIAffineTransform output is nil")
-            throw FaceEmbeddingError.preprocessingFailed
-        }
-
-        let alignedCrop = alignedCI.clamped(to: CGRect(x: 0, y: 0, width: 112, height: 112)).cropped(to: CGRect(x: 0, y: 0, width: 112, height: 112))
-        guard let cgImage = context.createCGImage(alignedCrop, from: alignedCrop.extent) else {
-            onLog?("[Face] CIContext.createCGImage failed — extent=\(alignedCrop.extent)")
-            throw FaceEmbeddingError.preprocessingFailed
-        }
-
+        // Warp in the CGContext/CGImage domain (top-left origin), which matches
+        // the reference-landmark convention used by the affine solve. The forward
+        // affine F maps source(image) -> reference/112x112 space. Setting the CTM
+        // to F places each source pixel at base = F(src), so face features land in
+        // their reference positions within the 112×112 output.
         outputContext.interpolationQuality = .high
-        outputContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
+        outputContext.setFillColor(CGColor(gray: 0.5, alpha: 1.0))
+        outputContext.fill(CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
+        // CGAffineTransform maps (x,y) -> (a·x + c·y + tx, b·x + d·y + ty).
+        // Our affine array is [a, b, tx, c, d, ty] from
+        //   dx = a·sx + b·sy + tx,  dy = c·sx + d·sy + ty.
+        let forward = CGAffineTransform(
+            a: CGFloat(affine[0]),
+            b: CGFloat(affine[3]),
+            c: CGFloat(affine[1]),
+            d: CGFloat(affine[4]),
+            tx: CGFloat(affine[2]),
+            ty: CGFloat(affine[5])
+        )
+        outputContext.concatenate(forward)
+        outputContext.draw(uprightImage, in: CGRect(x: 0, y: 0, width: uprightImage.width, height: uprightImage.height))
 
         guard let result = outputContext.makeImage() else {
             onLog?("[Face] outputContext.makeImage() failed")
