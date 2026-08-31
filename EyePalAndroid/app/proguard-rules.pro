@@ -49,3 +49,11 @@
 
 # Security Crypto
 -keep class androidx.security.** { *; }
+
+# OpenCV (PaddleOCR Lite)
+-keep class org.opencv.** { *; }
+-dontwarn org.opencv.**
+
+# PaddleOCR Lite SDK
+-keep class com.paddle.ocr.** { *; }
+-dontwarn com.paddle.ocr.**

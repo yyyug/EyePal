@@ -47,6 +47,7 @@ class FaceRecognitionService(private val context: Context) {
     private var pendingUnknownEmbeddings: MutableList<FloatArray> = mutableListOf()
     private var consecutiveUnknownFrames = 0
     private var lastUnknownSuggestionTime = 0L
+    private var enrollmentSuggested = false
     private var consecutiveMatchName: String? = null
     private var consecutiveMatchCount = 0
     private var lastMatchEmbedding: FloatArray? = null
@@ -110,6 +111,7 @@ class FaceRecognitionService(private val context: Context) {
             consecutiveUnknownFrames = 0
             lastSampleFaceCenterX = 0f
             lastSampleFaceCenterY = 0f
+            enrollmentSuggested = false
             if (consecutiveMatchCount >= knownMatchFrameThreshold) {
                 logStore.append("Recognized: ${match.name} (${String.format(Locale.US, "%.3f", match.confidence)})")
                 FaceProcessResult(match, embedding)
@@ -134,29 +136,28 @@ class FaceRecognitionService(private val context: Context) {
                     consecutiveUnknownFrames = 0
                     lastSampleFaceCenterX = 0f
                     lastSampleFaceCenterY = 0f
+                    enrollmentSuggested = false
                     FaceProcessResult(null, embedding)
                 } else {
                     consecutiveUnknownFrames++
                     collectUnknownSample(embedding, face, faceBitmap)
                     val current = pendingUnknownEmbeddings.toList()
-                    val progress = PendingSamples(current, current.size, enrollmentSampleTarget)
-                    if (consecutiveUnknownFrames >= suggestionFrameThreshold &&
-                        current.size >= minimumEnrollmentSamples
+                    if (current.size >= enrollmentSampleTarget &&
+                        consecutiveUnknownFrames >= suggestionFrameThreshold
                     ) {
                         val now = System.currentTimeMillis()
-                        if (now - lastUnknownSuggestionTime >= minimumSuggestionIntervalMs) {
+                        if (!enrollmentSuggested && now - lastUnknownSuggestionTime >= minimumSuggestionIntervalMs) {
                             lastUnknownSuggestionTime = now
                             consecutiveUnknownFrames = 0
-                            pendingUnknownEmbeddings.clear()
-                            lastSampleFaceCenterX = 0f
-                            lastSampleFaceCenterY = 0f
+                            enrollmentSuggested = true
                             logStore.append("Suggest saving unknown face (${current.size} samples)")
                             FaceProcessResult(null, embedding, PendingSamples(current, current.size, enrollmentSampleTarget, suggestNow = true))
                         } else {
-                            FaceProcessResult(null, embedding, progress)
+                            // Collection is held open for saving; suppress further sample updates.
+                            FaceProcessResult(null, embedding)
                         }
                     } else {
-                        FaceProcessResult(null, embedding, progress)
+                        FaceProcessResult(null, embedding, PendingSamples(current, current.size, enrollmentSampleTarget))
                     }
                 }
             } else {
@@ -226,9 +227,12 @@ class FaceRecognitionService(private val context: Context) {
             val isDistinctEnough = pendingUnknownEmbeddings.all { savedEmbedding ->
                 embeddingEngine.cosineSimilarity(savedEmbedding, embedding) < Defaults.SAMPLE_DISTINCT_SIMILARITY
             }
-            if (isDistinctEnough || pendingUnknownEmbeddings.isEmpty()) {
-                pendingUnknownEmbeddings.add(embedding)
-            } else if (pendingUnknownEmbeddings.size < minimumEnrollmentSamples) {
+            // Prefer distinct samples, but always accept non-distinct ones once the
+            // collection is nearly complete so a still face can still reach the full
+            // target (prevents getting stuck below the target while holding still).
+            if (isDistinctEnough || pendingUnknownEmbeddings.isEmpty() ||
+                pendingUnknownEmbeddings.size >= minimumEnrollmentSamples - 1
+            ) {
                 pendingUnknownEmbeddings.add(embedding)
             }
         }
@@ -238,6 +242,7 @@ class FaceRecognitionService(private val context: Context) {
         pendingUnknownEmbeddings.clear()
         lastSampleFaceCenterX = 0f
         lastSampleFaceCenterY = 0f
+        enrollmentSuggested = false
     }
 
     private fun alignFace(source: Bitmap, face: Face): Bitmap {

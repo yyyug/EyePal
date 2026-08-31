@@ -1,7 +1,5 @@
 package com.eyepal.app.ui.screens
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.view.ViewGroup
 import androidx.camera.view.PreviewView
@@ -9,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -18,10 +18,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyepal.app.R
 import com.eyepal.app.viewmodels.ReadTextViewModel
@@ -43,12 +47,9 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
     val showCaptureDialog by viewModel.showCaptureDialog
     val capturedTextForDisplay by viewModel.capturedTextForDisplay
     val isProcessing by viewModel.isProcessing
-    val isContinuous by viewModel.isContinuous
     val errorMessage by viewModel.errorMessage
 
-    DisposableEffect(Unit) { onDispose { viewModel.stopContinuous(); viewModel.stopCamera() } }
-
-    LaunchedEffect(Unit) { viewModel.startContinuous() }
+    DisposableEffect(Unit) { onDispose { viewModel.stopCamera() } }
 
     Column(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
@@ -102,47 +103,51 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
 
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { viewModel.captureAndRecognize() }, modifier = Modifier.weight(1f), enabled = !isProcessing && !isContinuous) { Text(stringResource(R.string.btn_capture)) }
-                    Button(onClick = { if (isContinuous) viewModel.stopContinuous() else viewModel.startContinuous() }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (isContinuous) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary)) { Text(if (isContinuous) stringResource(R.string.btn_stop) else stringResource(R.string.btn_continuous)) }
+                    Button(onClick = { viewModel.captureAndRecognize() }, modifier = Modifier.weight(1f), enabled = !isProcessing) { Text(stringResource(R.string.btn_take_photo)) }
                 }
             }
         }
     }
 
-    // Captured text result dialog
+    // Captured text result (full-screen, matching iOS sheet)
     if (showCaptureDialog) {
-        val context = LocalContext.current
-        AlertDialog(
+        Dialog(
             onDismissRequest = { viewModel.showCaptureDialog.value = false },
-            title = { Text(stringResource(R.string.label_captured_text)) },
-            text = {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.label_captured_text),
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { viewModel.showCaptureDialog.value = false }) {
+                            Text(stringResource(R.string.btn_done))
+                        }
+                    }
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         capturedTextForDisplay,
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodyMedium
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.titleMedium
                     )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.showCaptureDialog.value = false }) {
-                    Text(stringResource(R.string.btn_done))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("Recognized Text", capturedTextForDisplay)
-                    clipboard.setPrimaryClip(clip)
-                    viewModel.showCaptureDialog.value = false
-                }) {
-                    Text(stringResource(R.string.btn_copy))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (detectedLanguage.isNotEmpty()) {
+                        Text(
+                            stringResource(R.string.label_detected_language, detectedLanguage),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
             }
-        )
+        }
     }
 }
 
@@ -155,6 +160,7 @@ fun FacesScreen(viewModel: FacesViewModel = viewModel()) {
     val pendingSampleCount by viewModel.pendingSampleCount
     val sampleTarget = viewModel.sampleTarget
     var nameInput by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     DisposableEffect(Unit) { onDispose { viewModel.stopCamera() } }
 
@@ -186,9 +192,12 @@ fun FacesScreen(viewModel: FacesViewModel = viewModel()) {
     }
 
     if (pendingSaveName != null) {
+        val onSave = { if (nameInput.isNotBlank()) { viewModel.saveFace(nameInput); nameInput = ""; focusManager.clearFocus() } }
         AlertDialog(onDismissRequest = { viewModel.dismissSave() }, title = { Text(stringResource(R.string.faces_add_person)) },
-            text = { OutlinedTextField(value = nameInput, onValueChange = { nameInput = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text(stringResource(R.string.faces_person_name)) }, singleLine = true) },
-            confirmButton = { TextButton(onClick = { viewModel.saveFace(nameInput); nameInput = "" }, enabled = nameInput.isNotBlank()) { Text(stringResource(R.string.btn_save)) } },
+            text = { OutlinedTextField(value = nameInput, onValueChange = { nameInput = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text(stringResource(R.string.faces_person_name)) }, singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave() })) },
+            confirmButton = { TextButton(onClick = { onSave() }, enabled = nameInput.isNotBlank()) { Text(stringResource(R.string.btn_save)) } },
             dismissButton = { TextButton(onClick = { nameInput = ""; viewModel.dismissSave() }) { Text(stringResource(R.string.btn_not_now)) } })
     }
 }

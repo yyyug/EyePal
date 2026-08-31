@@ -18,8 +18,7 @@ fun MoreScreen(
     moreFeatures: List<AppFeature>,
     onNavigateToFeature: (AppFeature) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToFeatureOrder: () -> Unit,
-    onNavigateToGoogleGlass: () -> Unit
+    onNavigateToFeatureOrder: () -> Unit
 ) {
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -45,10 +44,6 @@ fun MoreScreen(
                 ListItem(headlineContent = { Text(stringResource(R.string.tab_feature_order)) }, supportingContent = { Text(stringResource(R.string.more_custom_tabs)) },
                     modifier = Modifier.clickable { onNavigateToFeatureOrder() })
                 HorizontalDivider()
-            }
-            item {
-                ListItem(headlineContent = { Text(stringResource(R.string.tab_google_glass)) }, supportingContent = { Text(stringResource(R.string.more_audio_glasses)) },
-                    modifier = Modifier.clickable { onNavigateToGoogleGlass() })
             }
         }
     }

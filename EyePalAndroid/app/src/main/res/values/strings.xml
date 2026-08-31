@@ -185,7 +185,7 @@
     <string name="document_detection">Document Detection</string>
     <string name="auto_read">Auto-read</string>
     <string name="btn_copy">Copy</string>
-    <string name="btn_take_photo">Take Photo</string>
+    <string name="btn_take_photo">Take Picture</string>
     <string name="btn_sign_out">Sign Out</string>
     <string name="btn_refresh_models">Refresh Models</string>
     <string name="btn_loading">Loading…</string>
@@ -204,6 +204,11 @@
     <string name="settings_details_recognition_desc">Uses ChatGPT to provide detailed scene descriptions. Sign in with your ChatGPT account to enable.</string>
     <string name="settings_quick_desc">Controls how detailed the AI description will be.</string>
     <string name="settings_continuous_interval">Continuous Mode Interval</string>
+    <string name="settings_trigger_mode">Trigger</string>
+    <string name="settings_trigger_mode_hint">Time interval captures every N seconds. On the move captures after N seconds of detected motion; the timer pauses while still.</string>
+    <string name="trigger_mode_time">Time interval</string>
+    <string name="trigger_mode_on_the_move">On the move</string>
+    <string name="quick_motion_sensor_unavailable">Motion sensor is unavailable.</string>
     <string name="settings_control_style">Control Style</string>
     <string name="settings_control_style_desc">Choose how capture actions are presented.</string>
     <string name="settings_quick_buttons">Quick Buttons</string>
@@ -221,7 +226,10 @@
     <string name="settings_continuous_hint">How often to auto-capture in continuous mode.</string>
     <string name="settings_quick_buttons_desc">Configure up to 4 preset buttons for Quick Recognition.</string>
     <string name="settings_ocr_engine">OCR Engine</string>
-    <string name="settings_ocr_desc">Powered by Google MLKit. Supports Latin, Chinese, Japanese, and Korean scripts.</string>
+    <string name="settings_ocr_engine_label">Engine</string>
+    <string name="ocr_engine_mlkit">Fast (ML Kit)</string>
+    <string name="ocr_engine_paddle">Accurate (PaddleOCR Lite)</string>
+    <string name="settings_ocr_desc">Fast uses Google ML Kit for quick, low-power recognition. Accurate uses PaddleOCR Lite for higher accuracy, especially on Chinese and mixed-script text.</string>
     <string name="settings_features_title">Features</string>
     <string name="settings_features_list">• Real-time text recognition from camera\n• Multi-language support\n• Continuous recognition mode</string>
     <string name="settings_match_sensitivity_title">Match Sensitivity</string>

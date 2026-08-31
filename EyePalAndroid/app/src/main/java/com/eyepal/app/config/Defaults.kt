@@ -7,6 +7,7 @@ object Defaults {
     const val LYRIC_LLM_PROVIDER = "CODEX"
     const val CAPTION_LENGTH = "normal"
     const val CONTINUOUS_INTERVAL_MS = 3000
+    const val QUICK_TRIGGER_MODE = "time"
     const val TRANSLATION_TARGET = "zh"
     const val FACE_MATCH_THRESHOLD = 0.65f
     const val FACE_MATCH_MARGIN = 0.02f
@@ -21,6 +22,7 @@ object Defaults {
     const val UNKNOWN_SUGGESTION_MIN_INTERVAL_MS = 10_000L
     const val MINIMUM_ENROLLMENT_SAMPLES = 3
     const val READ_TEXT_SPEECH_COOLDOWN = 2.5f
+    const val OCR_ENGINE = "mlkit"
     const val SUGGEST_UNKNOWN_FACES = true
     const val QUICK_ACTION_CONTROL_STYLE = "onScreenButtons"
     const val DETAILS_ACTION_CONTROL_STYLE = "singleAdjustableControl"

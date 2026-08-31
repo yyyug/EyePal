@@ -76,6 +76,9 @@ dependencies {
     // ONNX Runtime
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.0")
 
+    // OpenCV (PaddleOCR Lite post-processing)
+    implementation("com.quickbirdstudios:opencv:4.5.3")
+
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 

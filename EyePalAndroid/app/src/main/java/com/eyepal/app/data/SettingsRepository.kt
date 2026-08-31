@@ -16,6 +16,7 @@ class SettingsRepository(private val context: Context) {
         val QUICK_MOONDREAM_API_KEY = stringPreferencesKey("quick_moondream_api_key")
         val QUICK_CAPTION_LENGTH = stringPreferencesKey("quick_caption_length")
         val QUICK_CONTINUOUS_INTERVAL = intPreferencesKey("quick_continuous_interval")
+        val QUICK_TRIGGER_MODE = stringPreferencesKey("quick_trigger_mode")
         val QUICK_TRANSLATION_ENABLED = booleanPreferencesKey("quick_translation_enabled")
         val QUICK_TRANSLATION_TARGET = stringPreferencesKey("quick_translation_target")
         val QUICK_PRESETS = stringPreferencesKey("quick_presets")
@@ -24,6 +25,7 @@ class SettingsRepository(private val context: Context) {
         val FACE_MATCH_FRAME_THRESHOLD = intPreferencesKey("face_match_frame_threshold")
         val FACE_SPEECH_COOLDOWN = floatPreferencesKey("face_speech_cooldown")
         val READ_TEXT_SPEECH_COOLDOWN = floatPreferencesKey("read_text_speech_cooldown")
+        val OCR_ENGINE = stringPreferencesKey("ocr_engine")
         val SUGGEST_UNKNOWN_FACES = booleanPreferencesKey("suggest_unknown_faces")
         val LYRIC_ADVANCE_OFFSET = floatPreferencesKey("lyric_advance_offset")
         val LYRIC_LLM_PROVIDER = stringPreferencesKey("lyric_llm_provider")
@@ -43,6 +45,7 @@ class SettingsRepository(private val context: Context) {
     val quickMoondreamAPIKey: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_MOONDREAM_API_KEY] ?: "" }
     val quickCaptionLength: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_CAPTION_LENGTH] ?: Defaults.CAPTION_LENGTH }
     val quickContinuousInterval: Flow<Int> = context.dataStore.data.map { it[Keys.QUICK_CONTINUOUS_INTERVAL] ?: Defaults.CONTINUOUS_INTERVAL_MS }
+    val quickTriggerMode: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_TRIGGER_MODE] ?: Defaults.QUICK_TRIGGER_MODE }
     val quickTranslationEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.QUICK_TRANSLATION_ENABLED] ?: false }
     val quickTranslationTarget: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_TRANSLATION_TARGET] ?: Defaults.TRANSLATION_TARGET }
     val quickPresets: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_PRESETS] ?: "" }
@@ -51,6 +54,7 @@ class SettingsRepository(private val context: Context) {
     val faceMatchFrameThreshold: Flow<Int> = context.dataStore.data.map { it[Keys.FACE_MATCH_FRAME_THRESHOLD] ?: Defaults.FACE_MATCH_FRAME_THRESHOLD }
     val faceSpeechCooldown: Flow<Float> = context.dataStore.data.map { it[Keys.FACE_SPEECH_COOLDOWN] ?: Defaults.FACE_SPEECH_COOLDOWN }
     val readTextSpeechCooldown: Flow<Float> = context.dataStore.data.map { it[Keys.READ_TEXT_SPEECH_COOLDOWN] ?: Defaults.READ_TEXT_SPEECH_COOLDOWN }
+    val ocrEngine: Flow<String> = context.dataStore.data.map { it[Keys.OCR_ENGINE] ?: Defaults.OCR_ENGINE }
     val suggestUnknownFaces: Flow<Boolean> = context.dataStore.data.map { it[Keys.SUGGEST_UNKNOWN_FACES] ?: Defaults.SUGGEST_UNKNOWN_FACES }
     val detailButtons: Flow<String> = context.dataStore.data.map { it[Keys.DETAIL_BUTTONS] ?: "" }
     val quickActionControlStyle: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_ACTION_CONTROL_STYLE] ?: Defaults.QUICK_ACTION_CONTROL_STYLE }
@@ -65,6 +69,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setQuickMoondreamAPIKey(key: String) { context.dataStore.edit { it[Keys.QUICK_MOONDREAM_API_KEY] = key } }
     suspend fun setQuickCaptionLength(value: String) { context.dataStore.edit { it[Keys.QUICK_CAPTION_LENGTH] = value } }
     suspend fun setQuickContinuousInterval(value: Int) { context.dataStore.edit { it[Keys.QUICK_CONTINUOUS_INTERVAL] = value } }
+    suspend fun setQuickTriggerMode(value: String) { context.dataStore.edit { it[Keys.QUICK_TRIGGER_MODE] = value } }
     suspend fun setQuickTranslationEnabled(value: Boolean) { context.dataStore.edit { it[Keys.QUICK_TRANSLATION_ENABLED] = value } }
     suspend fun setQuickTranslationTarget(value: String) { context.dataStore.edit { it[Keys.QUICK_TRANSLATION_TARGET] = value } }
     suspend fun setQuickPresets(value: String) { context.dataStore.edit { it[Keys.QUICK_PRESETS] = value } }
@@ -73,6 +78,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setFaceMatchFrameThreshold(value: Int) { context.dataStore.edit { it[Keys.FACE_MATCH_FRAME_THRESHOLD] = value } }
     suspend fun setFaceSpeechCooldown(value: Float) { context.dataStore.edit { it[Keys.FACE_SPEECH_COOLDOWN] = value } }
     suspend fun setReadTextSpeechCooldown(value: Float) { context.dataStore.edit { it[Keys.READ_TEXT_SPEECH_COOLDOWN] = value } }
+    suspend fun setOcrEngine(value: String) { context.dataStore.edit { it[Keys.OCR_ENGINE] = value } }
     suspend fun setSuggestUnknownFaces(value: Boolean) { context.dataStore.edit { it[Keys.SUGGEST_UNKNOWN_FACES] = value } }
     suspend fun setLyricAdvanceOffset(value: Float) { context.dataStore.edit { it[Keys.LYRIC_ADVANCE_OFFSET] = value } }
     suspend fun setLyricLLMProvider(value: String) { context.dataStore.edit { it[Keys.LYRIC_LLM_PROVIDER] = value } }

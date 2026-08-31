@@ -10,7 +10,6 @@ import androidx.lifecycle.viewModelScope
 import com.eyepal.app.EyePalApplication
 import com.eyepal.app.R
 import com.eyepal.app.services.GoogleGlassState
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -24,7 +23,6 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
     val recognizedText = mutableStateOf("")
     val isProcessing = mutableStateOf(false)
     private val processingLock = AtomicBoolean(false)
-    val isContinuous = mutableStateOf(false)
     val errorMessage = mutableStateOf<String?>(null)
     val detectedLanguage = mutableStateOf("")
     val isDocumentMode = mutableStateOf(false)
@@ -37,7 +35,6 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
     private val glassService = container.glassService
     private val announcer = container.announcer
     private val settings = container.settingsRepository
-    private var continuousJob: Job? = null
     private var lastAnnouncedText = ""
     private var lastFrameText = ""
     private var stableCount = 0
@@ -62,7 +59,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
         storedPreview = previewView as? PreviewView
         cameraStarted = true
         camera.startCamera(lo, storedPreview!!) { bitmap ->
-            if (isContinuous.value && !isProcessing.value) recognizeFrame(bitmap)
+            if (!isProcessing.value) recognizeFrame(bitmap)
         }
     }
 
@@ -73,7 +70,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
         if (GoogleGlassState.useGlassCamera.value) return
         cameraStarted = true
         camera.startCamera(lo, pv) { bitmap ->
-            if (isContinuous.value && !isProcessing.value) recognizeFrame(bitmap)
+            if (!isProcessing.value) recognizeFrame(bitmap)
         }
     }
 
@@ -104,10 +101,6 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
             processingLock.set(false)
         }
     }
-
-    fun startContinuous() { isContinuous.value = true; statusText.value = str(R.string.status_continuous_active) }
-
-    fun stopContinuous() { isContinuous.value = false; if (!isProcessing.value) statusText.value = str(R.string.status_ready) }
 
     private fun recognizeFrame(bitmap: Bitmap) {
         if (!processingLock.compareAndSet(false, true)) return

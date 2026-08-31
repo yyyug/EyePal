@@ -57,10 +57,10 @@ sealed class Screen(val route: String, @StringRes val labelRes: Int, val icon: I
 }
 
 val defaultBottomTabs = listOf(
-    Screen.FloorDetection,
-    Screen.Chat,
-    Screen.Faces,
     Screen.QuickRecognition,
+    Screen.DetailsRecognition,
+    Screen.ReadText,
+    Screen.FloorDetection,
 )
 
 private val featureNameToScreen = mapOf(
@@ -180,8 +180,7 @@ fun EyePalApp() {
                     moreFeatures = moreFeatures,
                     onNavigateToFeature = { feature -> navController.navigate(featureNameToScreen[feature.name]!!.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    onNavigateToFeatureOrder = { navController.navigate(Screen.FeatureOrder.route) },
-                    onNavigateToGoogleGlass = { navController.navigate(Screen.GoogleGlass.route) }
+                    onNavigateToFeatureOrder = { navController.navigate(Screen.FeatureOrder.route) }
                 )
             }
             composable(Screen.Settings.route) {

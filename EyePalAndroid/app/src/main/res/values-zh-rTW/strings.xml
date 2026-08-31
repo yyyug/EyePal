@@ -44,6 +44,11 @@
     <string name="settings_details_recognition">詳細辨識</string>
     <string name="settings_quick_recognition">快速辨識</string>
     <string name="settings_text_recognition">文字辨識</string>
+    <string name="settings_ocr_engine">OCR 引擎</string>
+    <string name="settings_ocr_engine_label">引擎</string>
+    <string name="ocr_engine_mlkit">迅速（ML Kit）</string>
+    <string name="ocr_engine_paddle">準確（PaddleOCR Lite）</string>
+    <string name="settings_ocr_desc">「迅速」搭配 Google ML Kit，辨識快速、耗電低。「準確」搭配 PaddleOCR Lite，對中文及混合文字辨識度更高。</string>
     <string name="settings_lyric_prompter">歌詞提示</string>
     <string name="settings_match_sensitivity">匹配靈敏度：%s%%</string>
     <string name="settings_top_match_margin">最高匹配邊距：%s</string>
@@ -83,6 +88,14 @@
     <string name="btn_manage_saved_faces">管理已儲存人臉</string>
     <string name="btn_capture">拍攝</string>
     <string name="btn_continuous">連續</string>
+
+    <!-- Quick Recognition Settings -->
+    <string name="settings_continuous_interval">連續模式間隔</string>
+    <string name="settings_trigger_mode">觸發方式</string>
+    <string name="settings_trigger_mode_hint">時間間隔每 N 秒擷取一次；「動作中」則在累積偵測到 N 秒動作後才擷取，靜止時計時器會暫停。</string>
+    <string name="trigger_mode_time">時間間隔</string>
+    <string name="trigger_mode_on_the_move">動作中</string>
+    <string name="quick_motion_sensor_unavailable">動作感測器不可用。</string>
     <string name="btn_interpreter">翻譯</string>
     <string name="btn_start_voice_chat">開始語音對話</string>
 

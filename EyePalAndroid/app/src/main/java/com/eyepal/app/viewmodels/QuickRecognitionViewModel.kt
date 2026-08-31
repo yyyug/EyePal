@@ -1,7 +1,13 @@
 package com.eyepal.app.viewmodels
 
 import android.app.Application
+import android.content.Context
 import android.graphics.Bitmap
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.SystemClock
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
@@ -15,6 +21,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONArray
+import kotlin.math.abs
 
 enum class QuickPresetKind(val typeName: String, val defaultName: String, val defaultPrompt: String) {
     PRODUCT("Product", "Product", "Describe the main product with brand, name and function"),
@@ -27,7 +34,7 @@ enum class QuickPresetKind(val typeName: String, val defaultName: String, val de
     }
 }
 
-class QuickRecognitionViewModel(application: Application) : AndroidViewModel(application) {
+class QuickRecognitionViewModel(application: Application) : AndroidViewModel(application), SensorEventListener {
     private fun str(resId: Int): String = getApplication<Application>().getString(resId)
     private fun str(resId: Int, vararg args: Any?): String = getApplication<Application>().getString(resId, *args)
 
@@ -42,6 +49,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     val presets = mutableStateOf<List<QuickPresetConfig>>(emptyList())
     val captionLength = mutableStateOf<QuickCaptionLength>(QuickCaptionLength.SHORT)
     val captureInterval = mutableStateOf(QuickContinuousInterval._3S)
+    val triggerMode = mutableStateOf(QuickTriggerMode.TIME)
 
     private val container = (application as EyePalApplication).container
     val camera = container.cameraService
@@ -50,7 +58,11 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     private val glassService = container.glassService
     private val announcer = container.announcer
     private val settings = container.settingsRepository
+    private val sensorManager = getApplication<Application>().getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private var continuousJob: Job? = null
+    private var motionAccumulatedMs: Long = 0
+    private var lastMotionSampleTime: Long = 0
+    private val motionActivityThreshold = 3.5f
     private var lastPrompt = "Describe what you see briefly"
     private var storedLifecycleOwner: LifecycleOwner? = null
     private var storedPreview: PreviewView? = null
@@ -84,6 +96,10 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
 
         captureInterval.value = QuickContinuousInterval.fromValue(
             settings.quickContinuousInterval.first()
+        )
+
+        triggerMode.value = QuickTriggerMode.fromValue(
+            settings.quickTriggerMode.first()
         )
 
         apiKey.value = settings.quickMoondreamAPIKey.first()
@@ -124,12 +140,63 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         if (isContinuousCapture.value) return
         isContinuousCapture.value = true
         statusText.value = str(R.string.status_continuous_running)
+        if (triggerMode.value == QuickTriggerMode.ON_THE_MOVE) {
+            startOnTheMoveLoop()
+            return
+        }
         continuousJob = viewModelScope.launch {
             while (isContinuousCapture.value) { capture(); delay(captureInterval.value.value.toLong()) }
         }
     }
 
-    fun stopContinuous() { continuousJob?.cancel(); continuousJob = null; isContinuousCapture.value = false; if (!isProcessing.value) statusText.value = str(R.string.status_ready) }
+    fun stopContinuous() {
+        stopOnTheMoveLoop()
+        continuousJob?.cancel()
+        continuousJob = null
+        isContinuousCapture.value = false
+        if (!isProcessing.value) statusText.value = str(R.string.status_ready)
+    }
+
+    private fun startOnTheMoveLoop() {
+        motionAccumulatedMs = 0
+        lastMotionSampleTime = 0
+        val accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        if (accel == null) {
+            isContinuousCapture.value = false
+            statusText.value = str(R.string.quick_motion_sensor_unavailable)
+            return
+        }
+        sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_NORMAL)
+    }
+
+    private fun stopOnTheMoveLoop() {
+        sensorManager.unregisterListener(this)
+        motionAccumulatedMs = 0
+        lastMotionSampleTime = 0
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        event ?: return
+        if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
+        if (!isContinuousCapture.value || isProcessing.value) return
+
+        val values = event.values
+        val magnitude = abs(values[0]) + abs(values[1]) + abs(values[2])
+        val now = SystemClock.elapsedRealtimeNanos()
+        if (lastMotionSampleTime == 0L) { lastMotionSampleTime = now; return }
+        val deltaMs = (now - lastMotionSampleTime) / 1_000_000L
+        lastMotionSampleTime = now
+
+        if (magnitude > motionActivityThreshold) {
+            motionAccumulatedMs += deltaMs
+            if (motionAccumulatedMs >= captureInterval.value.value.toLong()) {
+                motionAccumulatedMs = 0
+                capture()
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     private fun capture() {
         if (isProcessing.value) return
@@ -214,5 +281,14 @@ enum class QuickContinuousInterval(val value: Int, val labelRes: Int) {
         fun fromValue(ms: Int): QuickContinuousInterval = entries.find { it.value == ms } ?: _3S
         val optionValues: List<Int> get() = entries.map { it.value }
         val optionLabelRes: List<Int> get() = entries.map { it.labelRes }
+    }
+}
+
+enum class QuickTriggerMode(val value: String, val labelRes: Int) {
+    TIME("time", R.string.trigger_mode_time),
+    ON_THE_MOVE("onTheMove", R.string.trigger_mode_on_the_move);
+
+    companion object {
+        fun fromValue(value: String): QuickTriggerMode = entries.find { it.value == value } ?: TIME
     }
 }

@@ -203,7 +203,12 @@
     <string name="label_advance_offset">提前偏移：%s 秒</string>
     <string name="settings_details_recognition_desc">使用 ChatGPT 提供詳細的場景描述。請登入您的 ChatGPT 帳號以啟用。</string>
     <string name="settings_quick_desc">控制 AI 描述的詳細程度。</string>
-    <string name="settings_continuous_interval">連續模式間隔</string>
+    <string name="settings_continuous_interval">连续模式间隔</string>
+    <string name="settings_trigger_mode">触发方式</string>
+    <string name="settings_trigger_mode_hint">时间间隔每 N 秒擷取一次；“动作中”则在累计侦测到 N 秒动作后才擷取，静止时计时器会暂停。</string>
+    <string name="trigger_mode_time">时间间隔</string>
+    <string name="trigger_mode_on_the_move">动作中</string>
+    <string name="quick_motion_sensor_unavailable">动作传感器不可用。</string>
     <string name="settings_control_style">操作方式</string>
     <string name="settings_control_style_desc">選擇拍攝操作的呈現方式。</string>
     <string name="settings_quick_buttons">快速按鈕</string>
@@ -221,7 +226,10 @@
     <string name="settings_continuous_hint">連續模式中自動拍攝的頻率。</string>
     <string name="settings_quick_buttons_desc">為快速辨識設定最多 4 個預設按鈕。</string>
     <string name="settings_ocr_engine">OCR 引擎</string>
-    <string name="settings_ocr_desc">由 Google MLKit 提供支援。支援拉丁、中文、日文與韓文。</string>
+    <string name="settings_ocr_engine_label">引擎</string>
+    <string name="ocr_engine_mlkit">迅速（ML Kit）</string>
+    <string name="ocr_engine_paddle">准确（PaddleOCR Lite）</string>
+    <string name="settings_ocr_desc">迅速搭配 Google ML Kit，辨识快速、耗电低。准确搭配 PaddleOCR Lite，对中文及混合文字辨识度更高。</string>
     <string name="settings_features_title">功能</string>
     <string name="settings_features_list">• 即時文字辨識\n• 多語言支援\n• 連續辨識模式</string>
     <string name="settings_match_sensitivity_title">匹配靈敏度</string>

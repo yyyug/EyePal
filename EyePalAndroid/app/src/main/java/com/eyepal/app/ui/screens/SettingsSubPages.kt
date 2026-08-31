@@ -21,9 +21,11 @@ import androidx.compose.ui.res.stringResource
 import com.eyepal.app.data.SettingsRepository
 import com.eyepal.app.services.FaceRecognitionLogStore
 import com.eyepal.app.services.OAuthService
+import com.eyepal.app.services.OcrEngine
 import com.eyepal.app.services.TranslationService
 import com.eyepal.app.viewmodels.QuickCaptionLength
 import com.eyepal.app.viewmodels.QuickContinuousInterval
+import com.eyepal.app.viewmodels.QuickTriggerMode
 import com.eyepal.app.viewmodels.RecognitionActionControlStyle
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -203,6 +205,7 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
     val apiKey by settings.quickMoondreamAPIKey.collectAsState(initial = "")
     val captionLength by settings.quickCaptionLength.collectAsState(initial = QuickCaptionLength.SHORT.value)
     val captureInterval by settings.quickContinuousInterval.collectAsState(initial = QuickContinuousInterval._3S.value)
+    val triggerMode by settings.quickTriggerMode.collectAsState(initial = Defaults.QUICK_TRIGGER_MODE)
     val controlStyle by settings.quickActionControlStyle.collectAsState(initial = com.eyepal.app.config.Defaults.QUICK_ACTION_CONTROL_STYLE)
     val savedPresetsJson by settings.quickPresets.collectAsState(initial = "")
     val translationEnabled by settings.quickTranslationEnabled.collectAsState(initial = false)
@@ -288,6 +291,32 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(stringResource(R.string.settings_quick_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(stringResource(R.string.settings_trigger_mode), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            val currentTriggerMode = QuickTriggerMode.fromValue(triggerMode)
+            var expandedTriggerMode by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(expanded = expandedTriggerMode, onExpandedChange = { expandedTriggerMode = it }) {
+                OutlinedTextField(
+                    value = stringResource(currentTriggerMode.labelRes),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_trigger_mode)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedTriggerMode) },
+                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expandedTriggerMode, onDismissRequest = { expandedTriggerMode = false }) {
+                    QuickTriggerMode.entries.forEach { entry ->
+                        DropdownMenuItem(text = { Text(stringResource(entry.labelRes)) }, onClick = {
+                            scope.launch { settings.setQuickTriggerMode(entry.value) }
+                            expandedTriggerMode = false
+                        })
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.settings_trigger_mode_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(stringResource(R.string.settings_continuous_interval), style = MaterialTheme.typography.titleMedium)
@@ -447,13 +476,35 @@ fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
     val settings = remember { (context.applicationContext as EyePalApplication).container.settingsRepository }
     val scope = rememberCoroutineScope()
     val textCooldown by settings.readTextSpeechCooldown.collectAsState(initial = Defaults.READ_TEXT_SPEECH_COOLDOWN)
+    val ocrEngine by settings.ocrEngine.collectAsState(initial = Defaults.OCR_ENGINE)
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         TopAppBar(title = { Text(stringResource(R.string.settings_text_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))
         Text(stringResource(R.string.settings_ocr_engine), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.settings_ocr_desc), style = MaterialTheme.typography.bodyMedium)
+        val currentEngine = OcrEngine.fromValue(ocrEngine)
+        var expandedEngine by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(expanded = expandedEngine, onExpandedChange = { expandedEngine = it }) {
+            OutlinedTextField(
+                value = stringResource(currentEngine.labelRes),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(R.string.settings_ocr_engine_label)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedEngine) },
+                modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+            )
+            ExposedDropdownMenu(expanded = expandedEngine, onDismissRequest = { expandedEngine = false }) {
+                OcrEngine.entries.forEach { entry ->
+                    DropdownMenuItem(text = { Text(stringResource(entry.labelRes)) }, onClick = {
+                        scope.launch { settings.setOcrEngine(entry.value) }
+                        expandedEngine = false
+                    })
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(stringResource(R.string.settings_ocr_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         Spacer(modifier = Modifier.height(16.dp))
         Text(stringResource(R.string.settings_features_title), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))

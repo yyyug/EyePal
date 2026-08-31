@@ -22,7 +22,7 @@ class AppContainer(private val context: Context) {
     val cameraService by lazy { CameraService(context) }
     val openAIService by lazy { OpenAIService(networkClient) }
     val moondreamService by lazy { MoondreamService(networkClient) }
-    val ocrService by lazy { OCRService(context) }
+    val ocrService by lazy { OCRService(context, settingsRepository) }
     val faceRecognitionService by lazy { FaceRecognitionService(context) }
     val arcFaceEmbeddingEngine by lazy { ArcFaceEmbeddingEngine(context) }
     val glassService by lazy { GoogleGlassService(context) }
