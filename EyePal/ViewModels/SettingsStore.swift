@@ -38,6 +38,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
     @AppStorage("quickContinuousCaptureInterval") var quickContinuousCaptureInterval = QuickContinuousCaptureInterval.defaultInterval.rawValue
+    @AppStorage("quickContinuousTriggerMode") var quickContinuousTriggerMode = QuickRecognitionTriggerMode.defaultMode.rawValue
     @AppStorage("quickActionControlStyle") var quickActionControlStyle = RecognitionActionControlStyle.onScreenButtons.rawValue
     @AppStorage("quickCaptionTranslationEnabled") var quickCaptionTranslationEnabled = false
     @AppStorage("quickCaptionTranslationTargetLanguage") var quickCaptionTranslationTargetLanguage = ""

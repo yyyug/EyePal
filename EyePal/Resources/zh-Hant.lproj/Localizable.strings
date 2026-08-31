@@ -211,6 +211,8 @@
 "settings.captionLength" = "說明長度";
 "settings.captionLengthHelp" = "此設定僅適用於拍照。連續模式使用簡短說明樣式。";
 "settings.continuousMode" = "連續模式";
+"settings.triggerMode" = "觸發方式";
+"settings.triggerModeHelp" = "「時間間隔」每 N 秒擷取一次；「動作中」則在累積偵測到 N 秒動作後才擷取，靜止時計時會暫停。";
 "settings.captureFrequency" = "擷取頻率";
 "settings.captureFrequencyHelp" = "選擇連續模式的拍照頻率。每個完成的結果將在可用時播報。";
 "settings.quickButtons" = "快速按鈕";

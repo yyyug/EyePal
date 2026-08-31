@@ -75,6 +75,7 @@ final class FaceRecognitionViewModel: ObservableObject {
 
     func dismissSuggestion() {
         pendingSuggestion = nil
+        recognitionService.resetPendingEnrollment()
         camera.start()
     }
 

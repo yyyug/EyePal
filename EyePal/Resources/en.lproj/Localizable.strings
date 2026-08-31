@@ -211,6 +211,8 @@
 "settings.captionLength" = "Caption Length";
 "settings.captionLengthHelp" = "This setting applies to Take Photo only. Continuous mode uses the short caption style.";
 "settings.continuousMode" = "Continuous Mode";
+"settings.triggerMode" = "Trigger";
+"settings.triggerModeHelp" = "Time interval captures every N seconds. On the move captures only after N seconds of detected motion; the timer pauses while still.";
 "settings.captureFrequency" = "Capture Frequency";
 "settings.captureFrequencyHelp" = "Choose how often Continuous mode takes a picture. Each completed result is announced when available.";
 "settings.quickButtons" = "Quick Buttons";

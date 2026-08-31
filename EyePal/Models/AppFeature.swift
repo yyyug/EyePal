@@ -10,13 +10,13 @@ enum AppFeature: String, CaseIterable, Identifiable {
     case lyricPrompter
 
     static let defaultOrder: [AppFeature] = [
-        .floorDetection,
-        .chat,
-        .faces,
         .quickRecognition,
         .detailsRecognition,
         .readText,
+        .floorDetection,
         .lyricPrompter,
+        .chat,
+        .faces,
     ]
     static let maxTabFeatureCount = 4
 

@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import CoreMotion
 #if canImport(Translation)
 import Translation
 #endif
@@ -29,6 +30,11 @@ final class QuickRecognitionViewModel: ObservableObject {
     private var continuousTask: Task<Void, Never>?
     private var latestCapturedImage: UIImage?
     private var latestRequestKind: RequestKind?
+    private let motionManager = CMMotionManager()
+    private var accumulatedActiveTime: TimeInterval = 0
+    private var lastMotionSampleTime: Date?
+
+    let motionActivityThreshold: Double = 0.3
 
     func bind(settings: SettingsStore) {
         settingsStore = settings
@@ -60,15 +66,21 @@ final class QuickRecognitionViewModel: ObservableObject {
         statusText = "Continuous mode is running."
         continuousTask = Task { [weak self] in
             guard let self else { return }
-            while !Task.isCancelled {
-                await self.captureForContinuousMode()
-                let interval = self.selectedContinuousInterval.timeInterval
-                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            switch self.selectedTriggerMode {
+            case .time:
+                while !Task.isCancelled {
+                    await self.captureForContinuousMode()
+                    let interval = self.selectedContinuousInterval.timeInterval
+                    try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                }
+            case .onTheMove:
+                self.startOnTheMoveLoop()
             }
         }
     }
 
     func stopContinuousMode() {
+        stopOnTheMoveLoop()
         continuousTask?.cancel()
         continuousTask = nil
         isContinuousCapture = false
@@ -218,6 +230,45 @@ final class QuickRecognitionViewModel: ObservableObject {
         QuickContinuousCaptureInterval(
             rawValue: settingsStore?.quickContinuousCaptureInterval ?? QuickContinuousCaptureInterval.defaultInterval.rawValue
         ) ?? .defaultInterval
+    }
+
+    private var selectedTriggerMode: QuickRecognitionTriggerMode {
+        QuickRecognitionTriggerMode(
+            rawValue: settingsStore?.quickContinuousTriggerMode ?? QuickRecognitionTriggerMode.defaultMode.rawValue
+        ) ?? .defaultMode
+    }
+
+    private func startOnTheMoveLoop() {
+        accumulatedActiveTime = 0
+        lastMotionSampleTime = Date()
+        guard motionManager.isAccelerometerAvailable else {
+            statusText = "Motion sensor is unavailable."
+            stopContinuousMode()
+            return
+        }
+        motionManager.accelerometerUpdateInterval = 0.25
+        motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
+            guard let self, let data else { return }
+            let magnitude = abs(data.acceleration.x) + abs(data.acceleration.y) + abs(data.acceleration.z)
+            let now = Date()
+            let delta = now.timeIntervalSince(self.lastMotionSampleTime ?? now)
+            self.lastMotionSampleTime = now
+
+            if magnitude > self.motionActivityThreshold {
+                self.accumulatedActiveTime += delta
+                let interval = self.selectedContinuousInterval.timeInterval
+                if self.accumulatedActiveTime >= interval {
+                    self.accumulatedActiveTime = 0
+                    Task { await self.captureForContinuousMode() }
+                }
+            }
+        }
+    }
+
+    private func stopOnTheMoveLoop() {
+        motionManager.stopAccelerometerUpdates()
+        accumulatedActiveTime = 0
+        lastMotionSampleTime = nil
     }
 
     private func makePreviewImage(from image: UIImage) -> UIImage {

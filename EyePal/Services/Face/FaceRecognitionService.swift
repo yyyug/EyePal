@@ -44,6 +44,7 @@ final class FaceRecognitionService {
     private var consecutiveKnownFrames = 0
     private var pendingUnknownEmbeddings: [[Float]] = []
     private var pendingUnknownJPEGData: Data?
+    private var enrollmentSuggested = false
 
     var recognitionThreshold: Float = FaceConfig.recognitionThreshold
     var suggestionFrameThreshold = FaceConfig.suggestionFrameThreshold
@@ -447,21 +448,22 @@ final class FaceRecognitionService {
             return nil
         }
 
-        guard pendingUnknownEmbeddings.count >= minimumEnrollmentSamples else {
+        guard pendingUnknownEmbeddings.count >= enrollmentSampleTarget else {
             return nil
         }
 
         let now = Date()
-        guard now.timeIntervalSince(lastUnknownSuggestionDate) >= minimumSuggestionInterval else {
+        guard !enrollmentSuggested,
+              now.timeIntervalSince(lastUnknownSuggestionDate) >= minimumSuggestionInterval else {
             return nil
         }
 
         lastUnknownSuggestionDate = now
+        enrollmentSuggested = true
         let suggestion = FaceSuggestion(
             sampleEmbeddings: Array(pendingUnknownEmbeddings.prefix(enrollmentSampleTarget)),
             jpegData: pendingUnknownJPEGData
         )
-        resetUnknownTracking()
         return suggestion
     }
 
@@ -471,9 +473,11 @@ final class FaceRecognitionService {
                 cosineSimilarity(savedEmbedding, embedding) < FaceConfig.sampleDistinctSimilarity
             }
 
-            if isDistinctEnough || pendingUnknownEmbeddings.isEmpty {
-                pendingUnknownEmbeddings.append(embedding)
-            } else if pendingUnknownEmbeddings.count < minimumEnrollmentSamples {
+            // Prefer distinct samples, but always accept non-distinct ones once the
+            // collection is nearly complete so a still face can still reach the full
+            // target (prevents getting stuck below the target while holding still).
+            if isDistinctEnough || pendingUnknownEmbeddings.isEmpty ||
+                pendingUnknownEmbeddings.count >= minimumEnrollmentSamples - 1 {
                 pendingUnknownEmbeddings.append(embedding)
             }
         }
@@ -537,10 +541,15 @@ final class FaceRecognitionService {
         return result.map { $0 / mag }
     }
 
+    func resetPendingEnrollment() {
+        resetUnknownTracking()
+    }
+
     private func resetUnknownTracking() {
         consecutiveUnknownFrames = 0
         pendingUnknownEmbeddings = []
         pendingUnknownJPEGData = nil
+        enrollmentSuggested = false
     }
 }
 

@@ -105,6 +105,24 @@ enum QuickContinuousCaptureInterval: Double, CaseIterable, Identifiable {
     }
 }
 
+enum QuickRecognitionTriggerMode: String, CaseIterable, Identifiable {
+    case time
+    case onTheMove
+
+    static let defaultMode: Self = .time
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .time:
+            return "Time interval"
+        case .onTheMove:
+            return "On the move"
+        }
+    }
+}
+
 enum RecognitionActionControlStyle: String, CaseIterable, Identifiable {
     case onScreenButtons
     case singleAdjustableControl

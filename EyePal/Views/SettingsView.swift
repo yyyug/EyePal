@@ -598,6 +598,13 @@ private struct QuickRecognitionSettingsView: View {
         )
     }
 
+    private var selectedTriggerMode: Binding<QuickRecognitionTriggerMode> {
+        Binding(
+            get: { QuickRecognitionTriggerMode(rawValue: settingsStore.quickContinuousTriggerMode) ?? .time },
+            set: { settingsStore.quickContinuousTriggerMode = $0.rawValue }
+        )
+    }
+
     var body: some View {
         Form {
             Section {
@@ -619,6 +626,16 @@ private struct QuickRecognitionSettingsView: View {
             }
 
             Section(NSLocalizedString("settings.continuousMode", comment: "")) {
+                Picker(NSLocalizedString("settings.triggerMode", comment: ""), selection: selectedTriggerMode) {
+                    ForEach(QuickRecognitionTriggerMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+
+                Text(NSLocalizedString("settings.triggerModeHelp", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
                 Picker(NSLocalizedString("settings.captureFrequency", comment: ""), selection: selectedContinuousCaptureInterval) {
                     ForEach(QuickContinuousCaptureInterval.allCases) { interval in
                         Text(interval.displayName).tag(interval)
