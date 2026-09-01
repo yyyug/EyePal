@@ -47,14 +47,13 @@ final class GemmaModelManager: NSObject, ObservableObject {
     private var activeTasks: [GemmaModelKind: URLSessionDownloadTask] = [:]
     private let registry = GemmaTaskRegistry()
     private var bytesReceived: [GemmaModelKind: Int64] = [:]
-    private let session: URLSession
+    private var session: URLSession!
 
     override init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 300
-        session = URLSession(configuration: config)
         super.init()
-        session.delegate = self
+        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         refreshStates()
     }
 
