@@ -96,7 +96,6 @@ final class GemmaTextRecognitionService {
             modelPath: modelPath,
             backend: .gpu,
             visionBackend: .cpu(),
-            audioBackend: .cpu(),
             maxNumTokens: 256,
             cacheDir: cacheDir
         )

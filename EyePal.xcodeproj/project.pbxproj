@@ -414,7 +414,7 @@
             );
             mainGroup = A10003000000000000000001;
             packageReferences = (
-                A1000A000000000000000001 /* XCRemoteSwiftPackageReference "LiteRT-LM" */,
+                A1000A000000000000000001 /* XCRemoteSwiftPackageReference "swift-litert-lm" */,
             );
             productRefGroup = A10003000000000000000003 /* Products */;
             projectDirPath = "";
@@ -614,12 +614,12 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A1000A000000000000000001 /* XCRemoteSwiftPackageReference "LiteRT-LM" */ = {
+		A1000A000000000000000001 /* XCRemoteSwiftPackageReference "swift-litert-lm" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/google-ai-edge/LiteRT-LM.git";
+			repositoryURL = "https://github.com/john-rocky/swift-litert-lm.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.12.0;
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.1.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -627,7 +627,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		A1000C000000000000000001 /* LiteRTLM */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A1000A000000000000000001 /* XCRemoteSwiftPackageReference "LiteRT-LM" */;
+			package = A1000A000000000000000001 /* XCRemoteSwiftPackageReference "swift-litert-lm" */;
 			productName = LiteRTLM;
 		};
 /* End XCSwiftPackageProductDependency section */
