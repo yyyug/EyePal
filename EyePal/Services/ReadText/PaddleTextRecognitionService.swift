@@ -6,16 +6,18 @@ import UIKit
 /// observation-shaped interface as ``TextRecognitionService`` so callers can
 /// switch OCR engines without changing their consuming code.
 ///
-/// The actor isolates the lazily-created ``OCREngine`` (and its load state) so
-/// model loading and inference never race across concurrent requests.
-actor PaddleTextRecognitionService {
+/// All entry points dispatch through a private serial queue; the lazily-created
+/// ``OCREngine`` is loaded once and reused for subsequent requests.
+final class PaddleTextRecognitionService {
+    private let processingQueue = DispatchQueue(label: "com.eyepals.text.recognition.paddle")
     private var engine: OCREngine?
     private var loadErrorLogged = false
 
     /// Kicks off model loading in the background if the engine is not loaded yet.
     func prepareIfNeeded() {
-        Task { [weak self] in
-            _ = await self?.readyEngine()
+        processingQueue.async { [weak self] in
+            guard let self else { return }
+            Task { _ = await self.readyEngine() }
         }
     }
 
@@ -24,40 +26,40 @@ actor PaddleTextRecognitionService {
         image: UIImage,
         completion: @escaping @MainActor (TextRecognitionObservation?) -> Void
     ) {
-        Task { [weak self] in
-            await self?.performProcess(image: image, completion: completion)
-        }
-    }
-
-    private func performProcess(
-        image: UIImage,
-        completion: @escaping @MainActor (TextRecognitionObservation?) -> Void
-    ) async {
-        guard let cgImage = image.cgImage else {
-            Task { @MainActor in completion(nil) }
-            return
-        }
-        guard let engine = await readyEngine() else {
-            Task { @MainActor in completion(nil) }
-            return
-        }
-        do {
-            let run = try await engine.run(cgImage)
-            let text = run.results.map(\.text).joined(separator: "\n")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let observation = text.isEmpty
-                ? nil
-                : TextRecognitionObservation(text: text, languageCode: nil)
-            Task { @MainActor in completion(observation) }
-        } catch {
-            Task { @MainActor in completion(nil) }
+        processingQueue.async { [weak self] in
+            guard let self else {
+                Task { @MainActor in completion(nil) }
+                return
+            }
+            guard let cgImage = image.cgImage else {
+                Task { @MainActor in completion(nil) }
+                return
+            }
+            Task {
+                guard let engine = await self.readyEngine() else {
+                    Task { @MainActor in completion(nil) }
+                    return
+                }
+                do {
+                    let run = try await engine.run(cgImage)
+                    let text = run.results.map(\.text).joined(separator: "\n")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    let observation = text.isEmpty
+                        ? nil
+                        : TextRecognitionObservation(text: text, languageCode: nil)
+                    Task { @MainActor in completion(observation) }
+                } catch {
+                    Task { @MainActor in completion(nil) }
+                }
+            }
         }
     }
 
     private func readyEngine() async -> OCREngine? {
-        if let engine {
+        if engine != nil {
             return engine
         }
+
         let manager = ORTSessionManager()
         do {
             try await manager.loadModels(executionProvider: .cpu)
