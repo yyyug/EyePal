@@ -281,8 +281,8 @@
     <!-- Enum option labels -->
     <string name="control_style_buttons">On-screen button layout</string>
     <string name="control_style_single">Single control (swipe up/down to choose)</string>
-    <string name="caption_short">Short</string>
-    <string name="caption_normal">Normal</string>
+    <string name="caption_short">Concise</string>
+    <string name="caption_normal">Standard</string>
     <string name="caption_detailed">Detailed</string>
     <string name="interval_1_second">1 second</string>
     <string name="interval_2_seconds">2 seconds</string>
@@ -364,4 +364,8 @@
     <string name="gemma_action_retry">Retry</string>
     <string name="gemma_error_no_model">No model downloaded. Download a Gemma model in Settings.</string>
     <string name="gemma_error_empty_response">The model returned no text.</string>
+    <string name="settings_model_provider">Recognition Model</string>
+    <string name="settings_model_provider_moondream">MoonDream (Online)</string>
+    <string name="settings_model_provider_gemma">Gemma (On-device)</string>
+    <string name="settings_model_provider_hint">Choose where Quick Recognition runs. Gemma works fully offline; MoonDream needs an API key.</string>
 </resources>

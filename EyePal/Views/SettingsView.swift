@@ -572,7 +572,7 @@ private struct DetailsDescriptionSettingsView: View {
 
 private struct QuickRecognitionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
-    @StateObject private var gemmaModelManager = GemmaModelManager()
+    @StateObject private var gemmaModelManager = GemmaModelManager.shared
 
     #if canImport(Translation)
     @StateObject private var translationLanguageStore = TranslationLanguageStore()
@@ -608,8 +608,6 @@ private struct QuickRecognitionSettingsView: View {
 
     private var gemmaOfflineSection: some View {
         Section(NSLocalizedString("gemma.sectionTitle", comment: "")) {
-            Toggle(NSLocalizedString("gemma.enable", comment: ""), isOn: $settingsStore.gemmaOfflineEnabled)
-
             ForEach(GemmaModelKind.allCases) { kind in
                 GemmaModelRow(kind: kind, manager: gemmaModelManager)
             }
@@ -620,15 +618,39 @@ private struct QuickRecognitionSettingsView: View {
         }
     }
 
+    private var selectedModelProvider: Binding<QuickModelProvider> {
+        Binding(
+            get: { QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .moondream },
+            set: { settingsStore.quickModelProvider = $0.rawValue }
+        )
+    }
+
     var body: some View {
         Form {
-            Section {
-                SecureField(NSLocalizedString("settings.apiKey", comment: ""), text: $settingsStore.quickMoondreamAPIKey)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+            Section(NSLocalizedString("settings.modelProvider", comment: "")) {
+                Picker(NSLocalizedString("settings.modelProvider", comment: ""), selection: selectedModelProvider) {
+                    ForEach(QuickModelProvider.allCases) { provider in
+                        Text(provider.displayName).tag(provider)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(NSLocalizedString("settings.modelProvider.help", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
-            gemmaOfflineSection
+            if selectedModelProvider.wrappedValue == .moondream {
+                Section(NSLocalizedString("settings.sectionAPIKey", comment: "")) {
+                    SecureField(NSLocalizedString("settings.apiKey", comment: ""), text: $settingsStore.quickMoondreamAPIKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+
+            if selectedModelProvider.wrappedValue == .gemma {
+                gemmaOfflineSection
+            }
 
             Section(NSLocalizedString("settings.sectionTakePhoto", comment: "")) {
                 Picker(NSLocalizedString("settings.captionLength", comment: ""), selection: selectedCaptionLength) {

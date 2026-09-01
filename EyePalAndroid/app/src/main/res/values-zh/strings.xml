@@ -281,8 +281,8 @@
     <!-- Enum option labels -->
     <string name="control_style_buttons">螢幕按鈕版面</string>
     <string name="control_style_single">單一操作（上下滑動以選擇）</string>
-    <string name="caption_short">簡短</string>
-    <string name="caption_normal">一般</string>
+    <string name="caption_short">簡潔</string>
+    <string name="caption_normal">標準</string>
     <string name="caption_detailed">詳細</string>
     <string name="interval_1_second">1 秒</string>
     <string name="interval_2_seconds">2 秒</string>
@@ -363,4 +363,8 @@
     <string name="gemma_action_retry">重试</string>
     <string name="gemma_error_no_model">尚未下载模型。请在设置中下载 Gemma 模型。</string>
     <string name="gemma_error_empty_response">模型未返回文本。</string>
+    <string name="settings_model_provider">辨識模型</string>
+    <string name="settings_model_provider_moondream">MoonDream（線上）</string>
+    <string name="settings_model_provider_gemma">Gemma（裝置端）</string>
+    <string name="settings_model_provider_hint">選擇快速辨識的執行來源。Gemma 可完全離線執行；MoonDream 需要 API 金鑰。</string>
 </resources>

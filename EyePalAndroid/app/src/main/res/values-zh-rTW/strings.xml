@@ -168,4 +168,8 @@
     <string name="gemma_action_retry">重試</string>
     <string name="gemma_error_no_model">尚未下載模型。請在設定中下載 Gemma 模型。</string>
     <string name="gemma_error_empty_response">模型未回傳文字。</string>
+    <string name="settings_model_provider">辨識模型</string>
+    <string name="settings_model_provider_moondream">MoonDream（線上）</string>
+    <string name="settings_model_provider_gemma">Gemma（裝置端）</string>
+    <string name="settings_model_provider_hint">選擇快速辨識的執行來源。Gemma 可完全離線執行；MoonDream 需要 API 金鑰。</string>
 </resources>

@@ -1,5 +1,18 @@
 import SwiftUI
 import Intents
+import UIKit
+
+/// Receives system callbacks for background URLSession transfers so the Gemma
+/// model downloads can continue (and finish) while the app is in the background.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        GemmaModelManager.handleEventsForBackgroundURLSession(identifier, completion: completionHandler)
+    }
+}
 
 enum EyePalUserActivityType {
     static let myLocation = "com.eyepal.activity.my-location"
@@ -216,6 +229,7 @@ final class EyePalAppActionCenter: ObservableObject {
 
 @main
 struct EyePalApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var settingsStore = SettingsStore()
     @StateObject private var openAIStore = OpenAISubscriptionStore()
     @StateObject private var appActionCenter = EyePalAppActionCenter()

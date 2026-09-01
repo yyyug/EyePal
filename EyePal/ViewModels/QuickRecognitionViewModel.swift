@@ -25,7 +25,7 @@ final class QuickRecognitionViewModel: ObservableObject {
     let camera = CameraPipeline()
 
     private let service = QuickRecognitionService()
-    private let gemmaModelManager = GemmaModelManager()
+    private let gemmaModelManager = GemmaModelManager.shared
     private lazy var gemmaService = GemmaTextRecognitionService(modelManager: gemmaModelManager)
     private let announcer = AccessibilityAnnouncementCenter()
     private weak var settingsStore: SettingsStore?
@@ -135,7 +135,7 @@ final class QuickRecognitionViewModel: ObservableObject {
             return
         }
 
-        let useGemmaOffline = settingsStore.gemmaOfflineEnabled && gemmaService.canRun()
+        let useGemmaOffline = QuickModelProvider(rawValue: settingsStore.quickModelProvider) == .gemma && gemmaService.canRun()
 
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if !useGemmaOffline, apiKey.isEmpty {

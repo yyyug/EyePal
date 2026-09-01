@@ -54,7 +54,7 @@ fun QuickRecognitionScreen(viewModel: QuickRecognitionViewModel = viewModel()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(statusText, style = MaterialTheme.typography.bodyLarge)
 
-                if (viewModel.apiKey.value.isBlank() && !(viewModel.gemmaOfflineEnabled.value && viewModel.gemmaCanRunOffline())) {
+                if (viewModel.apiKey.value.isBlank() && !(viewModel.quickModelProvider.value == "gemma" && viewModel.gemmaCanRunOffline())) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(stringResource(R.string.quick_no_api_key), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     TextButton(onClick = {

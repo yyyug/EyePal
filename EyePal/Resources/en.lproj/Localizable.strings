@@ -296,3 +296,8 @@
 "gemma.error.imageEncoding" = "The image could not be prepared for the offline model.";
 "gemma.error.emptyResponse" = "The offline model returned an empty response.";
 "gemma.error.engine" = "The offline model engine could not be started.";
+"settings.modelProvider" = "Recognition Model";
+"settings.modelProvider.help" = "Choose where Quick Recognition runs. Gemma works fully offline; MoonDream needs an API key.";
+"settings.modelProvider.moondream" = "MoonDream (Online)";
+"settings.modelProvider.gemma" = "Gemma (On-device)";
+"settings.sectionAPIKey" = "Online API Key";

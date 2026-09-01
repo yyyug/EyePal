@@ -296,3 +296,9 @@
 "gemma.error.imageEncoding" = "無法為離線模型準備這張圖片。";
 "gemma.error.emptyResponse" = "離線模型回傳了空白結果。";
 "gemma.error.engine" = "無法啟動離線模型引擎。";
+
+"settings.modelProvider" = "辨識模型";
+"settings.modelProvider.help" = "選擇快速辨識的執行來源。Gemma 可完全離線執行；MoonDream 需要 API 金鑰。";
+"settings.modelProvider.moondream" = "MoonDream（線上）";
+"settings.modelProvider.gemma" = "Gemma（裝置端）";
+"settings.sectionAPIKey" = "線上 API 金鑰";

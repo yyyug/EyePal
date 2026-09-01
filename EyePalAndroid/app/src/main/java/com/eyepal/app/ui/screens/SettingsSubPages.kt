@@ -213,7 +213,7 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
     val savedPresetsJson by settings.quickPresets.collectAsState(initial = "")
     val translationEnabled by settings.quickTranslationEnabled.collectAsState(initial = false)
     val translationTarget by settings.quickTranslationTarget.collectAsState(initial = Defaults.TRANSLATION_TARGET)
-    val gemmaOfflineEnabled by settings.gemmaOfflineEnabled.collectAsState(initial = false)
+    val quickModelProvider by settings.quickModelProvider.collectAsState(initial = Defaults.QUICK_MODEL_PROVIDER)
     val gemmaManager = remember { (context.applicationContext as EyePalApplication).container.gemmaModelManager }
     val gemmaStates by gemmaManager.states.collectAsState()
 
@@ -266,12 +266,41 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
             TopAppBar(title = { Text(stringResource(R.string.feature_quick_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(stringResource(R.string.settings_moondream_api), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_model_provider), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(value = apiKey, onValueChange = { scope.launch { settings.setQuickMoondreamAPIKey(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_api_key)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+            var expandedProvider by remember { mutableStateOf(false) }
+            val providerOptions = listOf(Pair("moondream", R.string.settings_model_provider_moondream), Pair("gemma", R.string.settings_model_provider_gemma))
+            val currentProviderLabel = providerOptions.firstOrNull { it.first == quickModelProvider }?.second ?: R.string.settings_model_provider_moondream
+            ExposedDropdownMenuBox(expanded = expandedProvider, onExpandedChange = { expandedProvider = it }) {
+                OutlinedTextField(
+                    value = stringResource(currentProviderLabel),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.settings_model_provider)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedProvider) },
+                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expandedProvider, onDismissRequest = { expandedProvider = false }) {
+                    providerOptions.forEach { (value, labelRes) ->
+                        DropdownMenuItem(text = { Text(stringResource(labelRes)) }, onClick = {
+                            scope.launch { settings.setQuickModelProvider(value) }
+                            expandedProvider = false
+                        })
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.settings_moondream_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Text(stringResource(R.string.settings_model_provider_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(24.dp))
+
+            if (quickModelProvider == "moondream") {
+                Text(stringResource(R.string.settings_moondream_api), style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = apiKey, onValueChange = { scope.launch { settings.setQuickMoondreamAPIKey(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_api_key)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(stringResource(R.string.settings_moondream_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             Text(stringResource(R.string.settings_caption_length), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
@@ -474,19 +503,16 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
         }
 
         item {
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(stringResource(R.string.gemma_section_title), style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Text(stringResource(R.string.gemma_enable), modifier = Modifier.weight(1f))
-                Switch(checked = gemmaOfflineEnabled, onCheckedChange = { scope.launch { settings.setGemmaOfflineEnabled(it) } })
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.gemma_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            if (quickModelProvider == "gemma") {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(stringResource(R.string.gemma_section_title), style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(stringResource(R.string.gemma_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
 
-            GemmaModelKind.entries.forEach { kind ->
-                Spacer(modifier = Modifier.height(16.dp))
-                GemmaModelRow(kind = kind, state = gemmaStates[kind] ?: GemmaDownloadState.NotDownloaded, manager = gemmaManager)
+                GemmaModelKind.entries.forEach { kind ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    GemmaModelRow(kind = kind, state = gemmaStates[kind] ?: GemmaDownloadState.NotDownloaded, manager = gemmaManager)
+                }
             }
         }
     }

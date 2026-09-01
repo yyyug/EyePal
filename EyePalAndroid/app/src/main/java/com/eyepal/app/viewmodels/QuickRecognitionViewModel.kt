@@ -15,6 +15,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.EyePalApplication
 import com.eyepal.app.R
+import com.eyepal.app.config.Defaults
 import com.eyepal.app.services.GoogleGlassState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
@@ -45,7 +46,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     val capturedImage = mutableStateOf<Bitmap?>(null)
     val errorMessage = mutableStateOf<String?>(null)
     val apiKey = mutableStateOf("")
-    val gemmaOfflineEnabled = mutableStateOf(false)
+    val quickModelProvider = mutableStateOf(Defaults.QUICK_MODEL_PROVIDER)
 
     val presets = mutableStateOf<List<QuickPresetConfig>>(emptyList())
     val captionLength = mutableStateOf<QuickCaptionLength>(QuickCaptionLength.SHORT)
@@ -106,7 +107,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         )
 
         apiKey.value = settings.quickMoondreamAPIKey.first()
-        gemmaOfflineEnabled.value = settings.gemmaOfflineEnabled.first()
+        quickModelProvider.value = settings.quickModelProvider.first()
     }
 
     private fun defaultPresets() = listOf(
@@ -216,7 +217,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                 }
                 if (bitmap == null) throw Exception(str(R.string.error_camera_not_ready))
                 capturedImage.value = bitmap
-                val useGemmaOffline = settings.gemmaOfflineEnabled.first() && gemmaService.canRun()
+                val useGemmaOffline = settings.quickModelProvider.first() == "gemma" && gemmaService.canRun()
                 val result: String
                 if (useGemmaOffline) {
                     result = gemmaService.generateCaption(bitmap, captionLength.value)

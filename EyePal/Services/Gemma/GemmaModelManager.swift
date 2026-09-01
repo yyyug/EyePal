@@ -40,7 +40,15 @@ final class GemmaModelManager: NSObject, ObservableObject {
         }
     }
 
+    /// Single shared manager so the settings UI, the recognition view model and the
+    /// system background-download callbacks all observe the same state and session.
+    static let shared = GemmaModelManager()
+
     static let localDirectoryName = "GemmaModels"
+
+    /// Identifier for the background `URLSession`. Downloads continue while the app
+    /// is in the background and resume automatically when the app returns.
+    static let sessionIdentifier = "com.eyepal.gemma.modeldownload"
 
     @Published private(set) var states: [GemmaModelKind: DownloadState] = [:]
 
@@ -48,13 +56,34 @@ final class GemmaModelManager: NSObject, ObservableObject {
     private let registry = GemmaTaskRegistry()
     private var bytesReceived: [GemmaModelKind: Int64] = [:]
     private var session: URLSession!
+    private var backgroundCompletions: [String: () -> Void] = [:]
 
     override init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300
         super.init()
+        let config = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
+        config.timeoutIntervalForRequest = Int.max
+        config.timeoutIntervalForResource = 60 * 60 * 24
+        config.isDiscretionary = false
         session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         refreshStates()
+    }
+
+    /// Forwarded from the app delegate (`handleEventsForBackgroundURLSession`) so the
+    /// system knows when it is safe to suspend the app after a background download.
+    static func handleEventsForBackgroundURLSession(_ identifier: String, completion: @escaping () -> Void) {
+        guard identifier == sessionIdentifier else {
+            completion()
+            return
+        }
+        // Ensure the singleton (and its session) exist so background tasks are adopted.
+        _ = Self.shared
+        Task { @MainActor in
+            if Self.shared.activeTasks.isEmpty {
+                completion()
+            } else {
+                Self.shared.backgroundCompletions[identifier] = completion
+            }
+        }
     }
 
     static var modelsDirectoryURL: URL {
@@ -208,6 +237,14 @@ extension GemmaModelManager: URLSessionDownloadDelegate {
                 self.states[kind] = .failed(error.localizedDescription)
             }
             self.registerFinish(kind: kind, task: task)
+        }
+    }
+
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        let identifier = session.configuration.identifier ?? Self.sessionIdentifier
+        Task { @MainActor in
+            let completion = Self.shared.backgroundCompletions.removeValue(forKey: identifier)
+            completion?()
         }
     }
 }

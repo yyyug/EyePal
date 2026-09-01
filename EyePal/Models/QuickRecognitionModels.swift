@@ -58,11 +58,27 @@ enum QuickCaptionLength: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .short:
-            return "Short"
+            return "Concise"
         case .normal:
-            return "Normal"
+            return "Standard"
         case .long:
-            return "Long"
+            return "Detailed"
+        }
+    }
+}
+
+enum QuickModelProvider: String, CaseIterable, Identifiable {
+    case moondream
+    case gemma
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .moondream:
+            return NSLocalizedString("settings.modelProvider.moondream", comment: "")
+        case .gemma:
+            return NSLocalizedString("settings.modelProvider.gemma", comment: "")
         }
     }
 }
