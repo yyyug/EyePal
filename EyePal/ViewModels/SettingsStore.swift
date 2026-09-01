@@ -51,6 +51,7 @@ final class SettingsStore: ObservableObject {
     }
     @AppStorage("featureOrderData") private var featureOrderData = Data()
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
+    @AppStorage("gemmaOfflineEnabled") var gemmaOfflineEnabled = false
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
     @AppStorage("quickContinuousCaptureInterval") var quickContinuousCaptureInterval = QuickContinuousCaptureInterval.defaultInterval.rawValue
     @AppStorage("quickContinuousTriggerMode") var quickContinuousTriggerMode = QuickRecognitionTriggerMode.defaultMode.rawValue

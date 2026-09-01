@@ -572,6 +572,7 @@ private struct DetailsDescriptionSettingsView: View {
 
 private struct QuickRecognitionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+    @StateObject private var gemmaModelManager = GemmaModelManager()
 
     #if canImport(Translation)
     @StateObject private var translationLanguageStore = TranslationLanguageStore()
@@ -605,6 +606,20 @@ private struct QuickRecognitionSettingsView: View {
         )
     }
 
+    private var gemmaOfflineSection: some View {
+        Section(NSLocalizedString("gemma.sectionTitle", comment: "")) {
+            Toggle(NSLocalizedString("gemma.enable", comment: ""), isOn: $settingsStore.gemmaOfflineEnabled)
+
+            ForEach(GemmaModelKind.allCases) { kind in
+                GemmaModelRow(kind: kind, manager: gemmaModelManager)
+            }
+
+            Text(NSLocalizedString("gemma.help", comment: ""))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -612,6 +627,8 @@ private struct QuickRecognitionSettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
+
+            gemmaOfflineSection
 
             Section(NSLocalizedString("settings.sectionTakePhoto", comment: "")) {
                 Picker(NSLocalizedString("settings.captionLength", comment: ""), selection: selectedCaptionLength) {
@@ -1324,5 +1341,69 @@ private struct LyricPrompterSettingsView: View {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let dataArr = json["data"] as? [[String: Any]] else { return [] }
         return dataArr.compactMap { $0["id"] as? String }.sorted()
+    }
+}
+
+private struct GemmaModelRow: View {
+    let kind: GemmaModelKind
+    @ObservedObject var manager: GemmaModelManager
+
+    var body: some View {
+        let state = manager.states[kind] ?? .notDownloaded
+
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(kind.displayName)
+                    .font(.body)
+
+                switch state {
+                case .downloaded:
+                    Text(NSLocalizedString("gemma.status.downloaded", comment: ""))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .downloading(let fraction):
+                    ProgressView(value: min(max(fraction, 0), 1))
+                        .progressViewStyle(.linear)
+                    Text(String(format: NSLocalizedString("gemma.status.downloading", comment: ""), Int((fraction * 100).rounded())))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .failed(let message):
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                case .notDownloaded:
+                    Text(NSLocalizedString("gemma.status.notDownloaded", comment: ""))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                switch state {
+                case .downloaded:
+                    manager.delete(kind)
+                case .downloading:
+                    manager.cancel(kind)
+                case .failed, .notDownloaded:
+                    manager.download(kind)
+                }
+            } label: {
+                Text(title(for: state))
+            }
+            .disabled(false)
+        }
+    }
+
+    private func title(for state: GemmaModelManager.DownloadState) -> String {
+        switch state {
+        case .downloaded:
+            return NSLocalizedString("gemma.action.delete", comment: "")
+        case .downloading:
+            return NSLocalizedString("gemma.action.cancel", comment: "")
+        case .failed, .notDownloaded:
+            return NSLocalizedString("gemma.action.download", comment: "")
+        }
     }
 }

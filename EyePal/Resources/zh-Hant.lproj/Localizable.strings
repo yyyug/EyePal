@@ -281,3 +281,18 @@
 
 /* Voiceover/TTS */
 "voiceover.back" = "返回";
+
+/* Quick Recognition - Offline Gemma */
+"gemma.sectionTitle" = "離線 AI（Gemma）";
+"gemma.enable" = "可用時使用離線 Gemma";
+"gemma.help" = "下載模型即可在裝置上執行，無需 API 金鑰。支援影像（圖片）輸入。";
+"gemma.status.notDownloaded" = "尚未下載";
+"gemma.status.downloaded" = "已下載";
+"gemma.status.downloading" = "下載中… %d%%";
+"gemma.action.download" = "下載";
+"gemma.action.delete" = "刪除";
+"gemma.action.cancel" = "取消";
+"gemma.error.noModel" = "請先在「設定 > 快速辨識」下載離線 Gemma 模型。";
+"gemma.error.imageEncoding" = "無法為離線模型準備這張圖片。";
+"gemma.error.emptyResponse" = "離線模型回傳了空白結果。";
+"gemma.error.engine" = "無法啟動離線模型引擎。";

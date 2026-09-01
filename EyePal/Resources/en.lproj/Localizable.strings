@@ -281,3 +281,18 @@
 
 /* Voiceover/TTS */
 "voiceover.back" = "Back";
+
+/* Quick Recognition - Offline Gemma */
+"gemma.sectionTitle" = "Offline AI (Gemma)";
+"gemma.enable" = "Use offline Gemma when available";
+"gemma.help" = "Download a model to run on-device without an API key. Supports vision (image) input.";
+"gemma.status.notDownloaded" = "Not downloaded";
+"gemma.status.downloaded" = "Downloaded";
+"gemma.status.downloading" = "Downloading… %d%%";
+"gemma.action.download" = "Download";
+"gemma.action.delete" = "Delete";
+"gemma.action.cancel" = "Cancel";
+"gemma.error.noModel" = "Download an offline Gemma model in Settings > Quick Recognition first.";
+"gemma.error.imageEncoding" = "The image could not be prepared for the offline model.";
+"gemma.error.emptyResponse" = "The offline model returned an empty response.";
+"gemma.error.engine" = "The offline model engine could not be started.";

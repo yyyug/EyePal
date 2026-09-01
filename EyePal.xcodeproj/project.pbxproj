@@ -67,6 +67,10 @@
 		A100000100000000000000F3 /* PaddleTextRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F3 /* PaddleTextRecognitionService.swift */; };
 		A100000100000000000000F4 /* Models in Resources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F4 /* Models */; };
 		A100000100000000000000F5 /* QuadTextCrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000FB /* QuadTextCrop.swift */; };
+		A10000010000000000000050 /* GemmaModelKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000050 /* GemmaModelKind.swift */; };
+		A10000010000000000000051 /* GemmaModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000051 /* GemmaModelManager.swift */; };
+		A10000010000000000000052 /* GemmaTextRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000052 /* GemmaTextRecognitionService.swift */; };
+		A1000B000000000000000001 /* LiteRTLM in Frameworks */ = {isa = PBXBuildFile; productRef = A1000C000000000000000001 /* LiteRTLM */; };
 
 /* Begin PBXFileReference section */
         A10001000000000000000001 /* EyePal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EyePal.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -139,6 +143,9 @@
 		A100010100000000000000F9 /* clipper.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = clipper.hpp; sourceTree = "<group>"; };
 		A100010100000000000000FA /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		A100010100000000000000FB /* QuadTextCrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuadTextCrop.swift; sourceTree = "<group>"; };
+		A10001010000000000000050 /* GemmaModelKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaModelKind.swift; sourceTree = "<group>"; };
+		A10001010000000000000051 /* GemmaModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaModelManager.swift; sourceTree = "<group>"; };
+		A10001010000000000000052 /* GemmaTextRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaTextRecognitionService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -146,6 +153,7 @@
             isa = PBXFrameworksBuildPhase;
             buildActionMask = 2147483647;
             files = (
+                A1000B000000000000000001 /* LiteRTLM in Frameworks */,
             );
             runOnlyForDeploymentPostprocessing = 0;
         };
@@ -209,6 +217,7 @@
 				A1000300000000000000000B /* OpenAI */,
                 A1000300000000000000000C /* Audio */,
                 A1000300000000000000000D /* Sensors */,
+                A1000300000000000000000E /* Gemma */,
             );
             path = Services;
             sourceTree = "<group>";
@@ -346,6 +355,16 @@
             path = Sensors;
             sourceTree = "<group>";
         };
+        A1000300000000000000000E /* Gemma */ = {
+            isa = PBXGroup;
+            children = (
+                A10001010000000000000050 /* GemmaModelKind.swift */,
+                A10001010000000000000051 /* GemmaModelManager.swift */,
+                A10001010000000000000052 /* GemmaTextRecognitionService.swift */,
+            );
+            path = Gemma;
+            sourceTree = "<group>";
+        };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -362,6 +381,9 @@
             dependencies = (
             );
             name = EyePal;
+            packageProductDependencies = (
+                A1000C000000000000000001 /* LiteRTLM */,
+            );
             productName = EyePal;
             productReference = A10001000000000000000001 /* EyePal.app */;
             productType = "com.apple.product-type.application";
@@ -391,6 +413,9 @@
                 "zh-Hant",
             );
             mainGroup = A10003000000000000000001;
+            packageReferences = (
+                A1000A000000000000000001 /* XCRemoteSwiftPackageReference "LiteRT-LM" */,
+            );
             productRefGroup = A10003000000000000000003 /* Products */;
             projectDirPath = "";
             projectRoot = "";
@@ -475,6 +500,9 @@
                 A100000100000000000000F2 /* clipper.cpp in Sources */,
                 A100000100000000000000F3 /* PaddleTextRecognitionService.swift in Sources */,
                 A100000100000000000000F5 /* QuadTextCrop.swift in Sources */,
+                A10000010000000000000050 /* GemmaModelKind.swift in Sources */,
+                A10000010000000000000051 /* GemmaModelManager.swift in Sources */,
+                A10000010000000000000052 /* GemmaTextRecognitionService.swift in Sources */,
             );
             runOnlyForDeploymentPostprocessing = 0;
         };
@@ -584,6 +612,25 @@
             defaultConfigurationName = Release;
         };
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1000A000000000000000001 /* XCRemoteSwiftPackageReference "LiteRT-LM" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google-ai-edge/LiteRT-LM.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.12.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1000C000000000000000001 /* LiteRTLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000A000000000000000001 /* XCRemoteSwiftPackageReference "LiteRT-LM" */;
+			productName = LiteRTLM;
+		};
+/* End XCSwiftPackageProductDependency section */
     };
     rootObject = A10005000000000000000001 /* Project object */;
 }

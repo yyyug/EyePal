@@ -25,6 +25,8 @@ final class QuickRecognitionViewModel: ObservableObject {
     let camera = CameraPipeline()
 
     private let service = QuickRecognitionService()
+    private let gemmaModelManager = GemmaModelManager()
+    private lazy var gemmaService = GemmaTextRecognitionService(modelManager: gemmaModelManager)
     private let announcer = AccessibilityAnnouncementCenter()
     private weak var settingsStore: SettingsStore?
     private var continuousTask: Task<Void, Never>?
@@ -133,8 +135,10 @@ final class QuickRecognitionViewModel: ObservableObject {
             return
         }
 
+        let useGemmaOffline = settingsStore.gemmaOfflineEnabled && gemmaService.canRun()
+
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !apiKey.isEmpty else {
+        if !useGemmaOffline, apiKey.isEmpty {
             errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
             return
         }
@@ -155,27 +159,40 @@ final class QuickRecognitionViewModel: ObservableObject {
         #endif
 
         do {
-            let imageDataURL = try service.prepareImageDataURL(
-                from: image,
-                maximumDimension: useFullResolution ? nil : 320,
-                compressionQuality: useFullResolution ? 0.8 : 0.5
-            )
             let response: String
 
-            switch request {
-            case .caption(let length):
-                response = try await service.generateCaption(
-                    imageDataURL: imageDataURL,
-                    length: length,
-                    apiKey: apiKey
+            if useGemmaOffline {
+                switch request {
+                case .caption(let length):
+                    response = try await gemmaService.generateCaption(image: image, length: length)
+                case .query(let preset):
+                    response = try await gemmaService.queryImage(
+                        image: image,
+                        question: preset.prompt,
+                        enforceSingleSentenceResponse: false
+                    )
+                }
+            } else {
+                let imageDataURL = try service.prepareImageDataURL(
+                    from: image,
+                    maximumDimension: useFullResolution ? nil : 320,
+                    compressionQuality: useFullResolution ? 0.8 : 0.5
                 )
-            case .query(let preset):
-                response = try await service.queryImage(
-                    imageDataURL: imageDataURL,
-                    question: preset.prompt,
-                    enforceSingleSentenceResponse: false,
-                    apiKey: apiKey
-                )
+                switch request {
+                case .caption(let length):
+                    response = try await service.generateCaption(
+                        imageDataURL: imageDataURL,
+                        length: length,
+                        apiKey: apiKey
+                    )
+                case .query(let preset):
+                    response = try await service.queryImage(
+                        imageDataURL: imageDataURL,
+                        question: preset.prompt,
+                        enforceSingleSentenceResponse: false,
+                        apiKey: apiKey
+                    )
+                }
             }
 
             handleRecognitionSuccess(response)
