@@ -159,4 +159,13 @@
     <string name="auto_read">自動朗讀</string>
     <string name="btn_copy">複製</string>
     <string name="btn_take_photo">拍照</string>
+    <string name="gemma_section_title">裝置端 Gemini (Gemma)</string>
+    <string name="gemma_enable">離線辨識</string>
+    <string name="gemma_help">下載模型後即可在本機執行快速辨識，無需 API 金鑰或網路。</string>
+    <string name="gemma_action_download">下載</string>
+    <string name="gemma_action_delete">刪除</string>
+    <string name="gemma_action_cancel">取消</string>
+    <string name="gemma_action_retry">重試</string>
+    <string name="gemma_error_no_model">尚未下載模型。請在設定中下載 Gemma 模型。</string>
+    <string name="gemma_error_empty_response">模型未回傳文字。</string>
 </resources>

@@ -23,6 +23,9 @@ import com.eyepal.app.services.FaceRecognitionLogStore
 import com.eyepal.app.services.OAuthService
 import com.eyepal.app.services.OcrEngine
 import com.eyepal.app.services.TranslationService
+import com.eyepal.app.services.GemmaModelKind
+import com.eyepal.app.services.GemmaDownloadState
+import com.eyepal.app.services.GemmaModelManager
 import com.eyepal.app.viewmodels.QuickCaptionLength
 import com.eyepal.app.viewmodels.QuickContinuousInterval
 import com.eyepal.app.viewmodels.QuickTriggerMode
@@ -210,6 +213,9 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
     val savedPresetsJson by settings.quickPresets.collectAsState(initial = "")
     val translationEnabled by settings.quickTranslationEnabled.collectAsState(initial = false)
     val translationTarget by settings.quickTranslationTarget.collectAsState(initial = Defaults.TRANSLATION_TARGET)
+    val gemmaOfflineEnabled by settings.gemmaOfflineEnabled.collectAsState(initial = false)
+    val gemmaManager = remember { (context.applicationContext as EyePalApplication).container.gemmaModelManager }
+    val gemmaStates by gemmaManager.states.collectAsState()
 
     val buttonTypes = listOf("Product", "Dish", "Short Text", "Custom")
     val quickButtons by remember(savedPresetsJson) {
@@ -465,6 +471,23 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(stringResource(R.string.settings_translation_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(stringResource(R.string.gemma_section_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(stringResource(R.string.gemma_enable), modifier = Modifier.weight(1f))
+                Switch(checked = gemmaOfflineEnabled, onCheckedChange = { scope.launch { settings.setGemmaOfflineEnabled(it) } })
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.gemma_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+
+            GemmaModelKind.entries.forEach { kind ->
+                Spacer(modifier = Modifier.height(16.dp))
+                GemmaModelRow(kind = kind, state = gemmaStates[kind] ?: GemmaDownloadState.NotDownloaded, manager = gemmaManager)
+            }
         }
     }
 }
@@ -734,5 +757,47 @@ fun LyricPrompterSettingsScreen(onBack: () -> Unit) {
         Text(stringResource(R.string.tab_about), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(4.dp))
         Text(stringResource(R.string.settings_about_lyrics), style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun GemmaModelRow(kind: GemmaModelKind, state: GemmaDownloadState, manager: GemmaModelManager) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(kind.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            when (state) {
+                is GemmaDownloadState.Downloaded -> {
+                    TextButton(onClick = { manager.delete(kind) }) { Text(stringResource(R.string.gemma_action_delete)) }
+                }
+                is GemmaDownloadState.Downloading -> {
+                    TextButton(onClick = { manager.cancel(kind) }) { Text(stringResource(R.string.gemma_action_cancel)) }
+                }
+                GemmaDownloadState.NotDownloaded -> {
+                    Button(onClick = { manager.download(kind) }) { Text(stringResource(R.string.gemma_action_download)) }
+                }
+                is GemmaDownloadState.Failed -> {
+                    Button(onClick = { manager.download(kind) }) { Text(stringResource(R.string.gemma_action_retry)) }
+                }
+            }
+        }
+        when (state) {
+            is GemmaDownloadState.Downloading -> {
+                LinearProgressIndicator(
+                    progress = { state.fraction.toFloat() },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    String.format(Locale.US, "%d%%", (state.fraction * 100).toInt()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            is GemmaDownloadState.Failed -> {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(state.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            else -> {}
+        }
     }
 }

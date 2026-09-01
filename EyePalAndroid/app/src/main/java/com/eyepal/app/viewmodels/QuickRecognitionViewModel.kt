@@ -45,6 +45,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     val capturedImage = mutableStateOf<Bitmap?>(null)
     val errorMessage = mutableStateOf<String?>(null)
     val apiKey = mutableStateOf("")
+    val gemmaOfflineEnabled = mutableStateOf(false)
 
     val presets = mutableStateOf<List<QuickPresetConfig>>(emptyList())
     val captionLength = mutableStateOf<QuickCaptionLength>(QuickCaptionLength.SHORT)
@@ -54,6 +55,8 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     private val container = (application as EyePalApplication).container
     val camera = container.cameraService
     private val moondream = container.moondreamService
+    private val gemmaManager = container.gemmaModelManager
+    private val gemmaService = container.gemmaTextRecognitionService
     private val translationService = container.translationService
     private val glassService = container.glassService
     private val announcer = container.announcer
@@ -103,6 +106,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         )
 
         apiKey.value = settings.quickMoondreamAPIKey.first()
+        gemmaOfflineEnabled.value = settings.gemmaOfflineEnabled.first()
     }
 
     private fun defaultPresets() = listOf(
@@ -212,9 +216,15 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                 }
                 if (bitmap == null) throw Exception(str(R.string.error_camera_not_ready))
                 capturedImage.value = bitmap
-                val apiKey = settings.quickMoondreamAPIKey.first()
-                if (apiKey.isEmpty()) { responseText.value = str(R.string.quick_no_api_key); isProcessing.value = false; return@launch }
-                val result = moondream.describeImage(bitmap, apiKey, applyCaptionLength(lastPrompt))
+                val useGemmaOffline = settings.gemmaOfflineEnabled.first() && gemmaService.canRun()
+                val result: String
+                if (useGemmaOffline) {
+                    result = gemmaService.generateCaption(bitmap, captionLength.value)
+                } else {
+                    val apiKey = settings.quickMoondreamAPIKey.first()
+                    if (apiKey.isEmpty()) { responseText.value = str(R.string.quick_no_api_key); isProcessing.value = false; return@launch }
+                    result = moondream.describeImage(bitmap, apiKey, applyCaptionLength(lastPrompt))
+                }
                 val translationEnabled = settings.quickTranslationEnabled.first()
                 val targetLanguage = settings.quickTranslationTarget.first()
                 if (translationEnabled) {
@@ -239,9 +249,12 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
 
     fun clearError() { errorMessage.value = null }
 
+    fun gemmaCanRunOffline(): Boolean = gemmaService.canRun()
+
     override fun onCleared() {
         super.onCleared()
         translationService.close()
+        gemmaService.close()
     }
 }
 

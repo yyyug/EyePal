@@ -22,7 +22,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        ndk { abiFilters += listOf("arm64-v8a") }
         resConfigs("en", "zh")
     }
 
@@ -81,6 +81,9 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.2.1")
+
+    // LiteRT-LM (on-device Gemma, multimodal)
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.16.1")
 
     // Kotlin Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")

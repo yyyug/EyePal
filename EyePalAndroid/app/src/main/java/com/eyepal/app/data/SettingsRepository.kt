@@ -39,6 +39,7 @@ class SettingsRepository(private val context: Context) {
         val DETAIL_BUTTONS = stringPreferencesKey("detail_buttons")
         val QUICK_ACTION_CONTROL_STYLE = stringPreferencesKey("quick_action_control_style")
         val DETAILS_ACTION_CONTROL_STYLE = stringPreferencesKey("details_action_control_style")
+        val GEMMA_OFFLINE_ENABLED = booleanPreferencesKey("gemma_offline_enabled")
     }
 
     val featureOrder: Flow<List<String>> = context.dataStore.data.map { it[Keys.FEATURE_ORDER]?.split(",") ?: Defaults.FEATURE_ORDER }
@@ -59,6 +60,7 @@ class SettingsRepository(private val context: Context) {
     val detailButtons: Flow<String> = context.dataStore.data.map { it[Keys.DETAIL_BUTTONS] ?: "" }
     val quickActionControlStyle: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_ACTION_CONTROL_STYLE] ?: Defaults.QUICK_ACTION_CONTROL_STYLE }
     val detailsActionControlStyle: Flow<String> = context.dataStore.data.map { it[Keys.DETAILS_ACTION_CONTROL_STYLE] ?: Defaults.DETAILS_ACTION_CONTROL_STYLE }
+    val gemmaOfflineEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.GEMMA_OFFLINE_ENABLED] ?: false }
     val lyricAdvanceOffset: Flow<Float> = context.dataStore.data.map { it[Keys.LYRIC_ADVANCE_OFFSET] ?: Defaults.LYRIC_ADVANCE_OFFSET }
     val lyricLLMProvider: Flow<String> = context.dataStore.data.map { it[Keys.LYRIC_LLM_PROVIDER] ?: Defaults.LYRIC_LLM_PROVIDER }
     val lyricModelID: Flow<String> = context.dataStore.data.map { it[Keys.LYRIC_MODEL_ID] ?: Defaults.MODEL_ID }
@@ -88,6 +90,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setDetailButtons(value: String) { context.dataStore.edit { it[Keys.DETAIL_BUTTONS] = value } }
     suspend fun setQuickActionControlStyle(value: String) { context.dataStore.edit { it[Keys.QUICK_ACTION_CONTROL_STYLE] = value } }
     suspend fun setDetailsActionControlStyle(value: String) { context.dataStore.edit { it[Keys.DETAILS_ACTION_CONTROL_STYLE] = value } }
+    suspend fun setGemmaOfflineEnabled(value: Boolean) { context.dataStore.edit { it[Keys.GEMMA_OFFLINE_ENABLED] = value } }
     val chatInterpreterLangA: Flow<String> = context.dataStore.data.map { it[Keys.CHAT_INTERPRETER_LANG_A] ?: Defaults.CHAT_INTERPRETER_LANG_A }
     val chatInterpreterLangB: Flow<String> = context.dataStore.data.map { it[Keys.CHAT_INTERPRETER_LANG_B] ?: Defaults.CHAT_INTERPRETER_LANG_B }
 

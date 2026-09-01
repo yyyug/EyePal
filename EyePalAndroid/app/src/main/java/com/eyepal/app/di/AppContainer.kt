@@ -7,6 +7,8 @@ import com.eyepal.app.services.ArcFaceEmbeddingEngine
 import com.eyepal.app.services.CameraService
 import com.eyepal.app.services.FaceRecognitionService
 import com.eyepal.app.services.FloorDetectionService
+import com.eyepal.app.services.GemmaModelManager
+import com.eyepal.app.services.GemmaTextRecognitionService
 import com.eyepal.app.services.GlassTouchpadHandler
 import com.eyepal.app.services.GoogleGlassService
 import com.eyepal.app.services.LyricPrompterService
@@ -32,6 +34,8 @@ class AppContainer(private val context: Context) {
     val realtimeWebRTCService by lazy { RealtimeWebRTCService(context) }
     val floorDetectionService by lazy { FloorDetectionService(context) }
     val lyricPrompterService by lazy { LyricPrompterService(networkClient) }
+    val gemmaModelManager by lazy { GemmaModelManager(context) }
+    val gemmaTextRecognitionService by lazy { GemmaTextRecognitionService(context) }
 
     val networkClient: OkHttpClient by lazy {
         NetworkModule.createPinnedClient()

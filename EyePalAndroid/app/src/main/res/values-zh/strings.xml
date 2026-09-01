@@ -354,4 +354,13 @@
     <!-- Lyrics -->
     <string name="lyrics_none_found">找不到歌詞。</string>
     <string name="lyrics_song_saved">已儲存 %1$s — %2$s。</string>
+    <string name="gemma_section_title">设备端 Gemini (Gemma)</string>
+    <string name="gemma_enable">离线识别</string>
+    <string name="gemma_help">下载模型后可在本机运行快速识别，无需 API 密钥或网络。</string>
+    <string name="gemma_action_download">下载</string>
+    <string name="gemma_action_delete">删除</string>
+    <string name="gemma_action_cancel">取消</string>
+    <string name="gemma_action_retry">重试</string>
+    <string name="gemma_error_no_model">尚未下载模型。请在设置中下载 Gemma 模型。</string>
+    <string name="gemma_error_empty_response">模型未返回文本。</string>
 </resources>

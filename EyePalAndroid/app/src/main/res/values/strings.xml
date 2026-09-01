@@ -354,4 +354,14 @@
     <!-- Lyrics -->
     <string name="lyrics_none_found">No lyrics found.</string>
     <string name="lyrics_song_saved">%1$s by %2$s saved.</string>
+    <!-- Gemma On-Device -->
+    <string name="gemma_section_title">On-Device Gemini (Gemma)</string>
+    <string name="gemma_enable">Offline recognition</string>
+    <string name="gemma_help">Download a model to run Quick Recognition fully on-device without an API key or network.</string>
+    <string name="gemma_action_download">Download</string>
+    <string name="gemma_action_delete">Delete</string>
+    <string name="gemma_action_cancel">Cancel</string>
+    <string name="gemma_action_retry">Retry</string>
+    <string name="gemma_error_no_model">No model downloaded. Download a Gemma model in Settings.</string>
+    <string name="gemma_error_empty_response">The model returned no text.</string>
 </resources>
