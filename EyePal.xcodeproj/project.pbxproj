@@ -47,6 +47,26 @@
         A1000001000000000000002B /* LyricPrompterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000002B /* LyricPrompterService.swift */; };
         A1000001000000000000002C /* LyricPrompterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000002C /* LyricPrompterViewModel.swift */; };
         A1000001000000000000002D /* LyricPrompterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000101000000000000002D /* LyricPrompterView.swift */; };
+		A100000100000000000000E1 /* OCREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E1 /* OCREngine.swift */; };
+		A100000100000000000000E2 /* DetectionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E2 /* DetectionEngine.swift */; };
+		A100000100000000000000E3 /* RecognitionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E3 /* RecognitionEngine.swift */; };
+		A100000100000000000000E4 /* Preprocessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E4 /* Preprocessing.swift */; };
+		A100000100000000000000E5 /* RecPreprocessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E5 /* RecPreprocessor.swift */; };
+		A100000100000000000000E6 /* InferenceConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E6 /* InferenceConfig.swift */; };
+		A100000100000000000000E7 /* ModelConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E7 /* ModelConfig.swift */; };
+		A100000100000000000000E8 /* BoxSorter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E8 /* BoxSorter.swift */; };
+		A100000100000000000000E9 /* CTCDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000E9 /* CTCDecoder.swift */; };
+		A100000100000000000000EA /* DBPostProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000EA /* DBPostProcess.swift */; };
+		A100000100000000000000EB /* OCRParameterResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000EB /* OCRParameterResolver.swift */; };
+		A100000100000000000000EC /* EncodedImageCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000EC /* EncodedImageCodec.swift */; };
+		A100000100000000000000ED /* ORTSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000ED /* ORTSessionManager.swift */; };
+		A100000100000000000000EE /* OpenCVDBBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000EE /* OpenCVDBBridge.mm */; };
+		A100000100000000000000EF /* OpenCVImageBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000EF /* OpenCVImageBridge.mm */; };
+		A100000100000000000000F0 /* PDBPolygonOffsetBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F0 /* PDBPolygonOffsetBridge.mm */; };
+		A100000100000000000000F2 /* clipper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F2 /* clipper.cpp */; };
+		A100000100000000000000F3 /* PaddleTextRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F3 /* PaddleTextRecognitionService.swift */; };
+		A100000100000000000000F4 /* Models in Resources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F4 /* Models */; };
+		A100000100000000000000F5 /* QuadTextCrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000FB /* QuadTextCrop.swift */; };
 
 /* Begin PBXFileReference section */
         A10001000000000000000001 /* EyePal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EyePal.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -94,6 +114,31 @@
 		A1000101000000000000002D /* LyricPrompterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricPrompterView.swift; sourceTree = "<group>"; };
 		A10001010000000000000030 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = English; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A10001010000000000000031 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "Traditional Chinese"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		A100010100000000000000E1 /* OCREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCREngine.swift; sourceTree = "<group>"; };
+		A100010100000000000000E2 /* DetectionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionEngine.swift; sourceTree = "<group>"; };
+		A100010100000000000000E3 /* RecognitionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionEngine.swift; sourceTree = "<group>"; };
+		A100010100000000000000E4 /* Preprocessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preprocessing.swift; sourceTree = "<group>"; };
+		A100010100000000000000E5 /* RecPreprocessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecPreprocessor.swift; sourceTree = "<group>"; };
+		A100010100000000000000E6 /* InferenceConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InferenceConfig.swift; sourceTree = "<group>"; };
+		A100010100000000000000E7 /* ModelConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelConfig.swift; sourceTree = "<group>"; };
+		A100010100000000000000E8 /* BoxSorter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxSorter.swift; sourceTree = "<group>"; };
+		A100010100000000000000E9 /* CTCDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CTCDecoder.swift; sourceTree = "<group>"; };
+		A100010100000000000000EA /* DBPostProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DBPostProcess.swift; sourceTree = "<group>"; };
+		A100010100000000000000EB /* OCRParameterResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRParameterResolver.swift; sourceTree = "<group>"; };
+		A100010100000000000000EC /* EncodedImageCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncodedImageCodec.swift; sourceTree = "<group>"; };
+		A100010100000000000000ED /* ORTSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ORTSessionManager.swift; sourceTree = "<group>"; };
+		A100010100000000000000EE /* OpenCVDBBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenCVDBBridge.mm; sourceTree = "<group>"; };
+		A100010100000000000000EF /* OpenCVImageBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenCVImageBridge.mm; sourceTree = "<group>"; };
+		A100010100000000000000F0 /* PDBPolygonOffsetBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PDBPolygonOffsetBridge.mm; sourceTree = "<group>"; };
+		A100010100000000000000F2 /* clipper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = clipper.cpp; sourceTree = "<group>"; };
+		A100010100000000000000F3 /* PaddleTextRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaddleTextRecognitionService.swift; sourceTree = "<group>"; };
+		A100010100000000000000F4 /* Models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Models; path = "tools/paddle_models/Models"; sourceTree = SOURCE_ROOT; };
+		A100010100000000000000F5 /* OpenCVDBBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenCVDBBridge.h; sourceTree = "<group>"; };
+		A100010100000000000000F6 /* OpenCVImageBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenCVImageBridge.h; sourceTree = "<group>"; };
+		A100010100000000000000F7 /* PDBPolygonOffsetBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PDBPolygonOffsetBridge.h; sourceTree = "<group>"; };
+		A100010100000000000000F9 /* clipper.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = clipper.hpp; sourceTree = "<group>"; };
+		A100010100000000000000FA /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		A100010100000000000000FB /* QuadTextCrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuadTextCrop.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -211,8 +256,57 @@
             isa = PBXGroup;
             children = (
                 A10001010000000000000008 /* TextRecognitionService.swift */,
+                A100010100000000000000F3 /* PaddleTextRecognitionService.swift */,
+                A100010100000000000000F4 /* Models */,
+                A100030000000000000000E1 /* PaddleOCR */,
             );
             path = ReadText;
+            sourceTree = "<group>";
+        };
+        A100030000000000000000E1 /* PaddleOCR */ = {
+            isa = PBXGroup;
+            children = (
+                A100010100000000000000E1 /* OCREngine.swift */,
+                A100010100000000000000FB /* QuadTextCrop.swift */,
+                A100010100000000000000E2 /* DetectionEngine.swift */,
+                A100010100000000000000E3 /* RecognitionEngine.swift */,
+                A100010100000000000000E4 /* Preprocessing.swift */,
+                A100010100000000000000E5 /* RecPreprocessor.swift */,
+                A100010100000000000000E6 /* InferenceConfig.swift */,
+                A100010100000000000000E7 /* ModelConfig.swift */,
+                A100010100000000000000E8 /* BoxSorter.swift */,
+                A100010100000000000000E9 /* CTCDecoder.swift */,
+                A100010100000000000000EA /* DBPostProcess.swift */,
+                A100010100000000000000EB /* OCRParameterResolver.swift */,
+                A100010100000000000000EC /* EncodedImageCodec.swift */,
+                A100010100000000000000ED /* ORTSessionManager.swift */,
+                A100030000000000000000E2 /* CV */,
+                A100030000000000000000E3 /* Clipper */,
+            );
+            path = PaddleOCR;
+            sourceTree = "<group>";
+        };
+        A100030000000000000000E2 /* CV */ = {
+            isa = PBXGroup;
+            children = (
+                A100010100000000000000EE /* OpenCVDBBridge.mm */,
+                A100010100000000000000F5 /* OpenCVDBBridge.h */,
+                A100010100000000000000EF /* OpenCVImageBridge.mm */,
+                A100010100000000000000F6 /* OpenCVImageBridge.h */,
+                A100010100000000000000F0 /* PDBPolygonOffsetBridge.mm */,
+                A100010100000000000000F7 /* PDBPolygonOffsetBridge.h */,
+            );
+            path = CV;
+            sourceTree = "<group>";
+        };
+        A100030000000000000000E3 /* Clipper */ = {
+            isa = PBXGroup;
+            children = (
+                A100010100000000000000F2 /* clipper.cpp */,
+                A100010100000000000000F9 /* clipper.hpp */,
+                A100010100000000000000FA /* LICENSE */,
+            );
+            path = Clipper;
             sourceTree = "<group>";
         };
 		A1000300000000000000000A /* Face */ = {
@@ -313,6 +407,7 @@
             files = (
 				A10000010000000000000012 /* Assets.xcassets in Resources */,
 				A1000001000000000000001A /* w600k_mbf.onnx in Resources */,
+				A100000100000000000000F4 /* Models in Resources */,
 			);
             runOnlyForDeploymentPostprocessing = 0;
         };
@@ -361,6 +456,25 @@
                 A1000001000000000000002C /* LyricPrompterViewModel.swift in Sources */,
                 A1000001000000000000002D /* LyricPrompterView.swift in Sources */,
                 A10000010000000000000008 /* TextRecognitionService.swift in Sources */,
+                A100000100000000000000E1 /* OCREngine.swift in Sources */,
+                A100000100000000000000E2 /* DetectionEngine.swift in Sources */,
+                A100000100000000000000E3 /* RecognitionEngine.swift in Sources */,
+                A100000100000000000000E4 /* Preprocessing.swift in Sources */,
+                A100000100000000000000E5 /* RecPreprocessor.swift in Sources */,
+                A100000100000000000000E6 /* InferenceConfig.swift in Sources */,
+                A100000100000000000000E7 /* ModelConfig.swift in Sources */,
+                A100000100000000000000E8 /* BoxSorter.swift in Sources */,
+                A100000100000000000000E9 /* CTCDecoder.swift in Sources */,
+                A100000100000000000000EA /* DBPostProcess.swift in Sources */,
+                A100000100000000000000EB /* OCRParameterResolver.swift in Sources */,
+                A100000100000000000000EC /* EncodedImageCodec.swift in Sources */,
+                A100000100000000000000ED /* ORTSessionManager.swift in Sources */,
+                A100000100000000000000EE /* OpenCVDBBridge.mm in Sources */,
+                A100000100000000000000EF /* OpenCVImageBridge.mm in Sources */,
+                A100000100000000000000F0 /* PDBPolygonOffsetBridge.mm in Sources */,
+                A100000100000000000000F2 /* clipper.cpp in Sources */,
+                A100000100000000000000F3 /* PaddleTextRecognitionService.swift in Sources */,
+                A100000100000000000000F5 /* QuadTextCrop.swift in Sources */,
             );
             runOnlyForDeploymentPostprocessing = 0;
         };

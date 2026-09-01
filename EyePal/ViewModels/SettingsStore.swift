@@ -1,10 +1,25 @@
 import Foundation
 import SwiftUI
 
+enum OCREngineChoice: String, CaseIterable, Identifiable {
+    case mlKit
+    case paddle
+
+    var id: String { rawValue }
+
+    var displayTitle: String {
+        switch self {
+        case .mlKit: return NSLocalizedString("settings.ocrEngine.mlkit", comment: "")
+        case .paddle: return NSLocalizedString("settings.ocrEngine.paddle", comment: "")
+        }
+    }
+}
+
 @MainActor
 final class SettingsStore: ObservableObject {
     @AppStorage("faceSpeechCooldown") var faceSpeechCooldown = 2.5
     @AppStorage("readTextSpeechCooldown") var readTextSpeechCooldown = 2.5
+    @AppStorage("ocrEngine") var ocrEngine = OCREngineChoice.mlKit.rawValue
     @AppStorage("faceMatchThreshold") var faceMatchThreshold = 0.65
     @AppStorage("faceMatchMargin") var faceMatchMargin = 0.015
     @AppStorage("suggestUnknownFaces") var suggestUnknownFaces = true

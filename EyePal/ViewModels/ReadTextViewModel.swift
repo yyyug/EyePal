@@ -21,6 +21,7 @@ final class ReadTextViewModel: ObservableObject {
     let camera = CameraPipeline()
 
     private let textRecognitionService = TextRecognitionService()
+    private let paddleTextRecognitionService = PaddleTextRecognitionService()
     private let announcer = AccessibilityAnnouncementCenter()
     private weak var settingsStore: SettingsStore?
     private let stabilityInterval: TimeInterval = 0.6
@@ -71,6 +72,17 @@ final class ReadTextViewModel: ObservableObject {
         }
     }
 
+    private var usePaddleOCR: Bool {
+        settingsStore?.ocrEngine == OCREngineChoice.paddle.rawValue
+    }
+
+    private func image(from sampleBuffer: CMSampleBuffer) -> UIImage? {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        guard let cgImage = CIContext().createCGImage(ciImage, from: ciImage.extent) else { return nil }
+        return UIImage(cgImage: cgImage, scale: 1, orientation: .right)
+    }
+
     func capturePhoto() {
         capturePhoto(triggeredAutomatically: false)
     }
@@ -87,18 +99,46 @@ final class ReadTextViewModel: ObservableObject {
         camera.stop()
         cameraStateDescription = triggeredAutomatically ? "Document detected. Capturing photo." : "Reading captured photo."
 
-        textRecognitionService.process(image: image) { [weak self] observation in
-            guard let self else { return }
+        runRecognition(image: image) { [weak self] observation in
+            self?.handlePhotoObservation(observation)
+        }
+    }
 
-            let text = observation?.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            self.capturedResult = CapturedTextResult(
-                text: text?.isEmpty == false ? text! : "No text was found in this photo.",
-                language: observation?.languageCode ?? "Unknown"
-            )
-            self.isCapturingPhoto = false
-            self.cameraStateDescription = "Captured text is ready."
-            self.consecutiveRectangleDetections = 0
-            self.nextAutoCaptureAllowedAt = Date().addingTimeInterval(self.autoCaptureCooldown)
+    private func handlePhotoObservation(_ observation: TextRecognitionObservation?) {
+        let text = observation?.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        capturedResult = CapturedTextResult(
+            text: text?.isEmpty == false ? text! : "No text was found in this photo.",
+            language: observation?.languageCode ?? "Unknown"
+        )
+        isCapturingPhoto = false
+        cameraStateDescription = "Captured text is ready."
+        consecutiveRectangleDetections = 0
+        nextAutoCaptureAllowedAt = Date().addingTimeInterval(autoCaptureCooldown)
+    }
+
+    private func runRecognition(
+        image: UIImage,
+        completion: @escaping @MainActor (TextRecognitionObservation?) -> Void
+    ) {
+        if usePaddleOCR {
+            paddleTextRecognitionService.process(image: image, completion: completion)
+        } else {
+            textRecognitionService.process(image: image, completion: completion)
+        }
+    }
+
+    private func runLiveRecognition(
+        sampleBuffer: CMSampleBuffer,
+        completion: @escaping @MainActor (TextRecognitionObservation?) -> Void
+    ) {
+        if usePaddleOCR {
+            guard let image = image(from: sampleBuffer) else {
+                Task { @MainActor in completion(nil) }
+                return
+            }
+            paddleTextRecognitionService.process(image: image, completion: completion)
+        } else {
+            textRecognitionService.process(sampleBuffer: sampleBuffer, completion: completion)
         }
     }
 
@@ -119,7 +159,7 @@ final class ReadTextViewModel: ObservableObject {
             processDocumentDetection(sampleBuffer: sampleBuffer)
         }
 
-        textRecognitionService.process(sampleBuffer: sampleBuffer) { [weak self] observation in
+        runLiveRecognition(sampleBuffer: sampleBuffer) { [weak self] observation in
             guard let self, let observation else { return }
 
             self.recognizedText = observation.text

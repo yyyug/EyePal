@@ -936,6 +936,16 @@ private struct ReadTextRecognitionSettingsView: View {
 
     var body: some View {
         Form {
+            Section(NSLocalizedString("settings.ocrEngine", comment: "")) {
+                Picker(NSLocalizedString("settings.ocrEngine", comment: ""), selection: Binding(
+                    get: { OCREngineChoice(rawValue: settingsStore.ocrEngine) ?? .mlKit },
+                    set: { settingsStore.ocrEngine = $0.rawValue }
+                )) {
+                    ForEach(OCREngineChoice.allCases) { choice in
+                        Text(choice.displayTitle).tag(choice)
+                    }
+                }
+            }
             Section(NSLocalizedString("settings.speech", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(NSLocalizedString("settings.speechDelay", comment: ""))
