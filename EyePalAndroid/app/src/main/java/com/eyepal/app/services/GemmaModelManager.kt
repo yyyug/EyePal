@@ -57,6 +57,14 @@ class GemmaModelManager(private val context: Context) {
         return null
     }
 
+    fun modelFileFor(kind: GemmaModelKind? = null): File? {
+        if (kind != null) {
+            val f = fileFor(kind)
+            if (f.exists() && f.length() > 0) return f
+        }
+        return downloadedModelFile()
+    }
+
     fun refreshStates() {
         for (kind in GemmaModelKind.entries) {
             val current = _states.value[kind]

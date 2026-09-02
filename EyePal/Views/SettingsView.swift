@@ -609,18 +609,26 @@ private struct QuickRecognitionSettingsView: View {
     private var gemmaOfflineSection: some View {
         Section(NSLocalizedString("gemma.sectionTitle", comment: "")) {
             ForEach(GemmaModelKind.allCases) { kind in
-                GemmaModelRow(kind: kind, manager: gemmaModelManager)
+                GemmaModelRow(
+                    kind: kind,
+                    manager: gemmaModelManager,
+                    isSelected: selectedGemmaModelKind.wrappedValue == kind,
+                    onSelect: { selectedGemmaModelKind.wrappedValue = kind }
+                )
             }
-
-            Text(NSLocalizedString("gemma.help", comment: ""))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
+    }
+
+    private var selectedGemmaModelKind: Binding<GemmaModelKind> {
+        Binding(
+            get: { GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b },
+            set: { settingsStore.quickGemmaModelKind = $0.rawValue }
+        )
     }
 
     private var selectedModelProvider: Binding<QuickModelProvider> {
         Binding(
-            get: { QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .moondream },
+            get: { QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma },
             set: { settingsStore.quickModelProvider = $0.rawValue }
         )
     }
@@ -634,10 +642,6 @@ private struct QuickRecognitionSettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-
-                Text(NSLocalizedString("settings.modelProvider.help", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             if selectedModelProvider.wrappedValue == .moondream {
@@ -658,10 +662,6 @@ private struct QuickRecognitionSettingsView: View {
                         Text(length.displayName).tag(length)
                     }
                 }
-
-                Text(NSLocalizedString("settings.captionLengthHelp", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             Section(NSLocalizedString("settings.continuousMode", comment: "")) {
@@ -671,19 +671,11 @@ private struct QuickRecognitionSettingsView: View {
                     }
                 }
 
-                Text(NSLocalizedString("settings.triggerModeHelp", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
                 Picker(NSLocalizedString("settings.captureFrequency", comment: ""), selection: selectedContinuousCaptureInterval) {
                     ForEach(QuickContinuousCaptureInterval.allCases) { interval in
                         Text(interval.displayName).tag(interval)
                     }
                 }
-
-                Text(NSLocalizedString("settings.captureFrequencyHelp", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             Section(NSLocalizedString("settings.quickButtons", comment: "")) {
@@ -708,10 +700,6 @@ private struct QuickRecognitionSettingsView: View {
                         }
                     }
                 }
-
-                Text(NSLocalizedString("settings.quickButtonsHelp", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             translationSection
@@ -758,10 +746,6 @@ private struct QuickRecognitionSettingsView: View {
                     }
                     .disabled(!settingsStore.quickCaptionTranslationEnabled)
                 }
-
-                Text(NSLocalizedString("settings.translationHelp", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         } else {
             Section(NSLocalizedString("settings.translation", comment: "")) {
@@ -1369,6 +1353,8 @@ private struct LyricPrompterSettingsView: View {
 private struct GemmaModelRow: View {
     let kind: GemmaModelKind
     @ObservedObject var manager: GemmaModelManager
+    let isSelected: Bool
+    let onSelect: () -> Void
 
     var body: some View {
         let state = manager.states[kind] ?? .notDownloaded
@@ -1377,6 +1363,7 @@ private struct GemmaModelRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(kind.displayName)
                     .font(.body)
+                    .fontWeight(isSelected ? .semibold : .regular)
 
                 switch state {
                 case .downloaded:
@@ -1402,6 +1389,12 @@ private struct GemmaModelRow: View {
 
             Spacer()
 
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.tint)
+                    .fontWeight(.semibold)
+            }
+
             Button {
                 switch state {
                 case .downloaded:
@@ -1416,6 +1409,9 @@ private struct GemmaModelRow: View {
             }
             .disabled(false)
         }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSelect)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func title(for state: GemmaModelManager.DownloadState) -> String {

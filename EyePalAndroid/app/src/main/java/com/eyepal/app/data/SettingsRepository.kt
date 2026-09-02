@@ -41,6 +41,7 @@ class SettingsRepository(private val context: Context) {
         val DETAILS_ACTION_CONTROL_STYLE = stringPreferencesKey("details_action_control_style")
         val GEMMA_OFFLINE_ENABLED = booleanPreferencesKey("gemma_offline_enabled")
         val QUICK_MODEL_PROVIDER = stringPreferencesKey("quick_model_provider")
+        val QUICK_GEMMA_MODEL_KIND = stringPreferencesKey("quick_gemma_model_kind")
     }
 
     val featureOrder: Flow<List<String>> = context.dataStore.data.map { it[Keys.FEATURE_ORDER]?.split(",") ?: Defaults.FEATURE_ORDER }
@@ -63,6 +64,7 @@ class SettingsRepository(private val context: Context) {
     val detailsActionControlStyle: Flow<String> = context.dataStore.data.map { it[Keys.DETAILS_ACTION_CONTROL_STYLE] ?: Defaults.DETAILS_ACTION_CONTROL_STYLE }
     val gemmaOfflineEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.GEMMA_OFFLINE_ENABLED] ?: false }
     val quickModelProvider: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_MODEL_PROVIDER] ?: Defaults.QUICK_MODEL_PROVIDER }
+    val quickGemmaModelKind: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_GEMMA_MODEL_KIND] ?: Defaults.QUICK_GEMMA_MODEL_KIND }
     val lyricAdvanceOffset: Flow<Float> = context.dataStore.data.map { it[Keys.LYRIC_ADVANCE_OFFSET] ?: Defaults.LYRIC_ADVANCE_OFFSET }
     val lyricLLMProvider: Flow<String> = context.dataStore.data.map { it[Keys.LYRIC_LLM_PROVIDER] ?: Defaults.LYRIC_LLM_PROVIDER }
     val lyricModelID: Flow<String> = context.dataStore.data.map { it[Keys.LYRIC_MODEL_ID] ?: Defaults.MODEL_ID }
@@ -94,6 +96,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setDetailsActionControlStyle(value: String) { context.dataStore.edit { it[Keys.DETAILS_ACTION_CONTROL_STYLE] = value } }
     suspend fun setGemmaOfflineEnabled(value: Boolean) { context.dataStore.edit { it[Keys.GEMMA_OFFLINE_ENABLED] = value } }
     suspend fun setQuickModelProvider(value: String) { context.dataStore.edit { it[Keys.QUICK_MODEL_PROVIDER] = value } }
+    suspend fun setQuickGemmaModelKind(value: String) { context.dataStore.edit { it[Keys.QUICK_GEMMA_MODEL_KIND] = value } }
     val chatInterpreterLangA: Flow<String> = context.dataStore.data.map { it[Keys.CHAT_INTERPRETER_LANG_A] ?: Defaults.CHAT_INTERPRETER_LANG_A }
     val chatInterpreterLangB: Flow<String> = context.dataStore.data.map { it[Keys.CHAT_INTERPRETER_LANG_B] ?: Defaults.CHAT_INTERPRETER_LANG_B }
 

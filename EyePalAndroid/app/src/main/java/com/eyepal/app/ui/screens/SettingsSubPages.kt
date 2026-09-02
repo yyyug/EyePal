@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -11,6 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.eyepal.app.EyePalApplication
@@ -214,6 +218,7 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
     val translationEnabled by settings.quickTranslationEnabled.collectAsState(initial = false)
     val translationTarget by settings.quickTranslationTarget.collectAsState(initial = Defaults.TRANSLATION_TARGET)
     val quickModelProvider by settings.quickModelProvider.collectAsState(initial = Defaults.QUICK_MODEL_PROVIDER)
+    val quickGemmaModelKind by settings.quickGemmaModelKind.collectAsState(initial = Defaults.QUICK_GEMMA_MODEL_KIND)
     val gemmaManager = remember { (context.applicationContext as EyePalApplication).container.gemmaModelManager }
     val gemmaStates by gemmaManager.states.collectAsState()
 
@@ -266,11 +271,11 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
             TopAppBar(title = { Text(stringResource(R.string.feature_quick_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(stringResource(R.string.settings_model_provider), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_model_provider), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             var expandedProvider by remember { mutableStateOf(false) }
-            val providerOptions = listOf(Pair("moondream", R.string.settings_model_provider_moondream), Pair("gemma", R.string.settings_model_provider_gemma))
-            val currentProviderLabel = providerOptions.firstOrNull { it.first == quickModelProvider }?.second ?: R.string.settings_model_provider_moondream
+            val providerOptions = listOf(Pair("gemma", R.string.settings_model_provider_gemma), Pair("moondream", R.string.settings_model_provider_moondream))
+            val currentProviderLabel = providerOptions.firstOrNull { it.first == quickModelProvider }?.second ?: R.string.settings_model_provider_gemma
             ExposedDropdownMenuBox(expanded = expandedProvider, onExpandedChange = { expandedProvider = it }) {
                 OutlinedTextField(
                     value = stringResource(currentProviderLabel),
@@ -290,19 +295,31 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.settings_model_provider_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-            Spacer(modifier = Modifier.height(24.dp))
 
-            if (quickModelProvider == "moondream") {
-                Text(stringResource(R.string.settings_moondream_api), style = MaterialTheme.typography.titleMedium)
+            if (quickModelProvider == "gemma") {
+                Text(stringResource(R.string.gemma_section_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = apiKey, onValueChange = { scope.launch { settings.setQuickMoondreamAPIKey(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_api_key)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(stringResource(R.string.settings_moondream_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                Spacer(modifier = Modifier.height(24.dp))
+                GemmaModelKind.entries.forEach { kind ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GemmaModelRow(
+                        kind = kind,
+                        state = gemmaStates[kind] ?: GemmaDownloadState.NotDownloaded,
+                        manager = gemmaManager,
+                        selected = GemmaModelKind.fromCode(quickGemmaModelKind) == kind,
+                        onSelect = { scope.launch { settings.setQuickGemmaModelKind(kind.code) } }
+                    )
+                }
             }
 
-            Text(stringResource(R.string.settings_caption_length), style = MaterialTheme.typography.titleMedium)
+            if (quickModelProvider == "moondream") {
+                Text(stringResource(R.string.settings_moondream_api), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = apiKey, onValueChange = { scope.launch { settings.setQuickMoondreamAPIKey(it) } }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.label_api_key)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.settings_caption_length), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             var expandedCaption by remember { mutableStateOf(false) }
             val currentCaption = QuickCaptionLength.entries.find { it.value == captionLength } ?: QuickCaptionLength.SHORT
@@ -324,11 +341,9 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.settings_quick_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(stringResource(R.string.settings_trigger_mode), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_trigger_mode), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             val currentTriggerMode = QuickTriggerMode.fromValue(triggerMode)
             var expandedTriggerMode by remember { mutableStateOf(false) }
@@ -350,11 +365,9 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.settings_trigger_mode_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(stringResource(R.string.settings_continuous_interval), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_continuous_interval), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             val selectedIntervalRes = intervalLabelRes[intervalOptions.indexOf(captureInterval).coerceAtLeast(0)]
             var expandedInterval by remember { mutableStateOf(false) }
@@ -376,11 +389,9 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.settings_continuous_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(stringResource(R.string.settings_control_style), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_control_style), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             val currentControlStyle = RecognitionActionControlStyle.fromValue(controlStyle)
             var expandedControlStyle by remember { mutableStateOf(false) }
@@ -402,14 +413,10 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.settings_control_style_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(stringResource(R.string.settings_quick_buttons), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_quick_buttons), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.settings_quick_buttons_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
         items(quickButtons.size) { index ->
@@ -470,7 +477,7 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
         item {
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(stringResource(R.string.settings_translation), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_translation), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Text(stringResource(R.string.settings_translation_enable), modifier = Modifier.weight(1f))
@@ -498,23 +505,10 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(stringResource(R.string.settings_translation_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        item {
-            if (quickModelProvider == "gemma") {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(stringResource(R.string.gemma_section_title), style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(stringResource(R.string.gemma_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-
-                GemmaModelKind.entries.forEach { kind ->
-                    Spacer(modifier = Modifier.height(16.dp))
-                    GemmaModelRow(kind = kind, state = gemmaStates[kind] ?: GemmaDownloadState.NotDownloaded, manager = gemmaManager)
-                }
-            }
-        }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 }
 
@@ -787,9 +781,15 @@ fun LyricPrompterSettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun GemmaModelRow(kind: GemmaModelKind, state: GemmaDownloadState, manager: GemmaModelManager) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+private fun GemmaModelRow(kind: GemmaModelKind, state: GemmaDownloadState, manager: GemmaModelManager, selected: Boolean, onSelect: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = onSelect)
+            Spacer(modifier = Modifier.width(4.dp))
             Text(kind.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             when (state) {
                 is GemmaDownloadState.Downloaded -> {

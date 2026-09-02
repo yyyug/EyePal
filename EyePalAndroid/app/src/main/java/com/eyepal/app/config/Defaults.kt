@@ -8,7 +8,8 @@ object Defaults {
     const val CAPTION_LENGTH = "normal"
     const val CONTINUOUS_INTERVAL_MS = 3000
     const val QUICK_TRIGGER_MODE = "time"
-    const val QUICK_MODEL_PROVIDER = "moondream"
+    const val QUICK_MODEL_PROVIDER = "gemma"
+    const val QUICK_GEMMA_MODEL_KIND = "e2b"
     const val TRANSLATION_TARGET = "zh"
     const val FACE_MATCH_THRESHOLD = 0.65f
     const val FACE_MATCH_MARGIN = 0.02f

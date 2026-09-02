@@ -21,4 +21,8 @@ enum class GemmaModelKind(
         directoryName = "gemma-4-E4B-it-litert-lm",
         downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm"
     );
+
+    companion object {
+        fun fromCode(code: String): GemmaModelKind? = entries.find { it.code == code }
+    }
 }

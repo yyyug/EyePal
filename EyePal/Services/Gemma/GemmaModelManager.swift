@@ -103,6 +103,14 @@ final class GemmaModelManager: NSObject, ObservableObject {
         return nil
     }
 
+    func modelURL(for kind: GemmaModelKind? = nil) -> URL? {
+        if let kind {
+            let url = fileURL(for: kind)
+            if url.exists() { return url }
+        }
+        return downloadedModelURL()
+    }
+
     func fileURL(for kind: GemmaModelKind) -> URL {
         Self.modelsDirectoryURL
             .appendingPathComponent(kind.directoryName, isDirectory: true)

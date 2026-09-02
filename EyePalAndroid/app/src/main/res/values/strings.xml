@@ -158,13 +158,13 @@
     <!-- Translation -->
     <string name="translate">Translate</string>
     <string name="target_language">Target Language</string>
-    <string name="settings_translation">Translation</string>
+<string name="settings_translation">Translation</string>
     <string name="settings_translation_enable">Enable Translation</string>
-    <string name="settings_translation_hint">Translate Quick Recognition results into the language you choose.</string>
 
     <!-- Quick Recognition -->
-    <string name="quick_no_api_key">Add your Moondream API key in Settings > Quick Recognition.</string>
+<string name="quick_no_api_key">Add your Moondream API key in Settings > Quick Recognition.</string>
     <string name="quick_signup_api_key">Sign up and get API key</string>
+    <string name="quick_gemma_not_downloaded">Download a Gemma model to start using on-device recognition.</string>
 
     <!-- Faces settings -->
     <string name="settings_speech">Speech</string>
@@ -201,11 +201,9 @@
     <string name="label_not_signed_in">Not signed in</string>
     <string name="label_speech_cooldown_seconds">Speech Cooldown: %d seconds</string>
     <string name="label_advance_offset">Advance offset: %s seconds</string>
-    <string name="settings_details_recognition_desc">Uses ChatGPT to provide detailed scene descriptions. Sign in with your ChatGPT account to enable.</string>
-    <string name="settings_quick_desc">Controls how detailed the AI description will be.</string>
+<string name="settings_details_recognition_desc">Uses ChatGPT to provide detailed scene descriptions. Sign in with your ChatGPT account to enable.</string>
     <string name="settings_continuous_interval">Continuous Mode Interval</string>
     <string name="settings_trigger_mode">Trigger</string>
-    <string name="settings_trigger_mode_hint">Time interval captures every N seconds. On the move captures after N seconds of detected motion; the timer pauses while still.</string>
     <string name="trigger_mode_time">Time interval</string>
     <string name="trigger_mode_on_the_move">On the move</string>
     <string name="quick_motion_sensor_unavailable">Motion sensor is unavailable.</string>
@@ -220,11 +218,8 @@
     <string name="settings_chatgpt_account">ChatGPT Account</string>
     <string name="settings_sign_in_hint">Sign in from Details Recognition screen to enable scene descriptions.</string>
     <string name="settings_scene_description">Scene Description</string>
-    <string name="settings_moondream_api">Moondream API</string>
-    <string name="settings_moondream_hint">Get your API key from moondream.ai</string>
+<string name="settings_moondream_api">Moondream API</string>
     <string name="settings_caption_length">Caption Length</string>
-    <string name="settings_continuous_hint">How often to auto-capture in continuous mode.</string>
-    <string name="settings_quick_buttons_desc">Configure up to 4 preset buttons for Quick Recognition.</string>
     <string name="settings_ocr_engine">OCR Engine</string>
     <string name="settings_ocr_engine_label">Engine</string>
     <string name="ocr_engine_mlkit">Fast (ML Kit)</string>
@@ -354,10 +349,9 @@
     <!-- Lyrics -->
     <string name="lyrics_none_found">No lyrics found.</string>
     <string name="lyrics_song_saved">%1$s by %2$s saved.</string>
-    <!-- Gemma On-Device -->
-    <string name="gemma_section_title">On-Device Gemini (Gemma)</string>
+<!-- Gemma On-Device -->
+    <string name="gemma_section_title">Gemma Models</string>
     <string name="gemma_enable">Offline recognition</string>
-    <string name="gemma_help">Download a model to run Quick Recognition fully on-device without an API key or network.</string>
     <string name="gemma_action_download">Download</string>
     <string name="gemma_action_delete">Delete</string>
     <string name="gemma_action_cancel">Cancel</string>
@@ -367,5 +361,4 @@
     <string name="settings_model_provider">Recognition Model</string>
     <string name="settings_model_provider_moondream">MoonDream (Online)</string>
     <string name="settings_model_provider_gemma">Gemma (On-device)</string>
-    <string name="settings_model_provider_hint">Choose where Quick Recognition runs. Gemma works fully offline; MoonDream needs an API key.</string>
 </resources>

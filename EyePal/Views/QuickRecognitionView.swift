@@ -41,14 +41,24 @@ struct QuickRecognitionView: View {
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    if settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(NSLocalizedString("quick.apiKeyPrompt", comment: ""))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    if viewModel.gemmaNeedsModelDownload {
+                    Text(NSLocalizedString("quick.gemmaNotDownloaded", comment: ""))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
-                        Link(NSLocalizedString("quick.signupLink", comment: ""), destination: URL(string: "https://moondream.ai/")!)
-                            .font(.subheadline.weight(.semibold))
+                    Button(NSLocalizedString("gemma.action.download", comment: "")) {
+                        viewModel.downloadSelectedGemmaModel()
                     }
+                    .font(.subheadline.weight(.semibold))
+                } else if QuickModelProvider(rawValue: settingsStore.quickModelProvider) == .moondream,
+                          settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(NSLocalizedString("quick.apiKeyPrompt", comment: ""))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Link(NSLocalizedString("quick.signupLink", comment: ""), destination: URL(string: "https://moondream.ai/")!)
+                        .font(.subheadline.weight(.semibold))
+                }
 
                     resultPanel
 

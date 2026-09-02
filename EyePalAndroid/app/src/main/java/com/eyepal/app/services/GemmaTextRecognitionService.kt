@@ -18,8 +18,9 @@ class GemmaTextRecognitionService(private val context: Context) {
 
     private var engine: Engine? = null
     private var conversation: Conversation? = null
+    private var currentModelPath: String? = null
 
-    fun canRun(): Boolean = modelManager.downloadedModelFile() != null
+    fun canRun(selectedKind: GemmaModelKind? = null): Boolean = modelManager.modelFileFor(selectedKind) != null
 
     private val modelManager: GemmaModelManager
         get() = context.applicationContext.let { app ->
@@ -27,23 +28,24 @@ class GemmaTextRecognitionService(private val context: Context) {
                 ?: GemmaModelManager(context.applicationContext)
         }
 
-    suspend fun generateCaption(image: Bitmap, length: QuickCaptionLength): String {
+    suspend fun generateCaption(image: Bitmap, length: QuickCaptionLength, kind: GemmaModelKind? = null): String {
         val prompt = when (length) {
             QuickCaptionLength.SHORT -> "Describe this image in one short sentence."
             QuickCaptionLength.NORMAL -> "Describe this image in 1 or 2 concise sentences."
             QuickCaptionLength.DETAILED -> "Describe this image in detail, in a few sentences."
         }
-        return run(prompt, image)
+        return run(prompt, image, kind)
     }
 
-    suspend fun queryImage(image: Bitmap, question: String, enforceSingleSentenceResponse: Boolean): String {
+    suspend fun queryImage(image: Bitmap, question: String, enforceSingleSentenceResponse: Boolean, kind: GemmaModelKind? = null): String {
         val prompt = if (enforceSingleSentenceResponse) "$question Respond with one sentence." else question
-        return run(prompt, image)
+        return run(prompt, image, kind)
     }
 
-    private suspend fun run(prompt: String, image: Bitmap): String = withContext(Dispatchers.Default) {
-        val modelFile = modelManager.downloadedModelFile()
+    private suspend fun run(prompt: String, image: Bitmap, kind: GemmaModelKind? = null): String = withContext(Dispatchers.Default) {
+        val modelFile = modelManager.modelFileFor(kind)
             ?: throw Exception(context.getString(com.eyepal.app.R.string.gemma_error_no_model))
+        if (currentModelPath != modelFile.absolutePath) close()
         val conversation = readyConversation(modelFile.absolutePath)
         val imagePath = writeImageToCache(image)
 
@@ -72,6 +74,7 @@ class GemmaTextRecognitionService(private val context: Context) {
                 cacheDir = context.cacheDir.path
             )
             Engine(config).also { it.initialize() }.also { engine = it }
+            currentModelPath = modelPath
         }
         val conv = engine!!.createConversation()
         conversation = conv
@@ -91,5 +94,6 @@ class GemmaTextRecognitionService(private val context: Context) {
         try { engine?.close() } catch (_: Exception) {}
         conversation = null
         engine = null
+        currentModelPath = null
     }
 }

@@ -110,6 +110,7 @@
 "quick.recognitionError" = "Quick Recognition Error";
 "quick.apiKeyPrompt" = "Add your Moondream API key in Settings > Quick Recognition.";
 "quick.signupLink" = "Sign up and get API key";
+"quick.gemmaNotDownloaded" = "Download a Gemma model to start using on-device recognition.";
 "quick.resultLabel" = "Quick recognition result";
 
 /* Read Text */
@@ -212,20 +213,15 @@
 "settings.apiKey" = "API Key";
 "settings.sectionTakePhoto" = "Take Photo";
 "settings.captionLength" = "Caption Length";
-"settings.captionLengthHelp" = "This setting applies to Take Photo only. Continuous mode uses the short caption style.";
 "settings.continuousMode" = "Continuous Mode";
 "settings.triggerMode" = "Trigger";
-"settings.triggerModeHelp" = "Time interval captures every N seconds. On the move captures only after N seconds of detected motion; the timer pauses while still.";
 "settings.captureFrequency" = "Capture Frequency";
-"settings.captureFrequencyHelp" = "Choose how often Continuous mode takes a picture. Each completed result is announced when available.";
 "settings.quickButtons" = "Quick Buttons";
-"settings.quickButtonsHelp" = "Set each button to Product, Dish, Short Text, or a Custom prompt.";
 "settings.enableTranslation" = "Enable Translation";
 "settings.targetLanguage" = "Target Language";
 "settings.loadingLanguages" = "Loading available languages...";
 "settings.noTranslationLangs" = "No translation languages are currently available on this device.";
 "settings.chooseLanguage" = "Choose a language";
-"settings.translationHelp" = "Translate Quick Recognition results into the language you choose below.";
 "settings.translationUnavailable" = "Translation is unavailable on this device.";
 
 /* Settings - Recognition Button Editor */
@@ -283,9 +279,8 @@
 "voiceover.back" = "Back";
 
 /* Quick Recognition - Offline Gemma */
-"gemma.sectionTitle" = "Offline AI (Gemma)";
+"gemma.sectionTitle" = "Gemma Models";
 "gemma.enable" = "Use offline Gemma when available";
-"gemma.help" = "Download a model to run on-device without an API key. Supports vision (image) input.";
 "gemma.status.notDownloaded" = "Not downloaded";
 "gemma.status.downloaded" = "Downloaded";
 "gemma.status.downloading" = "Downloading… %d%%";
@@ -297,7 +292,6 @@
 "gemma.error.emptyResponse" = "The offline model returned an empty response.";
 "gemma.error.engine" = "The offline model engine could not be started.";
 "settings.modelProvider" = "Recognition Model";
-"settings.modelProvider.help" = "Choose where Quick Recognition runs. Gemma works fully offline; MoonDream needs an API key.";
 "settings.modelProvider.moondream" = "MoonDream (Online)";
 "settings.modelProvider.gemma" = "Gemma (On-device)";
 "settings.sectionAPIKey" = "Online API Key";

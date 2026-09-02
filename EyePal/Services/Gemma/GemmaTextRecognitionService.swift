@@ -26,6 +26,7 @@ final class GemmaTextRecognitionService {
     private let modelManager: GemmaModelManager
     private var engine: Engine?
     private var conversation: Conversation?
+    private var currentModelPath: String?
 
     init(modelManager: GemmaModelManager) {
         self.modelManager = modelManager
@@ -36,11 +37,11 @@ final class GemmaTextRecognitionService {
         Task { _ = try? await readyEngine(modelURL: modelPath) }
     }
 
-    func canRun() -> Bool {
-        modelManager.isAnyModelDownloaded
+    func canRun(selectedKind: GemmaModelKind? = nil) -> Bool {
+        modelManager.modelURL(for: selectedKind) != nil
     }
 
-    func generateCaption(image: UIImage, length: QuickCaptionLength) async throws -> String {
+    func generateCaption(image: UIImage, length: QuickCaptionLength, kind: GemmaModelKind? = nil) async throws -> String {
         let prompt: String
         switch length {
         case .short:
@@ -50,25 +51,28 @@ final class GemmaTextRecognitionService {
         case .long:
             prompt = "Describe this image in detail, in a few sentences."
         }
-        return try await run(prompt: prompt, image: image)
+        return try await run(prompt: prompt, image: image, kind: kind)
     }
 
-    func queryImage(image: UIImage, question: String, enforceSingleSentenceResponse: Bool) async throws -> String {
+    func queryImage(image: UIImage, question: String, enforceSingleSentenceResponse: Bool, kind: GemmaModelKind? = nil) async throws -> String {
         let prompt = enforceSingleSentenceResponse
             ? question + " Respond with one sentence."
             : question
-        return try await run(prompt: prompt, image: image)
+        return try await run(prompt: prompt, image: image, kind: kind)
     }
 
-    private func run(prompt: String, image: UIImage) async throws -> String {
-        guard let modelPath = modelManager.downloadedModelURL() else {
+    private func run(prompt: String, image: UIImage, kind: GemmaModelKind? = nil) async throws -> String {
+        guard let modelURL = modelManager.modelURL(for: kind) else {
             throw GemmaRecognitionError.noModelDownloaded
+        }
+        if currentModelPath != modelURL.path {
+            resetEngine()
         }
 
         let tempURL = try writeImageToTempFile(image)
         defer { try? FileManager.default.removeItem(at: tempURL) }
 
-        _ = try await readyEngine(modelURL: modelPath)
+        _ = try await readyEngine(modelURL: modelURL)
         guard let conversation else {
             throw GemmaRecognitionError.engineFailure(NSLocalizedString("gemma.error.engine", comment: ""))
         }
@@ -103,7 +107,14 @@ final class GemmaTextRecognitionService {
         try await engine.initialize()
         self.engine = engine
         conversation = try await engine.createConversation()
+        currentModelPath = modelPath
         return engine
+    }
+
+    private func resetEngine() {
+        engine = nil
+        conversation = nil
+        currentModelPath = nil
     }
 
     private func writeImageToTempFile(_ image: UIImage) throws -> URL {

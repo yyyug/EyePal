@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyepal.app.R
 import com.eyepal.app.EyePalApplication
+import com.eyepal.app.services.GemmaModelKind
 import com.eyepal.app.viewmodels.QuickRecognitionViewModel
 import com.eyepal.app.viewmodels.RecognitionActionControlStyle
 
@@ -54,7 +55,15 @@ fun QuickRecognitionScreen(viewModel: QuickRecognitionViewModel = viewModel()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(statusText, style = MaterialTheme.typography.bodyLarge)
 
-                if (viewModel.apiKey.value.isBlank() && !(viewModel.quickModelProvider.value == "gemma" && viewModel.gemmaCanRunOffline())) {
+                if (viewModel.quickModelProvider.value == "gemma" && !viewModel.gemmaCanRunOffline()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(stringResource(R.string.quick_gemma_not_downloaded), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    TextButton(onClick = {
+                        viewModel.downloadModel(viewModel.selectedGemmaKind() ?: GemmaModelKind.E2B)
+                    }) {
+                        Text(stringResource(R.string.gemma_action_download))
+                    }
+                } else if (viewModel.quickModelProvider.value == "moondream" && viewModel.apiKey.value.isBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(stringResource(R.string.quick_no_api_key), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     TextButton(onClick = {

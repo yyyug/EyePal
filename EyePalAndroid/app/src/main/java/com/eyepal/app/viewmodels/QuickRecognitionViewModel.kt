@@ -17,6 +17,7 @@ import com.eyepal.app.EyePalApplication
 import com.eyepal.app.R
 import com.eyepal.app.config.Defaults
 import com.eyepal.app.services.GoogleGlassState
+import com.eyepal.app.services.GemmaModelKind
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,6 +48,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     val errorMessage = mutableStateOf<String?>(null)
     val apiKey = mutableStateOf("")
     val quickModelProvider = mutableStateOf(Defaults.QUICK_MODEL_PROVIDER)
+    val quickGemmaModelKind = mutableStateOf(Defaults.QUICK_GEMMA_MODEL_KIND)
 
     val presets = mutableStateOf<List<QuickPresetConfig>>(emptyList())
     val captionLength = mutableStateOf<QuickCaptionLength>(QuickCaptionLength.SHORT)
@@ -108,6 +110,14 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
 
         apiKey.value = settings.quickMoondreamAPIKey.first()
         quickModelProvider.value = settings.quickModelProvider.first()
+        quickGemmaModelKind.value = settings.quickGemmaModelKind.first()
+    }
+
+    fun selectedGemmaKind(): GemmaModelKind? = GemmaModelKind.fromCode(quickGemmaModelKind.value)
+
+    fun selectGemmaKind(kind: GemmaModelKind) {
+        quickGemmaModelKind.value = kind.code
+        viewModelScope.launch { settings.setQuickGemmaModelKind(kind.code) }
     }
 
     private fun defaultPresets() = listOf(
@@ -206,6 +216,8 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     private fun capture() {
         if (isProcessing.value) return
         isProcessing.value = true
+        responseText.value = ""
+        errorMessage.value = null
         statusText.value = str(R.string.status_analyzing_scene)
         viewModelScope.launch {
             try {
@@ -217,10 +229,11 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                 }
                 if (bitmap == null) throw Exception(str(R.string.error_camera_not_ready))
                 capturedImage.value = bitmap
-                val useGemmaOffline = settings.quickModelProvider.first() == "gemma" && gemmaService.canRun()
+                val selectedKind = selectedGemmaKind()
+                val useGemmaOffline = settings.quickModelProvider.first() == "gemma" && gemmaService.canRun(selectedKind)
                 val result: String
                 if (useGemmaOffline) {
-                    result = gemmaService.generateCaption(bitmap, captionLength.value)
+                    result = gemmaService.generateCaption(bitmap, captionLength.value, selectedKind)
                 } else {
                     val apiKey = settings.quickMoondreamAPIKey.first()
                     if (apiKey.isEmpty()) { responseText.value = str(R.string.quick_no_api_key); isProcessing.value = false; return@launch }
@@ -250,7 +263,11 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
 
     fun clearError() { errorMessage.value = null }
 
-    fun gemmaCanRunOffline(): Boolean = gemmaService.canRun()
+    fun gemmaCanRunOffline(): Boolean = gemmaService.canRun(selectedGemmaKind())
+
+    fun downloadModel(kind: GemmaModelKind) {
+        gemmaManager.download(kind)
+    }
 
     override fun onCleared() {
         super.onCleared()

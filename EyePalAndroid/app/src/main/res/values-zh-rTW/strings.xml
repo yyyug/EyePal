@@ -91,8 +91,7 @@
 
     <!-- Quick Recognition Settings -->
     <string name="settings_continuous_interval">連續模式間隔</string>
-    <string name="settings_trigger_mode">觸發方式</string>
-    <string name="settings_trigger_mode_hint">時間間隔每 N 秒擷取一次；「動作中」則在累積偵測到 N 秒動作後才擷取，靜止時計時器會暫停。</string>
+<string name="settings_trigger_mode">觸發方式</string>
     <string name="trigger_mode_time">時間間隔</string>
     <string name="trigger_mode_on_the_move">動作中</string>
     <string name="quick_motion_sensor_unavailable">動作感測器不可用。</string>
@@ -159,9 +158,8 @@
     <string name="auto_read">自動朗讀</string>
     <string name="btn_copy">複製</string>
     <string name="btn_take_photo">拍照</string>
-    <string name="gemma_section_title">裝置端 Gemini (Gemma)</string>
+<string name="gemma_section_title">Gemma 模型</string>
     <string name="gemma_enable">離線辨識</string>
-    <string name="gemma_help">下載模型後即可在本機執行快速辨識，無需 API 金鑰或網路。</string>
     <string name="gemma_action_download">下載</string>
     <string name="gemma_action_delete">刪除</string>
     <string name="gemma_action_cancel">取消</string>
@@ -170,6 +168,5 @@
     <string name="gemma_error_empty_response">模型未回傳文字。</string>
     <string name="settings_model_provider">辨識模型</string>
     <string name="settings_model_provider_moondream">MoonDream（線上）</string>
-    <string name="settings_model_provider_gemma">Gemma（裝置端）</string>
-    <string name="settings_model_provider_hint">選擇快速辨識的執行來源。Gemma 可完全離線執行；MoonDream 需要 API 金鑰。</string>
+<string name="settings_model_provider_gemma">Gemma（裝置端）</string>
 </resources>

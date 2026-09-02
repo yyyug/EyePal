@@ -111,6 +111,21 @@ final class QuickRecognitionViewModel: ObservableObject {
         }
     }
 
+    var gemmaNeedsModelDownload: Bool {
+        guard let settingsStore else { return false }
+        let provider = QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma
+        guard provider == .gemma else { return false }
+        let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
+        return !gemmaService.canRun(selectedKind: selectedKind)
+    }
+
+    func downloadSelectedGemmaModel() {
+        let selectedKind = GemmaModelKind(
+            rawValue: settingsStore?.quickGemmaModelKind ?? GemmaModelKind.e2b.rawValue
+        ) ?? .e2b
+        gemmaModelManager.download(selectedKind)
+    }
+
     private func captureForContinuousMode() async {
         guard !isProcessing else { return }
         await performCapture(.caption(.short), status: "Analyzing scene.")
@@ -135,7 +150,9 @@ final class QuickRecognitionViewModel: ObservableObject {
             return
         }
 
-        let useGemmaOffline = QuickModelProvider(rawValue: settingsStore.quickModelProvider) == .gemma && gemmaService.canRun()
+        let provider = QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma
+        let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
+        let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
 
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if !useGemmaOffline, apiKey.isEmpty {
@@ -153,6 +170,7 @@ final class QuickRecognitionViewModel: ObservableObject {
         capturedPreview = makePreviewImage(from: image)
 
         isProcessing = true
+        responseText = ""
         statusText = status
         #if canImport(Translation)
         translationRequest = nil
@@ -164,12 +182,13 @@ final class QuickRecognitionViewModel: ObservableObject {
             if useGemmaOffline {
                 switch request {
                 case .caption(let length):
-                    response = try await gemmaService.generateCaption(image: image, length: length)
+                    response = try await gemmaService.generateCaption(image: image, length: length, kind: selectedKind)
                 case .query(let preset):
                     response = try await gemmaService.queryImage(
                         image: image,
                         question: preset.prompt,
-                        enforceSingleSentenceResponse: false
+                        enforceSingleSentenceResponse: false,
+                        kind: selectedKind
                     )
                 }
             } else {
