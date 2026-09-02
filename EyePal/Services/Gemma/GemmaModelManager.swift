@@ -61,7 +61,7 @@ final class GemmaModelManager: NSObject, ObservableObject {
     override init() {
         super.init()
         let config = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
-        config.timeoutIntervalForRequest = Int.max
+        config.timeoutIntervalForRequest = TimeInterval.greatestFiniteMagnitude
         config.timeoutIntervalForResource = 60 * 60 * 24
         config.isDiscretionary = false
         session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
