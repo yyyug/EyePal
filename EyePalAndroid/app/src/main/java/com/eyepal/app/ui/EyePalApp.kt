@@ -179,8 +179,7 @@ fun EyePalApp() {
                 MoreScreen(
                     moreFeatures = moreFeatures,
                     onNavigateToFeature = { feature -> navController.navigate(featureNameToScreen[feature.name]!!.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    onNavigateToFeatureOrder = { navController.navigate(Screen.FeatureOrder.route) }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
             composable(Screen.Settings.route) {

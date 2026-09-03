@@ -17,8 +17,7 @@ import com.eyepal.app.models.AppFeature
 fun MoreScreen(
     moreFeatures: List<AppFeature>,
     onNavigateToFeature: (AppFeature) -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToFeatureOrder: () -> Unit
+    onNavigateToSettings: () -> Unit
 ) {
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -38,11 +37,6 @@ fun MoreScreen(
             item {
                 ListItem(headlineContent = { Text(stringResource(R.string.tab_settings)) }, supportingContent = { Text(stringResource(R.string.more_app_config)) },
                     modifier = Modifier.clickable { onNavigateToSettings() })
-                HorizontalDivider()
-            }
-            item {
-                ListItem(headlineContent = { Text(stringResource(R.string.tab_feature_order)) }, supportingContent = { Text(stringResource(R.string.more_custom_tabs)) },
-                    modifier = Modifier.clickable { onNavigateToFeatureOrder() })
                 HorizontalDivider()
             }
         }

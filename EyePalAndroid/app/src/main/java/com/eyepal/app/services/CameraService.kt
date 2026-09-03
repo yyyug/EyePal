@@ -1,12 +1,14 @@
 package com.eyepal.app.services
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.YuvImage
+import android.os.SystemClock
 import android.util.Size
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -15,74 +17,124 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
+/**
+ * Shared camera service bound once to the **Activity** lifecycle so the camera stays alive and
+ * correctly configured across bottom-tab switches. Switching tabs changes which [PreviewView]
+ * receives the preview (and which frame callback is active) but never tears down and re-wires the
+ * whole camera from scratch, which previously raced and left [imageCapture] unset — causing
+ * `capturePhoto` to report "camera fail" right after switching from the Text tab to the Quick tab.
+ */
 class CameraService(private val context: Context) {
     private var imageCapture: ImageCapture? = null
+    private var preview: Preview? = null
     private var cameraProvider: ProcessCameraProvider? = null
+    private var boundOwner: LifecycleOwner? = null
+    private var analyzerCallback: ((Bitmap) -> Unit)? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
 
     fun startCamera(
-        lifecycleOwner: LifecycleOwner,
+        owner: LifecycleOwner,
         previewView: PreviewView,
         onFrameAvailable: ((Bitmap) -> Unit)? = null
     ) {
+        analyzerCallback = onFrameAvailable
+        val activityOwner: LifecycleOwner = resolveActivity(previewView) ?: owner
+
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            cameraProvider = cameraProviderFuture.get()
-
-            val preview = Preview.Builder().build().also {
-                it.surfaceProvider = previewView.surfaceProvider
+            val provider = try {
+                cameraProviderFuture.get()
+            } catch (_: Exception) {
+                return@addListener
             }
-
-            imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                .build()
-
-            val imageAnalysis = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setTargetResolution(Size(1280, 720))
-                .build()
-                .also { analysis ->
-                    analysis.setAnalyzer(analysisExecutor) { imageProxy ->
-                        onFrameAvailable?.let { callback ->
-                            val bitmap = imageProxyToBitmap(imageProxy)
-                            if (bitmap != null) {
-                                callback(bitmap)
-                            } else {
-                                android.util.Log.w("CameraService", "Frame decode failed (${imageProxy.width}x${imageProxy.height}, planes=${imageProxy.planes.size}, rotation=${imageProxy.imageInfo.rotationDegrees})")
-                            }
-                        }
-                        imageProxy.close()
-                    }
-                }
-
-            try {
-                cameraProvider?.unbindAll()
-                cameraProvider?.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    imageCapture,
-                    imageAnalysis
-                )
-            } catch (_: Exception) {}
+            cameraProvider = provider
+            bindTo(provider, activityOwner, previewView, onFrameAvailable)
         }, ContextCompat.getMainExecutor(context))
     }
 
-    fun stopCamera() {
-        cameraProvider?.unbindAll()
+    private fun bindTo(
+        provider: ProcessCameraProvider,
+        owner: LifecycleOwner,
+        previewView: PreviewView,
+        onFrameAvailable: ((Bitmap) -> Unit)?
+    ) {
+        // Already bound to this (activity) lifecycle: just swap the preview surface + analyzer.
+        if (boundOwner === owner && provider == cameraProvider && preview != null) {
+            preview?.surfaceProvider = previewView.surfaceProvider
+            analyzerCallback = onFrameAvailable
+            return
+        }
+
+        val p = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+
+        val ic = ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
+
+        val analysis = ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setTargetResolution(Size(1280, 720))
+            .build()
+            .also { a ->
+                a.setAnalyzer(analysisExecutor) { imageProxy ->
+                    val cb = analyzerCallback
+                    if (cb != null) {
+                        val bitmap = imageProxyToBitmap(imageProxy)
+                        if (bitmap != null) {
+                            cb(bitmap)
+                        } else {
+                            android.util.Log.w("CameraService", "Frame decode failed (${imageProxy.width}x${imageProxy.height}, planes=${imageProxy.planes.size}, rotation=${imageProxy.imageInfo.rotationDegrees})")
+                        }
+                    }
+                    imageProxy.close()
+                }
+            }
+
+        preview = p
+        imageCapture = ic
+        boundOwner = owner
+
+        try {
+            provider.unbindAll()
+            provider.bindToLifecycle(
+                owner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                p,
+                ic,
+                analysis
+            )
+        } catch (_: Exception) {}
     }
 
+    fun stopCamera() {
+        imageCapture = null
+        preview = null
+        analyzerCallback = null
+        cameraProvider?.unbindAll()
+        boundOwner = null
+    }
+
+    /**
+     * Captures a photo, waiting briefly for the camera to be bound before giving up. On a tab
+     * switch the rebind can still be in flight, so rather than returning null immediately (which
+     * the callers interpret as "camera fail"), we wait up to ~1.5s for a ready [imageCapture].
+     */
     suspend fun capturePhoto(): Bitmap? {
-        val imageCapture = imageCapture ?: return null
+        val deadline = SystemClock.elapsedRealtime() + 1500L
+        while (imageCapture == null && SystemClock.elapsedRealtime() < deadline) {
+            delay(50)
+        }
+        val capture = imageCapture ?: return null
         return try {
             withContext(Dispatchers.IO) {
                 suspendCancellableCoroutine { cont ->
-                    imageCapture.takePicture(
+                    capture.takePicture(
                         ContextCompat.getMainExecutor(context),
                         object : ImageCapture.OnImageCapturedCallback() {
                             override fun onCaptureSuccess(image: ImageProxy) {
@@ -103,6 +155,15 @@ class CameraService(private val context: Context) {
                 }
             }
         } catch (_: Exception) { null }
+    }
+
+    private fun resolveActivity(view: android.view.View?): LifecycleOwner? {
+        var ctx = view?.context
+        while (ctx is ContextWrapper) {
+            if (ctx is LifecycleOwner) return ctx
+            ctx = ctx.baseContext
+        }
+        return ctx as? LifecycleOwner
     }
 
     private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap? {

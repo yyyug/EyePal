@@ -16,8 +16,8 @@ package com.paddle.ocr
 
 data class PaddleOCRConfig(
     val detImgMode: String = "BGR",
-    val detLimitSideLen: Int = 64,
-    val detLimitType: String = "min",
+    val detLimitSideLen: Int = 960,
+    val detLimitType: String = "max",
     val detMaxSideLimit: Int = 4000,
     val detThresh: Float = 0.3f,
     val detBoxThresh: Float = 0.6f,
