@@ -44,11 +44,12 @@
     <string name="settings_details_recognition">詳細辨識</string>
     <string name="settings_quick_recognition">快速辨識</string>
     <string name="settings_text_recognition">文字辨識</string>
-    <string name="settings_ocr_engine">OCR 引擎</string>
-    <string name="settings_ocr_engine_label">引擎</string>
-    <string name="ocr_engine_mlkit">迅速（ML Kit）</string>
-    <string name="ocr_engine_paddle">準確（PaddleOCR Lite）</string>
-    <string name="settings_ocr_desc">「迅速」搭配 Google ML Kit，辨識快速、耗電低。「準確」搭配 PaddleOCR Lite，對中文及混合文字辨識度更高。</string>
+    <string name="settings_ocr_engine">文字辨識引擎</string>
+    <string name="settings_ocr_engine_label">文字辨識引擎</string>
+    <string name="ocr_engine_mlkit">迅速</string>
+    <string name="ocr_engine_paddle">準確</string>
+    <string name="settings_ocr_log_title">辨識紀錄</string>
+    <string name="settings_ocr_log_empty">尚無紀錄。執行即時文字辨識即可產生紀錄。</string>
     <string name="settings_lyric_prompter">歌詞提示</string>
     <string name="settings_match_sensitivity">匹配靈敏度：%s%%</string>
     <string name="settings_top_match_margin">最高匹配邊距：%s</string>

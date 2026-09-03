@@ -2,6 +2,8 @@ package com.eyepal.app.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
@@ -26,6 +28,7 @@ import com.eyepal.app.data.SettingsRepository
 import com.eyepal.app.services.FaceRecognitionLogStore
 import com.eyepal.app.services.OAuthService
 import com.eyepal.app.services.OcrEngine
+import com.eyepal.app.services.OcrEngineLog
 import com.eyepal.app.services.TranslationService
 import com.eyepal.app.services.GemmaModelKind
 import com.eyepal.app.services.GemmaDownloadState
@@ -97,7 +100,7 @@ fun DetailsRecognitionSettingsScreen(onBack: () -> Unit) {
         TopAppBar(title = { Text(stringResource(R.string.feature_details_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(stringResource(R.string.settings_chatgpt_account), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_chatgpt_account), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         Spacer(modifier = Modifier.height(8.dp))
 
         if (isSignedIn) {
@@ -111,17 +114,14 @@ fun DetailsRecognitionSettingsScreen(onBack: () -> Unit) {
             }
         } else {
             Text(stringResource(R.string.label_not_signed_in), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.settings_sign_in_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        Text(stringResource(R.string.settings_scene_description), style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.settings_details_recognition_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        Text(stringResource(R.string.settings_scene_description), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Spacer(modifier = Modifier.height(4.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(stringResource(R.string.settings_control_style), style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(stringResource(R.string.settings_control_style), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         Spacer(modifier = Modifier.height(8.dp))
         val currentControlStyle = RecognitionActionControlStyle.fromValue(controlStyle)
         var expandedControlStyle by remember { mutableStateOf(false) }
@@ -143,14 +143,9 @@ fun DetailsRecognitionSettingsScreen(onBack: () -> Unit) {
                 }
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(stringResource(R.string.settings_control_style_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(stringResource(R.string.settings_detail_buttons), style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(stringResource(R.string.settings_detail_buttons), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.settings_detail_buttons_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-        Spacer(modifier = Modifier.height(12.dp))
 
         buttons.forEachIndexed { index, (name, prompt, type) ->
             Text(stringResource(R.string.label_button, index + 1), style = MaterialTheme.typography.titleSmall)
@@ -520,11 +515,12 @@ fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val textCooldown by settings.readTextSpeechCooldown.collectAsState(initial = Defaults.READ_TEXT_SPEECH_COOLDOWN)
     val ocrEngine by settings.ocrEngine.collectAsState(initial = Defaults.OCR_ENGINE)
+    var ocrLogEntries by remember { mutableStateOf(OcrEngineLog.snapshot()) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
         TopAppBar(title = { Text(stringResource(R.string.settings_text_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))
-        Text(stringResource(R.string.settings_ocr_engine), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_ocr_engine), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         Spacer(modifier = Modifier.height(8.dp))
         val currentEngine = OcrEngine.fromValue(ocrEngine)
         var expandedEngine by remember { mutableStateOf(false) }
@@ -546,13 +542,10 @@ fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
                 }
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(stringResource(R.string.settings_ocr_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         Spacer(modifier = Modifier.height(16.dp))
-        Text(stringResource(R.string.settings_features_title), style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.settings_features_list), style = MaterialTheme.typography.bodyMedium)
-        Spacer(modifier = Modifier.height(24.dp))
+        Text(stringResource(R.string.settings_features_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         Text(stringResource(R.string.settings_speech_cooldown_label, textCooldown.toInt()), style = MaterialTheme.typography.bodyMedium)
         Slider(
             value = textCooldown,
@@ -560,6 +553,35 @@ fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
             valueRange = 1f..6f,
             steps = 4
         )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(stringResource(R.string.settings_ocr_log_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Spacer(modifier = Modifier.height(8.dp))
+        Row {
+            TextButton(
+                onClick = {
+                    val text = OcrEngineLog.copyAll()
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("OCR Log", text))
+                },
+                enabled = ocrLogEntries.isNotEmpty()
+            ) { Text(stringResource(R.string.settings_copy_all_logs)) }
+            TextButton(
+                onClick = {
+                    OcrEngineLog.clear()
+                    ocrLogEntries = OcrEngineLog.snapshot()
+                },
+                enabled = ocrLogEntries.isNotEmpty()
+            ) { Text(stringResource(R.string.clear_log), color = MaterialTheme.colorScheme.error) }
+        }
+        if (ocrLogEntries.isEmpty()) {
+            Text(stringResource(R.string.settings_ocr_log_empty), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        } else {
+            Column {
+                ocrLogEntries.takeLast(40).reversed().forEach { line ->
+                    Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
     }
 }
 
@@ -590,7 +612,7 @@ fun FacesSettingsScreen(onBack: () -> Unit, onNavigateToSavedFaces: () -> Unit) 
             Spacer(modifier = Modifier.height(16.dp))
         }
         item {
-            Text(stringResource(R.string.settings_speech), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_speech), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             Text(stringResource(R.string.settings_speech_cooldown_label, faceCooldown.toInt()), style = MaterialTheme.typography.bodyMedium)
             Slider(
@@ -602,7 +624,7 @@ fun FacesSettingsScreen(onBack: () -> Unit, onNavigateToSavedFaces: () -> Unit) 
             Spacer(modifier = Modifier.height(24.dp))
         }
         item {
-            Text(stringResource(R.string.settings_recognition), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_recognition), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             Text(stringResource(R.string.settings_match_sensitivity_title), style = MaterialTheme.typography.bodyMedium)
             Text("${String.format(Locale.US, "%.0f", threshold * 100)}%", style = MaterialTheme.typography.bodyLarge)
@@ -619,13 +641,13 @@ fun FacesSettingsScreen(onBack: () -> Unit, onNavigateToSavedFaces: () -> Unit) 
             Spacer(modifier = Modifier.height(24.dp))
         }
         item {
-            Text(stringResource(R.string.settings_saved_faces), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_saved_faces), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = onNavigateToSavedFaces, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.tab_saved_faces)) }
             Spacer(modifier = Modifier.height(24.dp))
         }
         item {
-            Text(stringResource(R.string.settings_recognition_log), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_recognition_log), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             Row {
                 TextButton(
@@ -656,14 +678,6 @@ fun FacesSettingsScreen(onBack: () -> Unit, onNavigateToSavedFaces: () -> Unit) 
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
-        item {
-            Text(stringResource(R.string.settings_training_tips), style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.label_tip_lighting), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-            Text(stringResource(R.string.label_tip_distance), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-            Text(stringResource(R.string.label_tip_refresh), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-            Spacer(modifier = Modifier.height(16.dp))
-        }
     }
 }
 
@@ -686,12 +700,12 @@ fun LyricPrompterSettingsScreen(onBack: () -> Unit) {
         TopAppBar(title = { Text(stringResource(R.string.settings_lyric_prompter)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(stringResource(R.string.tab_playback), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.tab_playback), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         Text(stringResource(R.string.label_advance_offset, String.format(Locale.US, "%.1f", advanceOffset)))
         Slider(value = advanceOffset, onValueChange = { scope.launch { settings.setLyricAdvanceOffset(it) } }, valueRange = 0f..5f, steps = 9)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(stringResource(R.string.tab_ai_provider), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.tab_ai_provider), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             listOf("CODEX", "GEMINI", "OPENAI").forEachIndexed { index, name ->
                 SegmentedButton(selected = provider == name, onClick = { scope.launch { settings.setLyricLLMProvider(name) } }, shape = SegmentedButtonDefaults.itemShape(index, 3)) { Text(name) }
@@ -774,9 +788,7 @@ fun LyricPrompterSettingsScreen(onBack: () -> Unit) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text(stringResource(R.string.tab_about), style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(stringResource(R.string.settings_about_lyrics), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.tab_about), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
     }
 }
 

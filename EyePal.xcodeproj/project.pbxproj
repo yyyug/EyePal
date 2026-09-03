@@ -65,6 +65,7 @@
 		A100000100000000000000F0 /* PDBPolygonOffsetBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F0 /* PDBPolygonOffsetBridge.mm */; };
 		A100000100000000000000F2 /* clipper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F2 /* clipper.cpp */; };
 		A100000100000000000000F3 /* PaddleTextRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F3 /* PaddleTextRecognitionService.swift */; };
+		A100000100000000000000FC /* OcrEngineLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000FC /* OcrEngineLogStore.swift */; };
 		A100000100000000000000F4 /* Models in Resources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000F4 /* Models */; };
 		A100000100000000000000F5 /* QuadTextCrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100010100000000000000FB /* QuadTextCrop.swift */; };
 		A10000010000000000000050 /* GemmaModelKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000050 /* GemmaModelKind.swift */; };
@@ -136,6 +137,7 @@
 		A100010100000000000000F0 /* PDBPolygonOffsetBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PDBPolygonOffsetBridge.mm; sourceTree = "<group>"; };
 		A100010100000000000000F2 /* clipper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = clipper.cpp; sourceTree = "<group>"; };
 		A100010100000000000000F3 /* PaddleTextRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaddleTextRecognitionService.swift; sourceTree = "<group>"; };
+		A100010100000000000000FC /* OcrEngineLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrEngineLogStore.swift; sourceTree = "<group>"; };
 		A100010100000000000000F4 /* Models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Models; path = "tools/paddle_models/Models"; sourceTree = SOURCE_ROOT; };
 		A100010100000000000000F5 /* OpenCVDBBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenCVDBBridge.h; sourceTree = "<group>"; };
 		A100010100000000000000F6 /* OpenCVImageBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenCVImageBridge.h; sourceTree = "<group>"; };
@@ -266,6 +268,7 @@
             children = (
                 A10001010000000000000008 /* TextRecognitionService.swift */,
                 A100010100000000000000F3 /* PaddleTextRecognitionService.swift */,
+                A100010100000000000000FC /* OcrEngineLogStore.swift */,
                 A100010100000000000000F4 /* Models */,
                 A100030000000000000000E1 /* PaddleOCR */,
             );
@@ -499,6 +502,7 @@
                 A100000100000000000000F0 /* PDBPolygonOffsetBridge.mm in Sources */,
                 A100000100000000000000F2 /* clipper.cpp in Sources */,
                 A100000100000000000000F3 /* PaddleTextRecognitionService.swift in Sources */,
+                A100000100000000000000FC /* OcrEngineLogStore.swift in Sources */,
                 A100000100000000000000F5 /* QuadTextCrop.swift in Sources */,
                 A10000010000000000000050 /* GemmaModelKind.swift in Sources */,
                 A10000010000000000000051 /* GemmaModelManager.swift in Sources */,

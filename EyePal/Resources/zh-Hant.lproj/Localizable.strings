@@ -141,9 +141,9 @@
 /* Settings - General */
 "settings.general" = "一般";
 "settings.speech" = "語音";
-"settings.ocrEngine" = "OCR 引擎";
-"settings.ocrEngine.mlkit" = "迅速（ML Kit）";
-"settings.ocrEngine.paddle" = "準確（PaddleOCR）";
+"settings.ocrEngine" = "文字辨識引擎";
+"settings.ocrEngine.mlkit" = "迅速";
+"settings.ocrEngine.paddle" = "準確";
 "settings.behavior" = "行為";
 "settings.translation" = "翻譯";
 "settings.playback" = "播放";

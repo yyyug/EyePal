@@ -220,11 +220,12 @@
     <string name="settings_scene_description">Scene Description</string>
 <string name="settings_moondream_api">Moondream API</string>
     <string name="settings_caption_length">Caption Length</string>
-    <string name="settings_ocr_engine">OCR Engine</string>
-    <string name="settings_ocr_engine_label">Engine</string>
-    <string name="ocr_engine_mlkit">Fast (ML Kit)</string>
-    <string name="ocr_engine_paddle">Accurate (PaddleOCR Lite)</string>
-    <string name="settings_ocr_desc">Fast uses Google ML Kit for quick, low-power recognition. Accurate uses PaddleOCR Lite for higher accuracy, especially on Chinese and mixed-script text.</string>
+    <string name="settings_ocr_engine">Text Recognition Engine</string>
+    <string name="settings_ocr_engine_label">Text Recognition Engine</string>
+    <string name="ocr_engine_mlkit">Fast</string>
+    <string name="ocr_engine_paddle">Accurate</string>
+    <string name="settings_ocr_log_title">Recognition Log</string>
+    <string name="settings_ocr_log_empty">No log entries yet. Run live text recognition to generate entries.</string>
     <string name="settings_features_title">Features</string>
     <string name="settings_features_list">• Real-time text recognition from camera\n• Multi-language support\n• Continuous recognition mode</string>
     <string name="settings_match_sensitivity_title">Match Sensitivity</string>

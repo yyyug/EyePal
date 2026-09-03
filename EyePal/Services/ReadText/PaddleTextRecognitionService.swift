@@ -65,6 +65,7 @@ final class PaddleTextRecognitionService {
             try await manager.loadModels(executionProvider: .cpu)
             let loaded = try OCREngine(sessionManager: manager)
             engine = loaded
+            OcrEngineLogStore.shared.add("PaddleOCR engine loaded successfully")
             return loaded
         } catch {
             engine = nil
@@ -72,6 +73,7 @@ final class PaddleTextRecognitionService {
                 loadErrorLogged = true
                 NSLog("PaddleOCR engine failed to load: \(error.localizedDescription)")
             }
+            OcrEngineLogStore.shared.add("PaddleOCR engine load failed: \(error.localizedDescription)")
             return nil
         }
     }

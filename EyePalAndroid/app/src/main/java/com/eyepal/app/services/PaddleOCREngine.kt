@@ -28,11 +28,18 @@ class PaddleOCREngine(private val context: Context) {
     }
 
     suspend fun recognizeText(bitmap: Bitmap): OCRResult = withContext(Dispatchers.IO) {
-        val paddle = getOrCreate()
+        val paddle = try {
+            getOrCreate()
+        } catch (t: Throwable) {
+            android.util.Log.e("PaddleOCREngine", "PaddleOCR init failed: ${t.message}", t)
+            OcrEngineLog.add("PaddleOCR 初始化失敗: ${t.message}")
+            return@withContext OCRResult("No text detected", "Unknown", emptyList())
+        }
         val run = try {
             paddle.recognize(bitmap)
         } catch (t: Throwable) {
             android.util.Log.e("PaddleOCREngine", "PaddleOCR recognize failed: ${t.message}", t)
+            OcrEngineLog.add("PaddleOCR 辨識失敗: ${t.message}")
             return@withContext OCRResult("No text detected", "Unknown", emptyList())
         }
         val blocks = run.results.map { item ->

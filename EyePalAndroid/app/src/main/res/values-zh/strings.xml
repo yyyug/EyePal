@@ -220,11 +220,12 @@
     <string name="settings_scene_description">場景描述</string>
 <string name="settings_moondream_api">Moondream API</string>
     <string name="settings_caption_length">描述長度</string>
-    <string name="settings_ocr_engine">OCR 引擎</string>
-    <string name="settings_ocr_engine_label">引擎</string>
-    <string name="ocr_engine_mlkit">迅速（ML Kit）</string>
-    <string name="ocr_engine_paddle">准确（PaddleOCR Lite）</string>
-    <string name="settings_ocr_desc">迅速搭配 Google ML Kit，辨识快速、耗电低。准确搭配 PaddleOCR Lite，对中文及混合文字辨识度更高。</string>
+    <string name="settings_ocr_engine">文字辨識引擎</string>
+    <string name="settings_ocr_engine_label">文字辨識引擎</string>
+    <string name="ocr_engine_mlkit">迅速</string>
+    <string name="ocr_engine_paddle">準確</string>
+    <string name="settings_ocr_log_title">辨識紀錄</string>
+    <string name="settings_ocr_log_empty">尚無紀錄。執行即時文字辨識即可產生紀錄。</string>
     <string name="settings_features_title">功能</string>
     <string name="settings_features_list">• 即時文字辨識\n• 多語言支援\n• 連續辨識模式</string>
     <string name="settings_match_sensitivity_title">匹配靈敏度</string>

@@ -141,9 +141,9 @@
 /* Settings - General */
 "settings.general" = "General";
 "settings.speech" = "Speech";
-"settings.ocrEngine" = "OCR Engine";
-"settings.ocrEngine.mlkit" = "Fast (ML Kit)";
-"settings.ocrEngine.paddle" = "Accurate (PaddleOCR)";
+"settings.ocrEngine" = "Text Recognition Engine";
+"settings.ocrEngine.mlkit" = "Fast";
+"settings.ocrEngine.paddle" = "Accurate";
 "settings.behavior" = "Behavior";
 "settings.translation" = "Translation";
 "settings.playback" = "Playback";

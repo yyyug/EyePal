@@ -495,10 +495,6 @@ private struct DetailsDescriptionSettingsView: View {
                         }
                     }
                 }
-
-                Text(NSLocalizedString("settings.detailsButtonsHelp", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             if openAIStore.isSignedIn {
@@ -943,12 +939,6 @@ private struct FaceRecognitionSettingsView: View {
                     }
                 }
             }
-
-            Section(NSLocalizedString("settings.trainingTips", comment: "")) {
-                Text(NSLocalizedString("settings.tip1", comment: ""))
-                Text(NSLocalizedString("settings.tip2", comment: ""))
-                Text(NSLocalizedString("settings.tip3", comment: ""))
-            }
         }
         .navigationTitle(NSLocalizedString("feature.faceRecognition", comment: ""))
     }
@@ -976,6 +966,28 @@ private struct ReadTextRecognitionSettingsView: View {
                     Text("\(settingsStore.readTextSpeechCooldown.formatted(.number.precision(.fractionLength(1)))) ") + Text(NSLocalizedString("settings.secondsUnit", comment: ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+            }
+            Section(NSLocalizedString("settings.recognitionLog", comment: "")) {
+                HStack {
+                    Button(NSLocalizedString("settings.copyAllLogs", comment: "")) {
+                        UIPasteboard.general.string = OcrEngineLogStore.shared.allLines.joined(separator: "\n")
+                    }
+                    .disabled(OcrEngineLogStore.shared.allLines.isEmpty)
+                    Spacer()
+                    Button(NSLocalizedString("settings.clearLog", comment: ""), role: .destructive) {
+                        OcrEngineLogStore.shared.clear()
+                    }
+                    .disabled(OcrEngineLogStore.shared.allLines.isEmpty)
+                }
+                if OcrEngineLogStore.shared.allLines.isEmpty {
+                    Text(NSLocalizedString("settings.noLogEntries", comment: ""))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(OcrEngineLogStore.shared.allLines.suffix(40).reversed(), id: \.self) { line in
+                        Text(line)
+                            .font(.footnote)
+                    }
                 }
             }
         }
@@ -1252,15 +1264,6 @@ private struct LyricPrompterSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
-
-            Section(NSLocalizedString("settings.about", comment: "")) {
-                Text(NSLocalizedString("settings.lyricAbout1", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text(NSLocalizedString("settings.lyricAbout2", comment: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         }
         .navigationTitle(NSLocalizedString("feature.lyricPrompter", comment: ""))
