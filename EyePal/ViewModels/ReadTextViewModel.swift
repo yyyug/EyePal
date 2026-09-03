@@ -35,6 +35,7 @@ final class ReadTextViewModel: ObservableObject {
     private var pendingAnnouncementCount = 0
     private var lastSpokenNormalizedText = ""
     private var isPresentingCapturedResult = false
+    private var isProcessingFrame = false
     private let documentQueue = DispatchQueue(label: "com.eyepals.readtext.document-detection")
     private var isProcessingDocumentFrame = false
     private var consecutiveRectangleDetections = 0
@@ -159,7 +160,11 @@ final class ReadTextViewModel: ObservableObject {
             processDocumentDetection(sampleBuffer: sampleBuffer)
         }
 
+        guard !isProcessingFrame else { return }
+        isProcessingFrame = true
+
         runLiveRecognition(sampleBuffer: sampleBuffer) { [weak self] observation in
+            self?.isProcessingFrame = false
             guard let self, let observation else { return }
 
             self.recognizedText = observation.text

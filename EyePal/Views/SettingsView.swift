@@ -1396,6 +1396,7 @@ private struct GemmaModelRow: View {
                 Image(systemName: "checkmark")
                     .foregroundStyle(.tint)
                     .fontWeight(.semibold)
+                    .accessibilityHidden(true)
             }
 
             Button {
