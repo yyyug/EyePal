@@ -31,7 +31,10 @@ final class PaddleTextRecognitionService {
                 Task { @MainActor in completion(nil) }
                 return
             }
-            guard let cgImage = image.cgImage else {
+            // `image.cgImage` ignores the UIImage's orientation (camera frames are often rotated),
+            // so bake the orientation in to get an upright image. Otherwise PaddleOCR det can't
+            // find upright text (unlike ML Kit, which reads orientation from the sample buffer).
+            guard let cgImage = Self.uprightCGImage(from: image) else {
                 Task { @MainActor in completion(nil) }
                 return
             }
@@ -53,6 +56,24 @@ final class PaddleTextRecognitionService {
                 }
             }
         }
+    }
+
+    /// Produces an upright `CGImage` from a `UIImage`, honoring its `imageOrientation`.
+    private static func uprightCGImage(from image: UIImage) -> CGImage? {
+        guard image.imageOrientation == .up, let cg = image.cgImage else {
+            // Fall back to rendering (and flipping Y if needed) when not already upright.
+            let size = image.size
+            guard size.width > 0, size.height > 0 else { return nil }
+            let format = UIGraphicsImageRendererFormat.default()
+            format.scale = 1
+            format.opaque = true
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            let rendered = renderer.image { _ in
+                image.draw(in: CGRect(origin: .zero, size: size))
+            }
+            return rendered.cgImage
+        }
+        return cg
     }
 
     private func readyEngine() async -> OCREngine? {

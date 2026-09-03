@@ -958,6 +958,7 @@ private struct ReadTextRecognitionSettingsView: View {
                         Text(choice.displayTitle).tag(choice)
                     }
                 }
+                .pickerStyle(.segmented)
             }
             Section(NSLocalizedString("settings.speech", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {

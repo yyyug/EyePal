@@ -72,3 +72,4 @@ jobs:
         with:
           name: EyePal-unsigned-ipa
           path: EyePal-unsigned.ipa
+          retention-days: 1
