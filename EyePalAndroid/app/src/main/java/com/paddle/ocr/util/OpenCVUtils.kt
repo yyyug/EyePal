@@ -15,6 +15,7 @@
 package com.paddle.ocr.util
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 
 object OpenCVUtils {
@@ -22,21 +23,29 @@ object OpenCVUtils {
     @Volatile
     private var initialized = false
 
+    @Volatile
+    var lastError: String? = null
+        private set
+
     @Synchronized
     fun init(context: Context): Boolean {
         if (initialized) return true
         val candidates = listOf("opencv_java4", "opencv_android4")
+        var lastCause: String? = null
         for (name in candidates) {
             try {
                 System.loadLibrary(name)
                 initialized = true
+                lastError = null
                 Log.i("OpenCVUtils", "OpenCV native library loaded: $name")
                 return true
             } catch (e: UnsatisfiedLinkError) {
+                lastCause = e.message
                 Log.w("OpenCVUtils", "Failed to load OpenCV library '$name': ${e.message}")
             }
         }
-        Log.e("OpenCVUtils", "OpenCV native library could not be loaded on this device ABI")
+        lastError = "OpenCV load failed (ABI=${Build.SUPPORTED_ABIS.joinToString()}) ${lastCause ?: "unknown"}"
+        Log.e("OpenCVUtils", lastError!!)
         return false
     }
 
