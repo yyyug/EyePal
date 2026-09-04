@@ -16,6 +16,8 @@ package com.paddle.ocr.util
 
 import android.content.Context
 import android.os.Build
+import android.system.Os
+import android.system.OsConstants
 import android.util.Log
 
 object OpenCVUtils {
@@ -26,6 +28,10 @@ object OpenCVUtils {
     @Volatile
     var lastError: String? = null
         private set
+
+    private fun pageSize(): Long {
+        return try { Os.sysconf(OsConstants._SC_PAGESIZE) } catch (_: Throwable) { 0L }
+    }
 
     @Synchronized
     fun init(context: Context): Boolean {
@@ -44,7 +50,7 @@ object OpenCVUtils {
                 Log.w("OpenCVUtils", "Failed to load OpenCV library '$name': ${e.message}")
             }
         }
-        lastError = "OpenCV load failed (ABI=${Build.SUPPORTED_ABIS.joinToString()}) ${lastCause ?: "unknown"}"
+        lastError = "OpenCV load failed (ABI=${Build.SUPPORTED_ABIS.joinToString()}, API=${Build.VERSION.SDK_INT}, page=${pageSize()}) ${lastCause ?: "unknown"}"
         Log.e("OpenCVUtils", lastError!!)
         return false
     }
