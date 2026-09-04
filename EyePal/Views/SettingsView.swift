@@ -1416,7 +1416,8 @@ private struct GemmaModelRow: View {
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : [.isButton])
     }
 
     private func title(for state: GemmaModelManager.DownloadState) -> String {

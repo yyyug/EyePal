@@ -221,7 +221,17 @@ extension GemmaModelManager: URLSessionDownloadDelegate {
                 if FileManager.default.fileExists(atPath: destination.path) {
                     try FileManager.default.removeItem(at: destination)
                 }
-                try FileManager.default.moveItem(at: location, to: destination)
+                guard FileManager.default.fileExists(atPath: location.path) else {
+                    throw NSError(
+                        domain: "GemmaModelManager",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "The downloaded temporary file is no longer available."]
+                    )
+                }
+                // Copy then delete: the session's temporary file may be transient, and a plain
+                // moveItem can fail if it outlives its temp-file life.
+                try FileManager.default.copyItem(at: location, to: destination)
+                try? FileManager.default.removeItem(at: location)
                 self.registerFinish(kind: kind, task: downloadTask)
                 self.states[kind] = .downloaded
             } catch {
