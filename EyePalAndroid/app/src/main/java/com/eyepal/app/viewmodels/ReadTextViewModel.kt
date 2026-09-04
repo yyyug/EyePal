@@ -44,6 +44,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
     private var cameraStarted = false
 
     companion object {
+        private const val TAG = "ReadTextVM"
         private const val STABILITY_THRESHOLD = 0.8f
         private const val STABLE_ANNOUNCE_COUNT = 2
         private const val DOCUMENT_FRAME_WIDTH = 1080
@@ -77,26 +78,39 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
     fun stopCamera() { cameraStarted = false; camera.stopCamera() }
 
     fun captureAndRecognize() {
-        if (!processingLock.compareAndSet(false, true)) return
+        if (!processingLock.compareAndSet(false, true)) {
+            android.util.Log.w(TAG, "captureAndRecognize skipped: already processing")
+            return
+        }
         isProcessing.value = true
         statusText.value = str(R.string.status_capturing_text)
+        android.util.Log.i(TAG, "captureAndRecognize: start")
         viewModelScope.launch {
             try {
                 var bitmap: Bitmap? = null
                 for (attempt in 1..3) {
                     bitmap = if (GoogleGlassState.useGlassCamera.value) glassService.capturePhotoFromGlasses() else camera.capturePhoto()
+                    android.util.Log.i(TAG, "captureAndRecognize: attempt=$attempt got bitmap=${bitmap != null}")
                     if (bitmap != null) break
                     kotlinx.coroutines.delay(500)
                 }
-                if (bitmap == null) throw Exception(str(R.string.error_camera_not_ready))
+                if (bitmap == null) {
+                    android.util.Log.w(TAG, "captureAndRecognize: camera not ready after 3 attempts")
+                    throw Exception(str(R.string.error_camera_not_ready))
+                }
+                val startMs = System.currentTimeMillis()
                 val result = ocr.recognizeText(bitmap)
+                android.util.Log.i(TAG, "captureAndRecognize: ocr done in ${System.currentTimeMillis() - startMs}ms engine=${ocr.currentEngine} text=${result.text.take(120)}")
                 recognizedText.value = result.text
                 detectedLanguage.value = result.detectedLanguage
                 statusText.value = str(R.string.status_text_recognized)
                 capturedTextForDisplay.value = result.text
                 showCaptureDialog.value = true
                 announcer.announce(result.text)
-            } catch (e: Exception) { errorMessage.value = e.message; statusText.value = str(R.string.status_failed, e.message) }
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "captureAndRecognize error: ${e.message}")
+                errorMessage.value = e.message; statusText.value = str(R.string.status_failed, e.message)
+            }
             isProcessing.value = false
             processingLock.set(false)
         }
@@ -107,9 +121,12 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
         isProcessing.value = true
         viewModelScope.launch {
             try {
+                val startMs = System.currentTimeMillis()
                 val result = ocr.recognizeText(bitmap)
+                val elapsed = System.currentTimeMillis() - startMs
                 errorMessage.value = null
                 val text = result.text
+                android.util.Log.i(TAG, "frame: engine=${ocr.currentEngine} ${elapsed}ms text='${text.take(80)}' stable=$stableCount lastAnnounced='${lastAnnouncedText.take(40)}'")
                 if (text.isNotBlank() && text != lastAnnouncedText) {
                     detectedLanguage.value = result.detectedLanguage
 
@@ -127,6 +144,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
                         lastAnnouncedText = text
                         stableCount = 0
                         val textCooldownMs = (settings.readTextSpeechCooldown.first() * 1000).toLong()
+                        android.util.Log.i(TAG, "ANNOUNCING: '${text.take(80)}'")
                         announcer.announce(text, minimumInterval = textCooldownMs)
                     }
 
@@ -138,6 +156,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
                                 documentStableCount = 0
                                 capturedTextForDisplay.value = text
                                 showCaptureDialog.value = true
+                                android.util.Log.i(TAG, "DOCUMENT auto-capture: '${text.take(80)}'")
                             }
                         } else {
                             documentStableCount = 0
@@ -147,8 +166,12 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
                     lastAnnouncedText = ""
                     lastFrameText = ""
                     stableCount = 0
+                } else {
+                    // text is not blank but equals lastAnnouncedText -> intentional anti-repeat
+                    android.util.Log.i(TAG, "anti-repeat: text == lastAnnouncedText (not re-announcing)")
                 }
             } catch (e: Exception) {
+                android.util.Log.i(TAG, "recognizeFrame error: ${e.message}")
                 if (errorMessage.value != e.message) {
                     errorMessage.value = e.message
                     statusText.value = str(R.string.status_recognition_error, e.message)

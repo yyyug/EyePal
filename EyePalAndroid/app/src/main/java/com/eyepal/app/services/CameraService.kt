@@ -132,7 +132,11 @@ class CameraService(private val context: Context) {
         while (imageCapture == null && SystemClock.elapsedRealtime() < deadline) {
             delay(50)
         }
-        val capture = imageCapture ?: return null
+        val capture = imageCapture
+        if (capture == null) {
+            android.util.Log.w("CameraService", "capturePhoto: imageCapture not ready after 1500ms (preview=${preview != null}, boundOwner=${boundOwner != null})")
+            return null
+        }
         return try {
             withContext(Dispatchers.IO) {
                 suspendCancellableCoroutine { cont ->
@@ -143,20 +147,26 @@ class CameraService(private val context: Context) {
                                 try {
                                     val bitmap = imageProxyToBitmap(image)
                                     image.close()
+                                    android.util.Log.i("CameraService", "capturePhoto success ${bitmap?.width}x${bitmap?.height}")
                                     if (cont.isActive) cont.resume(bitmap) {}
                                 } catch (e: Exception) {
                                     image.close()
+                                    android.util.Log.w("CameraService", "capturePhoto decode failed: ${e.message}")
                                     if (cont.isActive) cont.resume(null) {}
                                 }
                             }
                             override fun onError(exception: ImageCaptureException) {
+                                android.util.Log.w("CameraService", "capturePhoto onError: ${exception.message}")
                                 if (cont.isActive) cont.resume(null) {}
                             }
                         }
                     )
                 }
             }
-        } catch (_: Exception) { null }
+        } catch (e: Exception) {
+            android.util.Log.w("CameraService", "capturePhoto exception: ${e.message}")
+            null
+        }
     }
 
     private fun resolveActivity(view: android.view.View?): LifecycleOwner? {

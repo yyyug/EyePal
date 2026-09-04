@@ -64,10 +64,14 @@ class OCRService(
     }
 
     suspend fun recognizeText(bitmap: Bitmap): OCRResult {
-        if (currentEngine == OcrEngine.PADDLE) {
-            return paddleEngine.recognizeText(bitmap)
+        val startMs = System.currentTimeMillis()
+        val result = if (currentEngine == OcrEngine.PADDLE) {
+            paddleEngine.recognizeText(bitmap)
+        } else {
+            recognizeMlKit(bitmap)
         }
-        return recognizeMlKit(bitmap)
+        android.util.Log.i("OCRService", "recognizeText engine=${currentEngine} ${System.currentTimeMillis() - startMs}ms → '${result.text.take(80)}'")
+        return result
     }
 
     private suspend fun recognizeMlKit(bitmap: Bitmap): OCRResult = suspendCancellableCoroutine { cont ->

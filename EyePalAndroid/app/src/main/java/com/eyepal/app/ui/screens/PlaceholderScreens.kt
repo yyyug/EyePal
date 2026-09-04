@@ -104,7 +104,7 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
 
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { viewModel.captureAndRecognize() }, modifier = Modifier.weight(1f), enabled = !isProcessing) { Text(stringResource(R.string.btn_take_photo)) }
+                    Button(onClick = { viewModel.captureAndRecognize() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.btn_take_photo)) }
                 }
             }
         }
