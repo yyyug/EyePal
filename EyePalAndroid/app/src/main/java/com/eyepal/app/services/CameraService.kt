@@ -97,7 +97,6 @@ class CameraService(private val context: Context) {
             }
 
         preview = p
-        imageCapture = ic
         boundOwner = owner
 
         try {
@@ -109,7 +108,10 @@ class CameraService(private val context: Context) {
                 ic,
                 analysis
             )
-        } catch (_: Exception) {}
+            imageCapture = ic
+        } catch (e: Exception) {
+            android.util.Log.e("CameraService", "bindToLifecycle failed", e)
+        }
     }
 
     fun stopCamera() {

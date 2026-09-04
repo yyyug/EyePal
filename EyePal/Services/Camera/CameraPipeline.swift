@@ -62,7 +62,17 @@ final class CameraPipeline: NSObject, ObservableObject {
             return nil
         }
 
-        return UIImage(cgImage: cgImage)
+        let connection = videoOutput.connection(with: .video)
+        let orientation = connection?.videoOrientation ?? .portrait
+        let uiOrientation: UIImage.Orientation
+        switch orientation {
+        case .portrait: uiOrientation = .up
+        case .portraitUpsideDown: uiOrientation = .down
+        case .landscapeRight: uiOrientation = .left
+        case .landscapeLeft: uiOrientation = .right
+        @unknown default: uiOrientation = .right
+        }
+        return UIImage(cgImage: cgImage, scale: 1, orientation: uiOrientation)
     }
 
     private func configureIfNeeded() {

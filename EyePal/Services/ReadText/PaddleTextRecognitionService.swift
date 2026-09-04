@@ -52,6 +52,8 @@ final class PaddleTextRecognitionService {
                         : TextRecognitionObservation(text: text, languageCode: nil)
                     Task { @MainActor in completion(observation) }
                 } catch {
+                    NSLog("PaddleOCR engine.run error: \(error.localizedDescription)")
+                    OcrEngineLogStore.shared.add("PaddleOCR error: \(error.localizedDescription)")
                     Task { @MainActor in completion(nil) }
                 }
             }

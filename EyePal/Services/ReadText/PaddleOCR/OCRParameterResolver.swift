@@ -145,8 +145,8 @@ enum OCRParameterResolver {
     // MARK: App tier
 
     // Detection — preprocess
-    static let textDetLimitSideLenAppDefault: Int = 64
-    static let textDetLimitTypeAppDefault: String = "min"
+    static let textDetLimitSideLenAppDefault: Int = 960
+    static let textDetLimitTypeAppDefault: String = "max"
     static let textDetMaxSideLimitAppDefault: Int = 4000
     // Detection — postprocess
     static let textDetThreshAppDefault: Float = 0.3

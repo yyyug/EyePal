@@ -50,6 +50,7 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
     val errorMessage by viewModel.errorMessage
 
     DisposableEffect(Unit) { onDispose { viewModel.stopCamera() } }
+    LaunchedEffect(Unit) { viewModel.startCamera() }
 
     Column(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
