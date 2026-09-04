@@ -1377,6 +1377,7 @@ private struct GemmaModelRow: View {
                 case .downloading(let fraction):
                     ProgressView(value: min(max(fraction, 0), 1))
                         .progressViewStyle(.linear)
+                        .accessibilityHidden(true)
                     Text(String(format: NSLocalizedString("gemma.status.downloading", comment: ""), Int((fraction * 100).rounded())))
                         .font(.caption)
                         .foregroundStyle(.secondary)
