@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreImage
 import Foundation
 import UIKit
 import Vision
@@ -79,9 +80,16 @@ final class ReadTextViewModel: ObservableObject {
 
     private func image(from sampleBuffer: CMSampleBuffer) -> UIImage? {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        guard let cgImage = CIContext().createCGImage(ciImage, from: ciImage.extent) else { return nil }
-        return UIImage(cgImage: cgImage, scale: 1, orientation: .right)
+        // Video data output delivers buffers in the sensor's native (landscape)
+        // orientation. Physically rotate to an upright portrait image (as face
+        // detection does) so OCR never depends on fragile orientation flags.
+        let pixelW = CVPixelBufferGetWidth(pixelBuffer)
+        let pixelH = CVPixelBufferGetHeight(pixelBuffer)
+        let isPortraitBuffer = pixelH > pixelW
+        let uprightCI = CIImage(cvPixelBuffer: pixelBuffer)
+            .oriented(isPortraitBuffer ? .up : .right)
+        guard let cgImage = CIContext().createCGImage(uprightCI, from: uprightCI.extent) else { return nil }
+        return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
     }
 
     func capturePhoto() {
@@ -132,14 +140,14 @@ final class ReadTextViewModel: ObservableObject {
         sampleBuffer: CMSampleBuffer,
         completion: @escaping @MainActor (TextRecognitionObservation?) -> Void
     ) {
+        guard let image = image(from: sampleBuffer) else {
+            Task { @MainActor in completion(nil) }
+            return
+        }
         if usePaddleOCR {
-            guard let image = image(from: sampleBuffer) else {
-                Task { @MainActor in completion(nil) }
-                return
-            }
             paddleTextRecognitionService.process(image: image, completion: completion)
         } else {
-            textRecognitionService.process(sampleBuffer: sampleBuffer, completion: completion)
+            textRecognitionService.process(image: image, completion: completion)
         }
     }
 
