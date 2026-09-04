@@ -2,6 +2,8 @@ package com.eyepal.app.services
 
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -21,6 +23,7 @@ class AccessibilityAnnouncer(private val context: Context) {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var pendingText: String? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     var onSpeechOutput: ((String) -> Unit)? = null
 
@@ -66,16 +69,32 @@ class AccessibilityAnnouncer(private val context: Context) {
         Log.i(TAG, "ANNOUNCE: $text")
         onSpeechOutput?.invoke(text)
 
-        if (hasSpokenAccessibilityService) {
-            val event = AccessibilityEvent.obtain().apply {
-                eventType = AccessibilityEvent.TYPE_ANNOUNCEMENT
-                this.text.add(text)
+        val post: () -> Unit = {
+            if (hasSpokenAccessibilityService) {
+                val event = AccessibilityEvent.obtain().apply {
+                    eventType = AccessibilityEvent.TYPE_ANNOUNCEMENT
+                    className = AccessibilityAnnouncer::class.java.name
+                    packageName = context.packageName
+                    this.text.add(text)
+                }
+                try {
+                    accessibilityManager?.sendAccessibilityEvent(event)
+                } finally {
+                    event.recycle()
+                }
+            } else if (ttsReady) {
+                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "eyepal_${System.currentTimeMillis()}")
+            } else {
+                pendingText = text
             }
-            accessibilityManager?.sendAccessibilityEvent(event)
-        } else if (ttsReady) {
-            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "eyepal_${System.currentTimeMillis()}")
+        }
+
+        // TYPE_ANNOUNCEMENT/TTS must be issued on the main thread for reliable delivery to
+        // TalkBack; if announce() is called from a background thread, hop to the main looper.
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            post()
         } else {
-            pendingText = text
+            mainHandler.post(post)
         }
     }
 

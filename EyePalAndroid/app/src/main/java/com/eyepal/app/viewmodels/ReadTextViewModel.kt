@@ -45,7 +45,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         private const val STABILITY_THRESHOLD = 0.8f
-        private const val STABLE_ANNOUNCE_COUNT = 3
+        private const val STABLE_ANNOUNCE_COUNT = 2
         private const val DOCUMENT_FRAME_WIDTH = 1080
         private const val DOCUMENT_FRAME_HEIGHT = 1920
         private const val DOCUMENT_TEXT_COVERAGE_THRESHOLD = 0.5f
@@ -121,13 +121,13 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
                         lastFrameText = text
                     }
 
-                    if (stableCount >= STABLE_ANNOUNCE_COUNT && text != lastAnnouncedText) {
-                        recognizedText.value = text
+                    recognizedText.value = text
+
+                    if (stableCount >= STABLE_ANNOUNCE_COUNT) {
                         lastAnnouncedText = text
+                        stableCount = 0
                         val textCooldownMs = (settings.readTextSpeechCooldown.first() * 1000).toLong()
                         announcer.announce(text, minimumInterval = textCooldownMs)
-                    } else {
-                        recognizedText.value = text
                     }
 
                     if (isDocumentMode.value) {
