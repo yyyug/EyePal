@@ -77,7 +77,9 @@ dependencies {
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.0")
 
     // OpenCV (PaddleOCR Lite post-processing)
-    implementation("com.quickbirdstudios:opencv:4.5.3")
+    // Swapped from com.quickbirdstudios:opencv:4.5.3 (broken: dlopen "cannot locate
+    // symbol __sfp_handle_exceptions" on modern Android/bionic) to the official AAR.
+    implementation("org.opencv:opencv:4.14.0")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.2.1")
