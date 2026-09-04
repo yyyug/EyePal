@@ -37,7 +37,7 @@ object OpenCVUtils {
     fun init(context: Context): Boolean {
         if (initialized) return true
         val candidates = listOf("opencv_java4", "opencv_android4")
-        var lastCause: String? = null
+        val causes = StringBuilder()
         for (name in candidates) {
             try {
                 System.loadLibrary(name)
@@ -46,11 +46,12 @@ object OpenCVUtils {
                 Log.i("OpenCVUtils", "OpenCV native library loaded: $name")
                 return true
             } catch (e: UnsatisfiedLinkError) {
-                lastCause = e.message
+                if (causes.isNotEmpty()) causes.append(" | ")
+                causes.append("$name: ${e.message}")
                 Log.w("OpenCVUtils", "Failed to load OpenCV library '$name': ${e.message}")
             }
         }
-        lastError = "OpenCV load failed (ABI=${Build.SUPPORTED_ABIS.joinToString()}, API=${Build.VERSION.SDK_INT}, page=${pageSize()}) ${lastCause ?: "unknown"}"
+        lastError = "OpenCV load failed (ABI=${Build.SUPPORTED_ABIS.joinToString()}, API=${Build.VERSION.SDK_INT}, page=${pageSize()}) $causes"
         Log.e("OpenCVUtils", lastError!!)
         return false
     }
