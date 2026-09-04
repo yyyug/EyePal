@@ -19,16 +19,26 @@ import android.util.Log
 
 object OpenCVUtils {
 
+    @Volatile
     private var initialized = false
 
+    @Synchronized
     fun init(context: Context): Boolean {
         if (initialized) return true
-        try {
-            System.loadLibrary("opencv_java4")
-            initialized = true
-        } catch (e: UnsatisfiedLinkError) {
-            Log.e("OpenCVUtils", "Failed to initialize OpenCV: ${e.message}")
+        val candidates = listOf("opencv_java4", "opencv_android4")
+        for (name in candidates) {
+            try {
+                System.loadLibrary(name)
+                initialized = true
+                Log.i("OpenCVUtils", "OpenCV native library loaded: $name")
+                return true
+            } catch (e: UnsatisfiedLinkError) {
+                Log.w("OpenCVUtils", "Failed to load OpenCV library '$name': ${e.message}")
+            }
         }
-        return initialized
+        Log.e("OpenCVUtils", "OpenCV native library could not be loaded on this device ABI")
+        return false
     }
+
+    fun isInitialized(): Boolean = initialized
 }

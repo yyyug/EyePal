@@ -296,3 +296,27 @@
 "settings.modelProvider.moondream" = "MoonDream（線上）";
 "settings.modelProvider.gemma" = "Gemma（裝置端）";
 "settings.sectionAPIKey" = "線上 API 金鑰";
+
+/* Quick Recognition - option labels */
+"quick.slot" = "按鈕 %d";
+"quick.caption.concise" = "簡潔";
+"quick.caption.standard" = "標準";
+"quick.caption.detailed" = "詳細";
+"quick.trigger.time" = "定時間隔";
+"quick.trigger.onTheMove" = "動作中";
+"quick.interval.second" = "1 秒";
+"quick.interval.seconds" = "%d 秒";
+"quick.interval.minute" = "1 分鐘";
+"quick.interval.minutes" = "%d 分鐘";
+"quick.controlStyle.buttons" = "螢幕按鈕佈局";
+"quick.controlStyle.single" = "單一控制（上下滑動選擇）";
+
+/* Read Text - view labels */
+"read.takePicture" = "拍照";
+"read.readingPhoto" = "讀取照片中…";
+"read.documentDetectionOn" = "文件偵測 [開]";
+"read.documentDetectionOff" = "文件偵測 [關]";
+"read.documentDetectionOnHint" = "開啟文件偵測，並在偵測到文件矩形時自動拍照。";
+"read.documentDetectionOffHint" = "關閉文件偵測。";
+"read.recognizedText" = "辨識文字";
+"read.language" = "語言：%@";

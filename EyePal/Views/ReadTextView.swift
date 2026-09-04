@@ -16,9 +16,9 @@ struct ReadTextView: View {
 
                     Text(viewModel.recognizedText)
                         .font(.title3.weight(.semibold))
-                        .accessibilityLabel("Recognized text")
+                        .accessibilityLabel(NSLocalizedString("read.recognizedText", comment: ""))
 
-                    Text("Language: \(viewModel.detectedLanguage)")
+                    Text(String(format: NSLocalizedString("read.language", comment: ""), viewModel.detectedLanguage))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
@@ -26,22 +26,20 @@ struct ReadTextView: View {
                         viewModel.toggleDocumentDetection()
                     } label: {
                         Label(
-                            viewModel.isDocumentDetectionEnabled ? "Document Detection [off]" : "Document Detection [on]",
+                            NSLocalizedString(viewModel.isDocumentDetectionEnabled ? "read.documentDetectionOff" : "read.documentDetectionOn", comment: ""),
                             systemImage: viewModel.isDocumentDetectionEnabled ? "doc.text.viewfinder" : "doc.viewfinder"
                         )
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .accessibilityHint(
-                        viewModel.isDocumentDetectionEnabled
-                            ? "Turns document detection off."
-                            : "Turns document detection on and enables automatic photo capture when a document rectangle is detected."
+                        NSLocalizedString(viewModel.isDocumentDetectionEnabled ? "read.documentDetectionOffHint" : "read.documentDetectionOnHint", comment: "")
                     )
 
                     Button {
                         viewModel.capturePhoto()
                     } label: {
-                        Label(viewModel.isCapturingPhoto ? "Reading Photo..." : "Take Picture", systemImage: "camera")
+                        Label(NSLocalizedString(viewModel.isCapturingPhoto ? "read.readingPhoto" : "read.takePicture", comment: ""), systemImage: "camera")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -86,7 +84,7 @@ private struct CapturedTextResultView: View {
                         .font(.title3)
                         .textSelection(.enabled)
 
-                    Text("Language: \(result.language)")
+                    Text(String(format: NSLocalizedString("read.language", comment: ""), result.language))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

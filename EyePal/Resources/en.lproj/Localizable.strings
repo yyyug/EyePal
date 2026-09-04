@@ -295,3 +295,27 @@
 "settings.modelProvider.moondream" = "MoonDream (Online)";
 "settings.modelProvider.gemma" = "Gemma (On-device)";
 "settings.sectionAPIKey" = "Online API Key";
+
+/* Quick Recognition - option labels */
+"quick.slot" = "Button %d";
+"quick.caption.concise" = "Concise";
+"quick.caption.standard" = "Standard";
+"quick.caption.detailed" = "Detailed";
+"quick.trigger.time" = "Time interval";
+"quick.trigger.onTheMove" = "On the move";
+"quick.interval.second" = "1 second";
+"quick.interval.seconds" = "%d seconds";
+"quick.interval.minute" = "1 minute";
+"quick.interval.minutes" = "%d minutes";
+"quick.controlStyle.buttons" = "On-screen button layout";
+"quick.controlStyle.single" = "Single control (swipe up/down to choose)";
+
+/* Read Text - view labels */
+"read.takePicture" = "Take Picture";
+"read.readingPhoto" = "Reading Photo...";
+"read.documentDetectionOn" = "Document Detection [on]";
+"read.documentDetectionOff" = "Document Detection [off]";
+"read.documentDetectionOnHint" = "Turns document detection on and enables automatic photo capture when a document rectangle is detected.";
+"read.documentDetectionOffHint" = "Turns document detection off.";
+"read.recognizedText" = "Recognized text";
+"read.language" = "Language: %@";

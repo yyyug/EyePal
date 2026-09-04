@@ -9,7 +9,7 @@ enum RecognitionButtonSlot: Int, CaseIterable, Identifiable {
     var id: Int { rawValue }
 
     var displayName: String {
-        "Button \(rawValue)"
+        String(format: NSLocalizedString("quick.slot", comment: ""), rawValue)
     }
 
     var defaultPresetKind: RecognitionPresetKind {
@@ -37,13 +37,13 @@ enum RecognitionPresetKind: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .product:
-            return "Product"
+            return NSLocalizedString("preset.product", comment: "")
         case .dish:
-            return "Dish"
+            return NSLocalizedString("preset.dish", comment: "")
         case .shortText:
-            return "Short Text"
+            return NSLocalizedString("preset.shortText", comment: "")
         case .custom:
-            return "Custom"
+            return NSLocalizedString("preset.custom", comment: "")
         }
     }
 }
@@ -58,11 +58,11 @@ enum QuickCaptionLength: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .short:
-            return "Concise"
+            return NSLocalizedString("quick.caption.concise", comment: "")
         case .normal:
-            return "Standard"
+            return NSLocalizedString("quick.caption.standard", comment: "")
         case .long:
-            return "Detailed"
+            return NSLocalizedString("quick.caption.detailed", comment: "")
         }
     }
 }
@@ -100,24 +100,35 @@ enum QuickContinuousCaptureInterval: Double, CaseIterable, Identifiable {
     var timeInterval: TimeInterval { rawValue }
 
     var displayName: String {
+        let formatKey: String
+        let value: Int
         switch self {
         case .oneSecond:
-            return "1 second"
+            formatKey = "quick.interval.second"
+            value = 1
         case .twoSeconds:
-            return "2 seconds"
+            formatKey = "quick.interval.seconds"
+            value = 2
         case .threeSeconds:
-            return "3 seconds"
+            formatKey = "quick.interval.seconds"
+            value = 3
         case .fiveSeconds:
-            return "5 seconds"
+            formatKey = "quick.interval.seconds"
+            value = 5
         case .tenSeconds:
-            return "10 seconds"
+            formatKey = "quick.interval.seconds"
+            value = 10
         case .thirtySeconds:
-            return "30 seconds"
+            formatKey = "quick.interval.seconds"
+            value = 30
         case .oneMinute:
-            return "1 minute"
+            formatKey = "quick.interval.minute"
+            value = 1
         case .twoMinutes:
-            return "2 minutes"
+            formatKey = "quick.interval.minutes"
+            value = 2
         }
+        return String(format: NSLocalizedString(formatKey, comment: ""), value)
     }
 }
 
@@ -132,9 +143,9 @@ enum QuickRecognitionTriggerMode: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .time:
-            return "Time interval"
+            return NSLocalizedString("quick.trigger.time", comment: "")
         case .onTheMove:
-            return "On the move"
+            return NSLocalizedString("quick.trigger.onTheMove", comment: "")
         }
     }
 }
@@ -148,9 +159,9 @@ enum RecognitionActionControlStyle: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .onScreenButtons:
-            return "On-screen button layout"
+            return NSLocalizedString("quick.controlStyle.buttons", comment: "")
         case .singleAdjustableControl:
-            return "Single control (swipe up/down to choose)"
+            return NSLocalizedString("quick.controlStyle.single", comment: "")
         }
     }
 }

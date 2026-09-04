@@ -20,7 +20,9 @@ class PaddleOCREngine(private val context: Context) {
 
     private suspend fun getOrCreate(): PaddleOCR = mutex.withLock {
         ocr ?: run {
-            OpenCVUtils.init(context)
+            if (!OpenCVUtils.init(context)) {
+                throw RuntimeException("OpenCV native library could not be loaded")
+            }
             val created = PaddleOCR.create(context, PaddleOCRConfig(), EngineConfig(numThreads = 4))
             ocr = created
             created

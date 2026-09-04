@@ -268,25 +268,10 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
 
             Text(stringResource(R.string.settings_model_provider), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
-            var expandedProvider by remember { mutableStateOf(false) }
             val providerOptions = listOf(Pair("gemma", R.string.settings_model_provider_gemma), Pair("moondream", R.string.settings_model_provider_moondream))
-            val currentProviderLabel = providerOptions.firstOrNull { it.first == quickModelProvider }?.second ?: R.string.settings_model_provider_gemma
-            ExposedDropdownMenuBox(expanded = expandedProvider, onExpandedChange = { expandedProvider = it }) {
-                OutlinedTextField(
-                    value = stringResource(currentProviderLabel),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.settings_model_provider)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedProvider) },
-                    modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-                )
-                ExposedDropdownMenu(expanded = expandedProvider, onDismissRequest = { expandedProvider = false }) {
-                    providerOptions.forEach { (value, labelRes) ->
-                        DropdownMenuItem(text = { Text(stringResource(labelRes)) }, onClick = {
-                            scope.launch { settings.setQuickModelProvider(value) }
-                            expandedProvider = false
-                        })
-                    }
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                providerOptions.forEachIndexed { index, (value, labelRes) ->
+                    SegmentedButton(selected = quickModelProvider == value, onClick = { scope.launch { settings.setQuickModelProvider(value) } }, shape = SegmentedButtonDefaults.itemShape(index, providerOptions.size)) { Text(stringResource(labelRes)) }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -522,24 +507,9 @@ fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(stringResource(R.string.settings_ocr_engine), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         Spacer(modifier = Modifier.height(8.dp))
-        val currentEngine = OcrEngine.fromValue(ocrEngine)
-        var expandedEngine by remember { mutableStateOf(false) }
-        ExposedDropdownMenuBox(expanded = expandedEngine, onExpandedChange = { expandedEngine = it }) {
-            OutlinedTextField(
-                value = stringResource(currentEngine.labelRes),
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(stringResource(R.string.settings_ocr_engine_label)) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedEngine) },
-                modifier = Modifier.menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-            )
-            ExposedDropdownMenu(expanded = expandedEngine, onDismissRequest = { expandedEngine = false }) {
-                OcrEngine.entries.forEach { entry ->
-                    DropdownMenuItem(text = { Text(stringResource(entry.labelRes)) }, onClick = {
-                        scope.launch { settings.setOcrEngine(entry.value) }
-                        expandedEngine = false
-                    })
-                }
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            OcrEngine.entries.forEachIndexed { index, entry ->
+                SegmentedButton(selected = ocrEngine == entry.value, onClick = { scope.launch { settings.setOcrEngine(entry.value) } }, shape = SegmentedButtonDefaults.itemShape(index, OcrEngine.entries.size)) { Text(stringResource(entry.labelRes)) }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
