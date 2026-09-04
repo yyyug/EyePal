@@ -35,7 +35,7 @@ fun MoreScreen(
                 HorizontalDivider()
             }
             item {
-                ListItem(headlineContent = { Text(stringResource(R.string.tab_settings)) }, supportingContent = { Text(stringResource(R.string.more_app_config)) },
+                ListItem(headlineContent = { Text(stringResource(R.string.tab_settings)) },
                     modifier = Modifier.clickable { onNavigateToSettings() })
                 HorizontalDivider()
             }
