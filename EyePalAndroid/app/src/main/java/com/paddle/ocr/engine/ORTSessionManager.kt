@@ -37,41 +37,51 @@ class ORTSessionManager(
     fun loadModels(detAssetPath: String, recAssetPath: String) {
         val loadStart = System.currentTimeMillis()
         env = OrtEnvironment.getEnvironment()
-        val opts = OrtSession.SessionOptions().apply {
-            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
-            setIntraOpNumThreads(config.numThreads)
-        }
-        try {
-            val ortEnv = env ?: throw OCRError.ModelLoadFailed("OCR", Exception("Environment not initialized"))
-            val detBytes = readModelAsset(detAssetPath)
-            val recBytes = readModelAsset(recAssetPath)
+        val ortEnv = env ?: throw OCRError.ModelLoadFailed("OCR", Exception("Environment not initialized"))
+        val detBytes = readModelAsset(detAssetPath)
+        val recBytes = readModelAsset(recAssetPath)
+
+        // Try loading with different configurations (ALL_OPT may fail on some models/devices)
+        val configs = listOf(
+            { opts: OrtSession.SessionOptions -> opts.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT) },
+            { _: OrtSession.SessionOptions -> /* no optimization */ }
+        )
+        var lastError: Throwable? = null
+        for ((index, cfg) in configs.withIndex()) {
+            val opts = OrtSession.SessionOptions().apply {
+                cfg(this)
+                setIntraOpNumThreads(config.numThreads)
+            }
             try {
                 detSession = ortEnv.createSession(detBytes, opts)
-            } catch (t: Throwable) {
-                throw OCRError.ModelLoadFailed("detection", t)
-            }
-            try {
                 recSession = ortEnv.createSession(recBytes, opts)
+                android.util.Log.i("ORTSessionManager", "Models loaded with config #$index")
+                loadInputNames()
+                coldLoadTimeMs = System.currentTimeMillis() - loadStart
+                return
             } catch (t: Throwable) {
+                lastError = t
+                android.util.Log.w("ORTSessionManager", "Failed with config #$index: ${t.message}")
                 detSession?.close()
                 detSession = null
-                throw OCRError.ModelLoadFailed("recognition", t)
+                recSession?.close()
+                recSession = null
             }
-
-            detInputName = try {
-                detSession!!.inputNames.iterator().next()
-            } catch (t: Throwable) {
-                throw OCRError.ModelLoadFailed("detection", t)
-            }
-            recInputName = try {
-                recSession!!.inputNames.iterator().next()
-            } catch (t: Throwable) {
-                throw OCRError.ModelLoadFailed("recognition", t)
-            }
-            coldLoadTimeMs = System.currentTimeMillis() - loadStart
-        } finally {
-            opts.close()
         }
+        throw OCRError.ModelLoadFailed("detection", lastError ?: Exception("Unknown error"))
+    }
+
+    private fun loadInputNames() {
+        val detErr = try {
+            detInputName = detSession!!.inputNames.iterator().next()
+            null
+        } catch (t: Throwable) { t }
+        val recErr = try {
+            recInputName = recSession!!.inputNames.iterator().next()
+            null
+        } catch (t: Throwable) { t }
+        if (detErr != null) throw OCRError.ModelLoadFailed("detection", detErr)
+        if (recErr != null) throw OCRError.ModelLoadFailed("recognition", recErr)
     }
 
     fun runDetection(input: FloatArray, shape: LongArray): Pair<FloatArray, LongArray> {

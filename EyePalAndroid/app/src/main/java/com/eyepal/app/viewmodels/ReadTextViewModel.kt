@@ -46,7 +46,9 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
     companion object {
         private const val TAG = "ReadTextVM"
         private const val STABILITY_THRESHOLD = 0.8f
+        private const val PADDLE_STABILITY_THRESHOLD = 0.5f  // PaddleOCR detection varies more between frames
         private const val STABLE_ANNOUNCE_COUNT = 2
+        private const val PADDLE_STABLE_ANNOUNCE_COUNT = 1  // Announce sooner for PaddleOCR
         private const val DOCUMENT_FRAME_WIDTH = 1080
         private const val DOCUMENT_FRAME_HEIGHT = 1920
         private const val DOCUMENT_TEXT_COVERAGE_THRESHOLD = 0.5f
@@ -130,8 +132,12 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
                 if (text.isNotBlank() && text != lastAnnouncedText) {
                     detectedLanguage.value = result.detectedLanguage
 
+                    val isPaddle = ocr.currentEngine == com.eyepal.app.services.OcrEngine.PADDLE
+                    val threshold = if (isPaddle) PADDLE_STABILITY_THRESHOLD else STABILITY_THRESHOLD
+                    val announceCount = if (isPaddle) PADDLE_STABLE_ANNOUNCE_COUNT else STABLE_ANNOUNCE_COUNT
+
                     val similarity = textSimilarity(text, lastFrameText)
-                    if (similarity >= STABILITY_THRESHOLD) {
+                    if (similarity >= threshold) {
                         stableCount++
                     } else {
                         stableCount = 1
@@ -140,7 +146,7 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
 
                     recognizedText.value = text
 
-                    if (stableCount >= STABLE_ANNOUNCE_COUNT) {
+                    if (stableCount >= announceCount) {
                         lastAnnouncedText = text
                         stableCount = 0
                         val textCooldownMs = (settings.readTextSpeechCooldown.first() * 1000).toLong()
@@ -167,8 +173,9 @@ class ReadTextViewModel(application: Application) : AndroidViewModel(application
                     lastFrameText = ""
                     stableCount = 0
                 } else {
-                    // text is not blank but equals lastAnnouncedText -> intentional anti-repeat
-                    android.util.Log.i(TAG, "anti-repeat: text == lastAnnouncedText (not re-announcing)")
+                    // text == lastAnnouncedText: still update UI, just skip re-announcing
+                    recognizedText.value = text
+                    detectedLanguage.value = result.detectedLanguage
                 }
             } catch (e: Exception) {
                 android.util.Log.i(TAG, "recognizeFrame error: ${e.message}")

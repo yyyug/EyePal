@@ -37,6 +37,8 @@ class CameraService(private val context: Context) {
     private var boundOwner: LifecycleOwner? = null
     private var analyzerCallback: ((Bitmap) -> Unit)? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
+    private var pendingRebind: LifecycleOwner? = null
+    private var pendingPreviewView: PreviewView? = null
 
     fun startCamera(
         owner: LifecycleOwner,
@@ -44,6 +46,8 @@ class CameraService(private val context: Context) {
         onFrameAvailable: ((Bitmap) -> Unit)? = null
     ) {
         analyzerCallback = onFrameAvailable
+        pendingRebind = owner
+        pendingPreviewView = previewView
         val activityOwner: LifecycleOwner = resolveActivity(previewView) ?: owner
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -98,6 +102,8 @@ class CameraService(private val context: Context) {
 
         preview = p
         boundOwner = owner
+        pendingRebind = null
+        pendingPreviewView = null
 
         try {
             provider.unbindAll()
@@ -123,14 +129,45 @@ class CameraService(private val context: Context) {
     }
 
     /**
+     * Ensures the camera is bound and ready. If [imageCapture] is null but we have stored
+     * owner/preview from a previous [startCamera] call, triggers a rebind and waits for it.
+     */
+    suspend fun ensureCameraReady(): Boolean {
+        if (imageCapture != null) return true
+        val owner = pendingRebind ?: boundOwner ?: return false
+        val pv = pendingPreviewView ?: return false
+
+        return withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { cont ->
+                try {
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                    cameraProviderFuture.addListener({
+                        val provider = try {
+                            cameraProviderFuture.get()
+                        } catch (_: Exception) {
+                            if (cont.isActive) cont.resume(false) {}
+                            return@addListener
+                        }
+                        cameraProvider = provider
+                        bindTo(provider, owner, pv, analyzerCallback)
+                        if (cont.isActive) cont.resume(imageCapture != null) {}
+                    }, ContextCompat.getMainExecutor(context))
+                } catch (e: Exception) {
+                    android.util.Log.e("CameraService", "ensureCameraReady failed", e)
+                    if (cont.isActive) cont.resume(false) {}
+                }
+            }
+        }
+    }
+
+    /**
      * Captures a photo, waiting briefly for the camera to be bound before giving up. On a tab
      * switch the rebind can still be in flight, so rather than returning null immediately (which
      * the callers interpret as "camera fail"), we wait up to ~1.5s for a ready [imageCapture].
      */
     suspend fun capturePhoto(): Bitmap? {
-        val deadline = SystemClock.elapsedRealtime() + 1500L
-        while (imageCapture == null && SystemClock.elapsedRealtime() < deadline) {
-            delay(50)
+        if (imageCapture == null) {
+            ensureCameraReady()
         }
         val capture = imageCapture
         if (capture == null) {

@@ -502,6 +502,8 @@ fun TextRecognitionSettingsScreen(onBack: () -> Unit) {
     val ocrEngine by settings.ocrEngine.collectAsState(initial = Defaults.OCR_ENGINE)
     var ocrLogEntries by remember { mutableStateOf(OcrEngineLog.snapshot()) }
 
+    LaunchedEffect(Unit) { ocrLogEntries = OcrEngineLog.snapshot() }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
         TopAppBar(title = { Text(stringResource(R.string.settings_text_recognition)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
         Spacer(modifier = Modifier.height(16.dp))

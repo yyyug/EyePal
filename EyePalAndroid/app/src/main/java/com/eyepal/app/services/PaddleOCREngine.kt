@@ -23,9 +23,16 @@ class PaddleOCREngine(private val context: Context) {
             if (!OpenCVUtils.init(context)) {
                 throw RuntimeException("OpenCV native library could not be loaded: ${OpenCVUtils.lastError}")
             }
-            val created = PaddleOCR.create(context, PaddleOCRConfig(), EngineConfig(numThreads = 4))
-            ocr = created
-            created
+            try {
+                val created = PaddleOCR.create(context, PaddleOCRConfig(), EngineConfig(numThreads = 4))
+                ocr = created
+                created
+            } catch (t: Throwable) {
+                val detail = t.message ?: t.javaClass.simpleName
+                val cause = t.cause?.message?.let { " (cause: $it)" } ?: ""
+                OcrEngineLog.add("PaddleOCR load failed: $detail$cause")
+                throw t
+            }
         }
     }
 

@@ -76,9 +76,11 @@ class OCRService(
 
     private suspend fun recognizeMlKit(bitmap: Bitmap): OCRResult = suspendCancellableCoroutine { cont ->
         val image = InputImage.fromBitmap(bitmap, 0)
+        OcrEngineLog.add("ML Kit: start recognition")
 
         fun tryRecognizer(index: Int) {
             if (index >= recognizers.size) {
+                OcrEngineLog.add("ML Kit: no text detected")
                 cont.resume(OCRResult("No text detected", "Unknown", emptyList()))
                 return
             }
@@ -92,12 +94,16 @@ class OCRService(
                         val blocks = result.textBlocks.map { block ->
                             TextBlockInfo(block.text, block.boundingBox ?: Rect())
                         }
+                        OcrEngineLog.add("ML Kit: recognized (${recognizerLanguages[index]}) '${text.take(60)}'")
                         cont.resume(OCRResult(text, recognizerLanguages[index], blocks))
                     } else {
                         tryRecognizer(index + 1)
                     }
                 }
-                .addOnFailureListener { tryRecognizer(index + 1) }
+                .addOnFailureListener { e ->
+                    OcrEngineLog.add("ML Kit: ${recognizerLanguages[index]} failed: ${e.message}")
+                    tryRecognizer(index + 1)
+                }
         }
 
         if (lastSuccessfulRecognizer != null) {
@@ -107,12 +113,16 @@ class OCRService(
                         val blocks = result.textBlocks.map { block ->
                             TextBlockInfo(block.text, block.boundingBox ?: Rect())
                         }
+                        OcrEngineLog.add("ML Kit: recognized (${recognizerLanguages[lastRecognizerIndex]}) '${result.text.take(60)}'")
                         cont.resume(OCRResult(result.text, recognizerLanguages[lastRecognizerIndex], blocks))
                     } else {
                         tryRecognizer(0)
                     }
                 }
-                .addOnFailureListener { tryRecognizer(0) }
+                .addOnFailureListener { e ->
+                    OcrEngineLog.add("ML Kit: last recognizer failed: ${e.message}")
+                    tryRecognizer(0)
+                }
         } else {
             tryRecognizer(0)
         }
