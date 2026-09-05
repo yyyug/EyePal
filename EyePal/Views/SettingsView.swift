@@ -946,6 +946,7 @@ private struct FaceRecognitionSettingsView: View {
 
 private struct ReadTextRecognitionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
+    @ObservedObject private var logStore = OcrEngineLogStore.shared
 
     var body: some View {
         Form {
@@ -972,20 +973,20 @@ private struct ReadTextRecognitionSettingsView: View {
             Section(NSLocalizedString("settings.recognitionLog", comment: "")) {
                 HStack {
                     Button(NSLocalizedString("settings.copyAllLogs", comment: "")) {
-                        UIPasteboard.general.string = OcrEngineLogStore.shared.allLines.joined(separator: "\n")
+                        UIPasteboard.general.string = logStore.lines.joined(separator: "\n")
                     }
-                    .disabled(OcrEngineLogStore.shared.allLines.isEmpty)
+                    .disabled(logStore.lines.isEmpty)
                     Spacer()
                     Button(NSLocalizedString("settings.clearLog", comment: ""), role: .destructive) {
-                        OcrEngineLogStore.shared.clear()
+                        logStore.clear()
                     }
-                    .disabled(OcrEngineLogStore.shared.allLines.isEmpty)
+                    .disabled(logStore.lines.isEmpty)
                 }
-                if OcrEngineLogStore.shared.allLines.isEmpty {
+                if logStore.lines.isEmpty {
                     Text(NSLocalizedString("settings.noLogEntries", comment: ""))
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(OcrEngineLogStore.shared.allLines.suffix(40).reversed(), id: \.self) { line in
+                    ForEach(logStore.lines.suffix(40).reversed(), id: \.self) { line in
                         Text(line)
                             .font(.footnote)
                     }

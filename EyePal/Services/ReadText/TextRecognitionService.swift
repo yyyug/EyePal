@@ -89,9 +89,12 @@ final class TextRecognitionService {
         completion: @escaping (TextRecognitionObservation?) -> Void
     ) {
         guard let script = scripts.first else {
+            OcrEngineLogStore.shared.add("ML Kit: no text detected")
             completion(nil)
             return
         }
+
+        OcrEngineLogStore.shared.add("ML Kit: start recognition (\(script))")
 
         script.recognizer.process(image) { [weak self] result, error in
             guard let self else {
@@ -99,7 +102,8 @@ final class TextRecognitionService {
                 return
             }
 
-            if error != nil {
+            if let error {
+                OcrEngineLogStore.shared.add("ML Kit: \(script) failed: \(error.localizedDescription)")
                 self.processScripts(Array(scripts.dropFirst()), image: image, completion: completion)
                 return
             }
@@ -112,6 +116,7 @@ final class TextRecognitionService {
 
             self.lastSuccessfulScript = script
             self.languageIdentifier.identifyLanguage(for: text) { code, _ in
+                OcrEngineLogStore.shared.add("ML Kit: recognized (\(script)) '\(text.prefix(60))'")
                 completion(TextRecognitionObservation(text: text, languageCode: code))
             }
         }

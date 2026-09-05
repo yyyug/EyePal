@@ -1,10 +1,11 @@
 import Foundation
+import Combine
 
 /// Lightweight in-memory ring buffer of OCR engine log lines, surfaced on the Text
 /// Recognition settings screen so OCR failures can be diagnosed on-device.
-class OcrEngineLogStore {
+final class OcrEngineLogStore: ObservableObject {
     static let shared = OcrEngineLogStore()
-    private var lines: [String] = []
+    @Published private(set) var lines: [String] = []
     private let lock = NSLock()
     private let maxLines = 200
 
