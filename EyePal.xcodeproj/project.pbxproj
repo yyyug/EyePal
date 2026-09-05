@@ -533,7 +533,7 @@
                     "@executable_path/Frameworks",
                 );
                 MARKETING_VERSION = 1.0;
-                PRODUCT_BUNDLE_IDENTIFIER = com.eyepals.app;
+                PRODUCT_BUNDLE_IDENTIFIER = com.eyepal.app;
                 PRODUCT_NAME = "$(TARGET_NAME)";
                 SDKROOT = iphoneos;
                 SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -563,7 +563,7 @@
                     "@executable_path/Frameworks",
                 );
                 MARKETING_VERSION = 1.0;
-                PRODUCT_BUNDLE_IDENTIFIER = com.eyepals.app;
+                PRODUCT_BUNDLE_IDENTIFIER = com.eyepal.app;
                 PRODUCT_NAME = "$(TARGET_NAME)";
                 SDKROOT = iphoneos;
                 SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
