@@ -138,20 +138,38 @@ actor ORTSessionManager {
         let detConfig = try ModelConfig.detection()
         let recConfig = try ModelConfig.recognition()
 
-        let options = try makeSessionOptions(executionProvider: executionProvider, tuning: tuning)
-        detSession = try ORTSession(env: env, modelPath: detConfig.modelPath, sessionOptions: options)
-        recSession = try ORTSession(env: env, modelPath: recConfig.modelPath, sessionOptions: options)
-        if let detSession {
-            detIO = try makeSessionIONames(session: detSession, modelName: "det")
+        // Try different optimization levels (.all may fail on some models/devices)
+        let optLevels: [ORTGraphOptimizationLevel] = [.all, .basic, .disableAll]
+        var lastError: Error?
+        for optLevel in optLevels {
+            do {
+                let options = try makeSessionOptions(executionProvider: executionProvider, tuning: tuning, optLevel: optLevel)
+                detSession = try ORTSession(env: env, modelPath: detConfig.modelPath, sessionOptions: options)
+                recSession = try ORTSession(env: env, modelPath: recConfig.modelPath, sessionOptions: options)
+                if let detSession {
+                    detIO = try makeSessionIONames(session: detSession, modelName: "det")
+                }
+                if let recSession {
+                    recIO = try makeSessionIONames(session: recSession, modelName: "rec")
+                }
+                NSLog("ORTSessionManager: Models loaded with optimization level \(optLevel)")
+                return
+            } catch {
+                lastError = error
+                NSLog("ORTSessionManager: Failed with opt level \(optLevel): \(error.localizedDescription)")
+                OcrEngineLogStore.shared.add("PaddleOCR load failed (opt \(optLevel)): \(error.localizedDescription)")
+                detSession = nil
+                recSession = nil
+                detIO = nil
+                recIO = nil
+            }
         }
-        if let recSession {
-            recIO = try makeSessionIONames(session: recSession, modelName: "rec")
-        }
+        throw lastError ?? ORTSessionManagerError.sessionCreationFailed("Unknown error")
     }
 
-    private func makeSessionOptions(executionProvider: ORTPrimaryExecutionProvider, tuning: ORTSessionTuningOptions) throws -> ORTSessionOptions {
+    private func makeSessionOptions(executionProvider: ORTPrimaryExecutionProvider, tuning: ORTSessionTuningOptions, optLevel: ORTGraphOptimizationLevel = .all) throws -> ORTSessionOptions {
         let options = try ORTSessionOptions()
-        try options.setGraphOptimizationLevel(.all)
+        try options.setGraphOptimizationLevel(optLevel)
         if tuning.intraOpThreads > 0 {
             try options.setIntraOpNumThreads(Int32(tuning.intraOpThreads))
         }

@@ -173,12 +173,16 @@ final class ReadTextViewModel: ObservableObject {
 
         runLiveRecognition(sampleBuffer: sampleBuffer) { [weak self] observation in
             self?.isProcessingFrame = false
-            guard let self, let observation else { return }
+            guard let self else { return }
 
-            self.recognizedText = observation.text
-            self.detectedLanguage = observation.languageCode ?? "Unknown"
-            self.cameraStateDescription = "Reading live text."
-            self.handleLiveObservation(observation)
+            if let observation {
+                self.recognizedText = observation.text
+                self.detectedLanguage = observation.languageCode ?? "Unknown"
+                self.cameraStateDescription = "Reading live text."
+                self.handleLiveObservation(observation)
+            } else if self.usePaddleOCR {
+                self.cameraStateDescription = "PaddleOCR failed to load. Check Settings > Text Recognition log."
+            }
         }
     }
 
