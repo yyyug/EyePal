@@ -139,7 +139,7 @@ actor ORTSessionManager {
         let recConfig = try ModelConfig.recognition()
 
         // Try different optimization levels (.all may fail on some models/devices)
-        let optLevels: [ORTGraphOptimizationLevel] = [.all, .basic, .disableAll]
+        let optLevels: [ORTGraphOptimizationLevel] = [.all, .basic, .none]
         var lastError: Error?
         for optLevel in optLevels {
             do {
