@@ -279,13 +279,17 @@ final class FaceRecognitionService {
         }
 
         let outputSize = 112
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
+            onLog?("[Face] Failed to create sRGB color space")
+            throw FaceEmbeddingError.preprocessingFailed
+        }
         guard let outputContext = CGContext(
             data: nil,
             width: outputSize,
             height: outputSize,
             bitsPerComponent: 8,
             bytesPerRow: outputSize * 4,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
             onLog?("[Face] Output CGContext creation failed")
@@ -396,8 +400,8 @@ final class FaceRecognitionService {
                 let validEmbeddings = profile.sampleEmbeddings.filter { !$0.isEmpty }
                 guard !validEmbeddings.isEmpty else { return nil }
 
-                let scores = validEmbeddings.map { cosineSimilarity(embedding, $0) }
-                let confidence = scores.reduce(0, +) / Float(scores.count)
+                let mean = meanEmbedding(validEmbeddings)
+                let confidence = cosineSimilarity(embedding, mean)
 
                 return CandidateMatch(profile: profile, confidence: confidence)
             }

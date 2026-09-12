@@ -31,15 +31,12 @@ import com.eyepal.app.services.GlassTouchpadHandler
 class GlassesProjectedActivity : ComponentActivity() {
     companion object {
         private const val TAG = "GlassesProjected"
-        var projectedContext: Context? = null
-            private set
     }
 
     private lateinit var glassIO: GlassInputOutputHandler
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        projectedContext = baseContext
         Log.i(TAG, "Projected activity created")
 
         glassIO = GlassInputOutputHandler(applicationContext)
@@ -54,7 +51,6 @@ class GlassesProjectedActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        projectedContext = baseContext
         Log.i(TAG, "Projected activity resumed")
     }
 
@@ -65,7 +61,6 @@ class GlassesProjectedActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        projectedContext = null
         glassIO.shutdown()
         Log.i(TAG, "Projected activity destroyed")
     }

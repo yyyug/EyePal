@@ -319,6 +319,11 @@ private struct OpenAICodexAuthContract {
     static let redirectURI = "http://localhost:1455/auth/callback"
     static let authorizationURL = URL(string: "https://auth.openai.com/oauth/authorize")!
     static let tokenURL = URL(string: "https://auth.openai.com/oauth/token")!
+
+    static func assertValidURLs() {
+        assert(authorizationURL.host == "auth.openai.com", "Invalid authorization URL host")
+        assert(tokenURL.host == "auth.openai.com", "Invalid token URL host")
+    }
 }
 
 private struct PendingLogin {

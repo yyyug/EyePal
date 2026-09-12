@@ -21,6 +21,7 @@ final class ReadTextViewModel: ObservableObject {
 
     let camera = CameraPipeline()
 
+    private static let ciContext = CIContext()
     private let textRecognitionService = TextRecognitionService()
     private let paddleTextRecognitionService = PaddleTextRecognitionService()
     private let announcer = AccessibilityAnnouncementCenter()
@@ -88,7 +89,7 @@ final class ReadTextViewModel: ObservableObject {
         let isPortraitBuffer = pixelH > pixelW
         let uprightCI = CIImage(cvPixelBuffer: pixelBuffer)
             .oriented(isPortraitBuffer ? .up : .right)
-        guard let cgImage = CIContext().createCGImage(uprightCI, from: uprightCI.extent) else { return nil }
+        guard let cgImage = Self.ciContext.createCGImage(uprightCI, from: uprightCI.extent) else { return nil }
         return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
     }
 
@@ -123,6 +124,10 @@ final class ReadTextViewModel: ObservableObject {
         cameraStateDescription = "Captured text is ready."
         consecutiveRectangleDetections = 0
         nextAutoCaptureAllowedAt = Date().addingTimeInterval(autoCaptureCooldown)
+    }
+
+    deinit {
+        camera.stop()
     }
 
     private func runRecognition(

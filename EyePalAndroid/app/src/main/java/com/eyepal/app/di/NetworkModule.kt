@@ -22,9 +22,7 @@ object NetworkModule {
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
-            .certificatePinner(createCertificatePinner())
             .sslSocketFactory(tlsSocketFactory(trustManager), trustManager)
-            .hostnameVerifier { hostname, _ -> hostname.isNotEmpty() }
             .build()
     }
 

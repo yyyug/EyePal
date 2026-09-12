@@ -364,15 +364,17 @@ class FaceRecognitionService(private val context: Context) {
             Log.d("FaceRec", "Saved first profile '$newName' — no existing profiles to compare")
             return null
         }
+        val newMean = embeddingsMean(newEmbeddings)
+        if (newMean.isEmpty()) return null
         var maxSimilarity = 0f
         var maxProfileName = ""
         for (profile in profiles) {
-            val best = profile.embeddings.maxOfOrNull { existing ->
-                newEmbeddings.maxOfOrNull { embeddingEngine.cosineSimilarity(existing, it) } ?: 0f
-            } ?: continue
-            Log.d("FaceRec", "Similarity: '$newName' vs '${profile.name}' = ${String.format(Locale.US, "%.4f", best)}")
-            if (best > maxSimilarity) {
-                maxSimilarity = best
+            val existingMean = embeddingsMean(profile.embeddings)
+            if (existingMean.isEmpty()) continue
+            val similarity = embeddingEngine.cosineSimilarity(newMean, existingMean)
+            Log.d("FaceRec", "Similarity: '$newName' vs '${profile.name}' = ${String.format(Locale.US, "%.4f", similarity)}")
+            if (similarity > maxSimilarity) {
+                maxSimilarity = similarity
                 maxProfileName = profile.name
             }
         }
@@ -386,6 +388,20 @@ class FaceRecognitionService(private val context: Context) {
         }
         logStore.append(summary)
         return null
+    }
+
+    private fun embeddingsMean(embeddings: List<FloatArray>): FloatArray {
+        if (embeddings.isEmpty()) return floatArrayOf()
+        val valid = embeddings.filter { it.isNotEmpty() }
+        if (valid.isEmpty()) return floatArrayOf()
+        val dim = valid[0].size
+        val mean = FloatArray(dim)
+        for (emb in valid) {
+            for (i in mean.indices) mean[i] += emb[i]
+        }
+        for (i in mean.indices) mean[i] /= valid.size
+        val norm = sqrt(mean.sumOf { (it * it).toDouble() }).toFloat()
+        return if (norm > 0) FloatArray(mean.size) { mean[it] / norm } else mean
     }
 
     suspend fun deleteFace(id: String) = withContext(Dispatchers.IO) {
