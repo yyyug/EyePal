@@ -4,17 +4,18 @@ import UIKit
 import Vision
 
 private enum FaceConfig {
-    static let recognitionThreshold: Float = 0.65
+    static let recognitionThreshold: Float = 0.60
     static let suggestionFrameThreshold = 6
     static let minimumSuggestionInterval: TimeInterval = 10
     static let knownMatchFrameThreshold = 1
-    static let minimumTopMatchMargin: Float = 0.02
-    static let borderlineKnownThreshold: Float = 0.90
-    static let enrollmentSampleTarget = 4
-    static let minimumEnrollmentSamples = 3
-    static let enrollmentMinimumFaceSize: CGFloat = 112
+    static let minimumTopMatchMargin: Float = 0.05
+    static let borderlineKnownThreshold: Float = 0.85
+    static let enrollmentSampleTarget = 1
+    static let minimumEnrollmentSamples = 1
+    static let enrollmentMinimumFaceSize: CGFloat = 80
     static let duplicateWarningThreshold: Float = 0.60
     static let sampleDistinctSimilarity: Float = 0.995
+    static let cropPadding: CGFloat = 0.15
 }
 
 struct FaceMatch: Equatable {
@@ -140,7 +141,8 @@ final class FaceRecognitionService {
         guard !sampleEmbeddings.isEmpty else { return profiles }
 
         if let idx = profiles.firstIndex(where: { $0.name.caseInsensitiveCompare(trimmedName) == .orderedSame }) {
-            profiles[idx].sampleEmbeddings.append(contentsOf: sampleEmbeddings)
+            profiles[idx].sampleEmbeddings = sampleEmbeddings
+            profiles[idx].updatedAt = .now
             if let jpegData = suggestion.jpegData {
                 profiles[idx].sampleImageFilename = try await faceStore.saveImage(jpegData, for: profiles[idx].id)
             }
@@ -150,16 +152,14 @@ final class FaceRecognitionService {
             return profiles
         }
 
-        let newMean = meanEmbedding(sampleEmbeddings)
-        if !newMean.isEmpty {
-            for existing in profiles {
-                let existingMean = meanEmbedding(existing.sampleEmbeddings)
-                guard !existingMean.isEmpty else { continue }
-                let sim = cosineSimilarity(newMean, existingMean)
-                if sim >= 0.60 {
-                    onLog?("Duplicate save blocked: \(trimmedName) vs \(existing.name) similarity \(String(format: "%.4f", sim))")
-                    return profiles
-                }
+        let newEmbedding = sampleEmbeddings[0]
+        for existing in profiles {
+            let existingEmbedding = existing.sampleEmbeddings.first(where: { !$0.isEmpty }) ?? []
+            guard !existingEmbedding.isEmpty else { continue }
+            let sim = cosineSimilarity(newEmbedding, existingEmbedding)
+            if sim >= FaceConfig.duplicateWarningThreshold {
+                onLog?("Duplicate save blocked: \(trimmedName) vs \(existing.name) similarity \(String(format: "%.4f", sim))")
+                return profiles
             }
         }
 
@@ -180,14 +180,6 @@ final class FaceRecognitionService {
         return profiles
     }
 
-    private static let referenceLandmarks: [(x: Double, y: Double)] = [
-        (38.2946, 51.6963), // left eye
-        (73.5318, 51.5014), // right eye
-        (56.0252, 71.7366), // nose
-        (41.5493, 92.3655), // left mouth corner
-        (70.7299, 92.2041)  // right mouth corner
-    ]
-
     private func extractPrimaryFace(from sampleBuffer: CMSampleBuffer) throws -> CGImage {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw FaceEmbeddingError.invalidOutput
@@ -196,28 +188,23 @@ final class FaceRecognitionService {
         let pixelW = CVPixelBufferGetWidth(pixelBuffer)
         let pixelH = CVPixelBufferGetHeight(pixelBuffer)
         let isPortraitBuffer = pixelH > pixelW
-        // Buffer is delivered in the sensor's native (landscape) orientation.
-        // .right tells Vision the image is rotated 90° CW (i.e. device held in
-        // portrait with back camera). If the buffer is already portrait, use .up.
         let orientation: CGImagePropertyOrientation = isPortraitBuffer ? .up : .right
 
-        // Build an upright portrait CGImage once; use it for BOTH Vision detection
-        // and the affine alignment below so all coordinates agree.
         let uprightCI = CIImage(cvPixelBuffer: pixelBuffer).oriented(orientation)
         let uprightRect = uprightCI.extent
         guard let uprightImage = context.createCGImage(uprightCI, from: uprightRect) else {
             onLog?("[Face] createCGImage upright failed \(uprightRect)")
-            throw FaceEmbeddingError.preprocessingFailed
+            throw FaceEmbeddingError.featurePrintGenerationFailed
         }
         let imgW = uprightImage.width
         let imgH = uprightImage.height
         onLog?("[Face] Buffer \(pixelW)×\(pixelH), upright \(imgW)×\(imgH), orient \(orientation.rawValue)")
 
-        let request = VNDetectFaceLandmarksRequest()
+        let request = VNDetectFaceRectanglesRequest()
         let handler = VNImageRequestHandler(cgImage: uprightImage, orientation: .up, options: [:])
         try handler.perform([request])
 
-        let faces = request.results as? [VNFaceObservation] ?? []
+        let faces = request.results ?? []
         onLog?("[Face] Vision faces: \(faces.count)")
         guard let observation = faces.max(by: {
             $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
@@ -225,12 +212,7 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.noFaceDetected
         }
 
-        guard let landmarks = observation.landmarks else {
-            throw FaceEmbeddingError.noFaceDetected
-        }
-
         let bb = observation.boundingBox
-
         let faceWidthPx = bb.width * CGFloat(imgW)
         let faceHeightPx = bb.height * CGFloat(imgH)
         guard faceWidthPx >= FaceConfig.enrollmentMinimumFaceSize,
@@ -239,137 +221,26 @@ final class FaceRecognitionService {
             throw FaceEmbeddingError.noFaceDetected
         }
 
-        func toPixel(_ points: [CGPoint]?) -> CGPoint? {
-            guard let pts = points, !pts.isEmpty else { return nil }
-            let cx = pts.map(\.x).reduce(0, +) / Double(pts.count)
-            let cy = pts.map(\.y).reduce(0, +) / Double(pts.count)
-            return CGPoint(x: bb.origin.x + cx * bb.width, y: bb.origin.y + cy * bb.height)
+        guard let cropped = cropFace(from: uprightImage, boundingBox: bb) else {
+            onLog?("[Face] Face crop failed")
+            throw FaceEmbeddingError.featurePrintGenerationFailed
         }
-
-        func outerLipsCorner(_ pickLeft: Bool) -> CGPoint? {
-            guard let pts = landmarks.outerLips?.normalizedPoints, pts.count >= 2 else { return nil }
-            let sorted = pts.sorted { pickLeft ? ($0.x < $1.x) : ($0.x > $1.x) }
-            let pt = sorted[0]
-            return CGPoint(x: bb.origin.x + pt.x * bb.width, y: bb.origin.y + pt.y * bb.height)
-        }
-
-        guard let lePx = toPixel(landmarks.leftEye?.normalizedPoints),
-              let rePx = toPixel(landmarks.rightEye?.normalizedPoints),
-              let nosePx = toPixel(landmarks.nose?.normalizedPoints),
-              let lmPx = outerLipsCorner(true),
-              let rmPx = outerLipsCorner(false) else {
-            throw FaceEmbeddingError.noFaceDetected
-        }
-
-        // Vision normalized coords use a bottom-left origin. The InsightFace
-        // reference landmarks use a top-left origin (y=0 = top of image), so
-        // flip Y to convert srcPoints into the same top-left convention as
-        // dstPoints. This keeps the affine solve and the resulting crop upright.
-        let srcPoints: [(Double, Double)] = [
-            (lePx.x * Double(imgW), Double(imgH) - lePx.y * Double(imgH)),
-            (rePx.x * Double(imgW), Double(imgH) - rePx.y * Double(imgH)),
-            (nosePx.x * Double(imgW), Double(imgH) - nosePx.y * Double(imgH)),
-            (lmPx.x * Double(imgW), Double(imgH) - lmPx.y * Double(imgH)),
-            (rmPx.x * Double(imgW), Double(imgH) - rmPx.y * Double(imgH))
-        ]
-
-        guard let affine = computeAffineAffine(srcPoints: srcPoints, dstPoints: Self.referenceLandmarks) else {
-            onLog?("[Face] Affine computation failed — singular matrix")
-            throw FaceEmbeddingError.preprocessingFailed
-        }
-
-        let outputSize = 112
-        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
-            onLog?("[Face] Failed to create sRGB color space")
-            throw FaceEmbeddingError.preprocessingFailed
-        }
-        guard let outputContext = CGContext(
-            data: nil,
-            width: outputSize,
-            height: outputSize,
-            bitsPerComponent: 8,
-            bytesPerRow: outputSize * 4,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else {
-            onLog?("[Face] Output CGContext creation failed")
-            throw FaceEmbeddingError.preprocessingFailed
-        }
-
-        // Warp in the CGContext/CGImage domain (top-left origin), which matches
-        // the reference-landmark convention used by the affine solve. The forward
-        // affine F maps source(image) -> reference/112x112 space. Setting the CTM
-        // to F places each source pixel at base = F(src), so face features land in
-        // their reference positions within the 112×112 output.
-        outputContext.interpolationQuality = .high
-        outputContext.setFillColor(CGColor(gray: 0.5, alpha: 1.0))
-        outputContext.fill(CGRect(x: 0, y: 0, width: outputSize, height: outputSize))
-        // CGAffineTransform maps (x,y) -> (a·x + c·y + tx, b·x + d·y + ty).
-        // Our affine array is [a, b, tx, c, d, ty] from
-        //   dx = a·sx + b·sy + tx,  dy = c·sx + d·sy + ty.
-        let forward = CGAffineTransform(
-            a: CGFloat(affine[0]),
-            b: CGFloat(affine[3]),
-            c: CGFloat(affine[1]),
-            d: CGFloat(affine[4]),
-            tx: CGFloat(affine[2]),
-            ty: CGFloat(affine[5])
-        )
-        outputContext.concatenate(forward)
-        outputContext.draw(uprightImage, in: CGRect(x: 0, y: 0, width: uprightImage.width, height: uprightImage.height))
-
-        guard let result = outputContext.makeImage() else {
-            onLog?("[Face] outputContext.makeImage() failed")
-            throw FaceEmbeddingError.preprocessingFailed
-        }
-
-        return result
+        return cropped
     }
 
-    private func computeAffineAffine(srcPoints: [(Double, Double)], dstPoints: [(Double, Double)]) -> [Double]? {
-        guard srcPoints.count == 5, dstPoints.count == 5 else { return nil }
-        let n = 5
-        var A = [[Double]](repeating: [Double](repeating: 0, count: 6), count: 2 * n)
-        var b = [Double](repeating: 0, count: 2 * n)
-        for i in 0..<n {
-            let (sx, sy) = srcPoints[i]
-            let (dx, dy) = dstPoints[i]
-            A[2 * i] = [sx, sy, 1, 0, 0, 0]
-            A[2 * i + 1] = [0, 0, 0, sx, sy, 1]
-            b[2 * i] = dx
-            b[2 * i + 1] = dy
-        }
-        let At = (0..<6).map { j in (0..<2 * n).map { i in A[i][j] } }
-        var AtA = [[Double]](repeating: [Double](repeating: 0, count: 6), count: 6)
-        var Atb = [Double](repeating: 0, count: 6)
-        for i in 0..<6 {
-            for j in 0..<6 {
-                AtA[i][j] = (0..<2 * n).reduce(0) { $0 + At[i][$1] * A[$1][j] }
-            }
-            Atb[i] = (0..<2 * n).reduce(0) { $0 + At[i][$1] * b[$1] }
-        }
-        return solveLinearSystem(AtA, Atb)
-    }
+    private func cropFace(from cgImage: CGImage, boundingBox: CGRect) -> CGImage? {
+        let width = CGFloat(cgImage.width)
+        let height = CGFloat(cgImage.height)
+        let padding = FaceConfig.cropPadding
 
-    private func solveLinearSystem(_ A: [[Double]], _ b: [Double]) -> [Double]? {
-        let n = b.count
-        var a = A; var x = b
-        for i in 0..<n {
-            var maxRow = i
-            for k in (i + 1)..<n where abs(a[k][i]) > abs(a[maxRow][i]) { maxRow = k }
-            a.swapAt(i, maxRow); x.swapAt(i, maxRow)
-            guard abs(a[i][i]) > 1e-12 else { return nil }
-            for k in (i + 1)..<n {
-                let f = a[k][i] / a[i][i]
-                for j in i..<n { a[k][j] -= f * a[i][j] }
-                x[k] -= f * x[i]
-            }
-        }
-        var result = [Double](repeating: 0, count: n)
-        for i in stride(from: n - 1, through: 0, by: -1) {
-            result[i] = (x[i] - (i + 1..<n).reduce(0) { $0 + a[i][$1] * result[$1] }) / a[i][i]
-        }
-        return result
+        // Vision bounding box is normalized with bottom-left origin.
+        let x = max(0, (boundingBox.minX - padding) * width)
+        let y = max(0, (1 - boundingBox.maxY - padding) * height)
+        let w = min(width - x, (boundingBox.width + padding * 2) * width)
+        let h = min(height - y, (boundingBox.height + padding * 2) * height)
+
+        let cropRect = CGRect(x: x, y: y, width: w, height: h)
+        return cgImage.cropping(to: cropRect)
     }
 
     private func confirmedMatch(for rankedCandidates: [CandidateMatch]) -> FaceMatch? {
@@ -477,9 +348,6 @@ final class FaceRecognitionService {
                 cosineSimilarity(savedEmbedding, embedding) < FaceConfig.sampleDistinctSimilarity
             }
 
-            // Prefer distinct samples, but always accept non-distinct ones once the
-            // collection is nearly complete so a still face can still reach the full
-            // target (prevents getting stuck below the target while holding still).
             if isDistinctEnough || pendingUnknownEmbeddings.isEmpty ||
                 pendingUnknownEmbeddings.count >= minimumEnrollmentSamples - 1 {
                 pendingUnknownEmbeddings.append(embedding)
@@ -505,16 +373,6 @@ final class FaceRecognitionService {
                 onLog?("WARNING: \(newProfile.name) vs \(existing.name) similarity \(String(format: "%.4f", sim)) >= \(FaceConfig.duplicateWarningThreshold) — high cross-profile similarity!")
             }
         }
-
-        let selfScores = newProfile.sampleEmbeddings
-            .filter { !$0.isEmpty }
-            .map { cosineSimilarity($0, newMean) }
-        if !selfScores.isEmpty {
-            let minS = selfScores.min() ?? 0
-            let maxS = selfScores.max() ?? 0
-            let meanS = selfScores.reduce(0, +) / Float(selfScores.count)
-            onLog?("SelfScore \(newProfile.name): min=\(String(format: "%.4f", minS)) max=\(String(format: "%.4f", maxS)) mean=\(String(format: "%.4f", meanS))")
-        }
     }
 
     private func logInterProfileSimilarities() {
@@ -534,6 +392,7 @@ final class FaceRecognitionService {
     private func meanEmbedding(_ embeddings: [[Float]]) -> [Float] {
         let valid = embeddings.filter { !$0.isEmpty }
         guard !valid.isEmpty, let dim = valid.first?.count else { return [] }
+        if valid.count == 1 { return valid[0] }
         var result = [Float](repeating: 0, count: dim)
         for emb in valid {
             for i in 0..<dim { result[i] += emb[i] }
@@ -558,6 +417,13 @@ final class FaceRecognitionService {
 }
 
 private func cosineSimilarity(_ lhs: [Float], _ rhs: [Float]) -> Float {
-    guard lhs.count == rhs.count, !lhs.isEmpty else { return -1 }
-    return zip(lhs, rhs).reduce(0) { $0 + ($1.0 * $1.1) }
+    guard lhs.count == rhs.count, !lhs.isEmpty else { return 0 }
+    var dot: Float = 0, magA: Float = 0, magB: Float = 0
+    for i in 0..<lhs.count {
+        dot += lhs[i] * rhs[i]
+        magA += lhs[i] * lhs[i]
+        magB += rhs[i] * rhs[i]
+    }
+    let mag = sqrt(magA) * sqrt(magB)
+    return mag > 0 ? dot / mag : 0
 }
