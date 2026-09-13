@@ -7,34 +7,23 @@
 -keepclassmembers class com.eyepal.app.** { *** Companion; }
 -keepclasseswithmembers class com.eyepal.app.** { kotlinx.serialization.KSerializer serializer(...); }
 
-# OkHttp
+# OkHttp — ships META-INF/proguard/okhttp3.pro consumer rules
 -dontwarn okhttp3.**
--keep class okhttp3.** { *; }
--keep interface okhttp3.** { *; }
 -dontwarn okio.**
 
-# ONNX Runtime
+# ONNX Runtime — no consumer rules, JNI-backed
 -keep class ai.onnxruntime.** { *; }
 -dontwarn ai.onnxruntime.**
 
-# MLKit
+# MLKit — reflection-based component registration
 -keep class com.google.mlkit.** { *; }
 -dontwarn com.google.mlkit.**
 
-# DataStore
--keep class androidx.datastore.** { *; }
-
-# WebRTC
+# WebRTC — JNI bitcode, native callbacks back into Java
 -keep class org.webrtc.** { *; }
 -dontwarn org.webrtc.**
 
-# CameraX
--keep class androidx.camera.** { *; }
-
-# Compose
--keep class androidx.compose.** { *; }
-
-# Google Glasses / XR
+# Google Glasses / XR — no consumer rules
 -keep class androidx.xr.** { *; }
 
 # Kotlin Coroutines
@@ -47,10 +36,7 @@
 -keepattributes *Annotation*
 -dontwarn com.google.gson.**
 
-# Security Crypto
--keep class androidx.security.** { *; }
-
-# OpenCV (PaddleOCR Lite)
+# OpenCV (PaddleOCR Lite) — no consumer rules, JNI-backed
 -keep class org.opencv.** { *; }
 -dontwarn org.opencv.**
 

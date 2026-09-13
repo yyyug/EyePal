@@ -32,10 +32,10 @@ class FaceRecognitionService(private val context: Context) {
     val isEmbeddingReady: Boolean get() = embeddingEngine.isReady
     val embeddingEngineError: String? get() = embeddingEngine.loadError
     private var profiles: MutableList<SavedFaceProfile> = mutableListOf()
-    var recognitionThreshold: Float = 0.65f
-    var minimumTopMatchMargin: Float = 0.02f
+    var recognitionThreshold: Float = 0.60f
+    var minimumTopMatchMargin: Float = 0.05f
     var knownMatchFrameThreshold: Int = 1
-    var enrollmentSampleTarget: Int = 4
+    var enrollmentSampleTarget: Int = 1
     var minimumFaceSize: Int = 80
     var enrollmentMinimumFaceSize: Int = Defaults.ENROLLMENT_MINIMUM_FACE_SIZE
     var borderlineKnownThreshold: Float = Defaults.BORDERLINE_KNOWN_THRESHOLD
@@ -247,8 +247,8 @@ class FaceRecognitionService(private val context: Context) {
 
     private fun alignFace(source: Bitmap, face: Face): Bitmap {
         val bounds = face.boundingBox
-        val padX = (bounds.width() * 0.30f).toInt()
-        val padY = (bounds.height() * 0.30f).toInt()
+        val padX = (bounds.width() * 0.15f).toInt()
+        val padY = (bounds.height() * 0.15f).toInt()
         val left = (bounds.left - padX).coerceAtLeast(0)
         val top = (bounds.top - padY).coerceAtLeast(0)
         val right = (bounds.right + padX).coerceAtMost(source.width)
@@ -283,36 +283,26 @@ class FaceRecognitionService(private val context: Context) {
     }
 
     private fun cosineToProfileMean(embedding: FloatArray, profile: SavedFaceProfile): Float {
-        if (profile.embeddings.isEmpty()) return 0f
-        if (profile.embeddings.size == 1) return embeddingEngine.cosineSimilarity(embedding, profile.embeddings[0])
-        val mean = FloatArray(embedding.size)
-        for (emb in profile.embeddings) {
-            for (i in mean.indices) mean[i] += emb[i]
-        }
-        for (i in mean.indices) mean[i] /= profile.embeddings.size
-        val norm = sqrt(mean.sumOf { (it * it).toDouble() }).toFloat()
-        val normalized = if (norm > 0) FloatArray(mean.size) { mean[it] / norm } else mean
-        return embeddingEngine.cosineSimilarity(embedding, normalized)
+        val stored = profile.embeddings.firstOrNull { it.isNotEmpty() } ?: return 0f
+        return embeddingEngine.cosineSimilarity(embedding, stored)
     }
 
     private fun logInterProfileSimilarities() {
         if (profiles.size < 2) return
         for (i in 0 until profiles.size - 1) {
             for (j in (i + 1) until profiles.size) {
-                val best = profiles[i].embeddings.maxOfOrNull { a ->
-                    profiles[j].embeddings.maxOfOrNull { embeddingEngine.cosineSimilarity(a, it) } ?: 0f
-                } ?: continue
-                Log.d("FaceRec", "InterProfile: '${profiles[i].name}' vs '${profiles[j].name}' = ${String.format(Locale.US, "%.4f", best)}")
+                val embA = profiles[i].embeddings.firstOrNull { it.isNotEmpty() } ?: continue
+                val embB = profiles[j].embeddings.firstOrNull { it.isNotEmpty() } ?: continue
+                val similarity = embeddingEngine.cosineSimilarity(embA, embB)
+                Log.d("FaceRec", "InterProfile: '${profiles[i].name}' vs '${profiles[j].name}' = ${String.format(Locale.US, "%.4f", similarity)}")
             }
         }
     }
 
     suspend fun saveFace(name: String, embedding: FloatArray): String? = withContext(Dispatchers.IO) {
-        logSelfSimilarity(name, listOf(embedding))
         val existing = profiles.firstOrNull { it.name.equals(name, ignoreCase = true) }
         if (existing != null) {
-            val updatedEmbeddings = (existing.embeddings + embedding).takeLast(4)
-            profiles = profiles.map { if (it.id == existing.id) it.copy(embeddings = updatedEmbeddings) else it }.toMutableList()
+            profiles = profiles.map { if (it.id == existing.id) it.copy(embeddings = listOf(embedding)) else it }.toMutableList()
         } else {
             checkDuplicateSave(name, listOf(embedding))?.let { return@withContext it }
             profiles.add(SavedFaceProfile(id = System.currentTimeMillis().toString(), name = name, embeddings = listOf(embedding)))
@@ -325,38 +315,17 @@ class FaceRecognitionService(private val context: Context) {
     suspend fun saveFaceMultiple(name: String, embeddings: List<FloatArray>): String? = withContext(Dispatchers.IO) {
         val validEmbeddings = embeddings.filter { it.isNotEmpty() }
         if (validEmbeddings.isEmpty()) return@withContext null
-        logSelfSimilarity(name, validEmbeddings)
+        val primary = validEmbeddings.first()
         val existing = profiles.firstOrNull { it.name.equals(name, ignoreCase = true) }
         if (existing != null) {
-            val updatedEmbeddings = (existing.embeddings + validEmbeddings).takeLast(enrollmentSampleTarget)
-            profiles = profiles.map { if (it.id == existing.id) it.copy(embeddings = updatedEmbeddings) else it }.toMutableList()
+            profiles = profiles.map { if (it.id == existing.id) it.copy(embeddings = listOf(primary)) else it }.toMutableList()
         } else {
-            checkDuplicateSave(name, validEmbeddings)?.let { return@withContext it }
-            profiles.add(SavedFaceProfile(id = System.currentTimeMillis().toString(), name = name, embeddings = validEmbeddings))
+            checkDuplicateSave(name, listOf(primary))?.let { return@withContext it }
+            profiles.add(SavedFaceProfile(id = System.currentTimeMillis().toString(), name = name, embeddings = listOf(primary)))
         }
         logStore.append("Saved: $name")
         persistFaces()
         null
-    }
-
-    private fun logSelfSimilarity(name: String, embeddings: List<FloatArray>) {
-        if (embeddings.size < 2) return
-        var minScore = 1f
-        var maxScore = 0f
-        var sum = 0.0
-        var count = 0
-        for (i in 0 until embeddings.size - 1) {
-            for (j in (i + 1) until embeddings.size) {
-                val score = embeddingEngine.cosineSimilarity(embeddings[i], embeddings[j])
-                if (score < minScore) minScore = score
-                if (score > maxScore) maxScore = score
-                sum += score
-                count++
-            }
-        }
-        if (count == 0) return
-        val meanScore = (sum / count).toFloat()
-        Log.d("FaceRec", "SelfScore: '$name' samples min=${String.format(Locale.US, "%.3f", minScore)} max=${String.format(Locale.US, "%.3f", maxScore)} mean=${String.format(Locale.US, "%.3f", meanScore)}")
     }
 
     private fun checkDuplicateSave(newName: String, newEmbeddings: List<FloatArray>): String? {
@@ -364,14 +333,12 @@ class FaceRecognitionService(private val context: Context) {
             Log.d("FaceRec", "Saved first profile '$newName' — no existing profiles to compare")
             return null
         }
-        val newMean = embeddingsMean(newEmbeddings)
-        if (newMean.isEmpty()) return null
+        val newEmb = newEmbeddings.firstOrNull { it.isNotEmpty() } ?: return null
         var maxSimilarity = 0f
         var maxProfileName = ""
         for (profile in profiles) {
-            val existingMean = embeddingsMean(profile.embeddings)
-            if (existingMean.isEmpty()) continue
-            val similarity = embeddingEngine.cosineSimilarity(newMean, existingMean)
+            val existingEmb = profile.embeddings.firstOrNull { it.isNotEmpty() } ?: continue
+            val similarity = embeddingEngine.cosineSimilarity(newEmb, existingEmb)
             Log.d("FaceRec", "Similarity: '$newName' vs '${profile.name}' = ${String.format(Locale.US, "%.4f", similarity)}")
             if (similarity > maxSimilarity) {
                 maxSimilarity = similarity
@@ -388,20 +355,6 @@ class FaceRecognitionService(private val context: Context) {
         }
         logStore.append(summary)
         return null
-    }
-
-    private fun embeddingsMean(embeddings: List<FloatArray>): FloatArray {
-        if (embeddings.isEmpty()) return floatArrayOf()
-        val valid = embeddings.filter { it.isNotEmpty() }
-        if (valid.isEmpty()) return floatArrayOf()
-        val dim = valid[0].size
-        val mean = FloatArray(dim)
-        for (emb in valid) {
-            for (i in mean.indices) mean[i] += emb[i]
-        }
-        for (i in mean.indices) mean[i] /= valid.size
-        val norm = sqrt(mean.sumOf { (it * it).toDouble() }).toFloat()
-        return if (norm > 0) FloatArray(mean.size) { mean[it] / norm } else mean
     }
 
     suspend fun deleteFace(id: String) = withContext(Dispatchers.IO) {

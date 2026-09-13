@@ -89,8 +89,17 @@ class ArcFaceEmbeddingEngine(private val context: Context) {
     }
 
     fun cosineSimilarity(a: FloatArray, b: FloatArray): Float {
-        if (a.size != b.size || a.isEmpty()) return -1f
-        return a.indices.sumOf { (a[it] * b[it]).toDouble() }.toFloat()
+        if (a.size != b.size || a.isEmpty()) return 0f
+        var dot = 0.0
+        var magA = 0.0
+        var magB = 0.0
+        for (i in a.indices) {
+            dot += (a[i] * b[i]).toDouble()
+            magA += (a[i] * a[i]).toDouble()
+            magB += (b[i] * b[i]).toDouble()
+        }
+        val mag = kotlin.math.sqrt(magA) * kotlin.math.sqrt(magB)
+        return if (mag > 0) (dot / mag).toFloat() else 0f
     }
 
     fun close() { session?.close(); ortEnv?.close(); isLoaded = false }
