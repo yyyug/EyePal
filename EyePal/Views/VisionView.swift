@@ -153,8 +153,6 @@ struct VisionView: View {
         }
     }
 
-    @State private var showSettings = false
-
     private func settingsMenuItem(for feature: AppFeature) -> VisionMenuItem {
         VisionMenuItem(title: NSLocalizedString("vision.settings", comment: ""), systemImage: "gearshape", role: .standard) {
             showSettings = true
