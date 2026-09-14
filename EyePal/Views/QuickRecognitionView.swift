@@ -35,8 +35,7 @@ struct QuickRecognitionView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottom) {
                 CameraPreviewView(session: viewModel.camera.session)
                     .ignoresSafeArea()
 
@@ -103,7 +102,6 @@ struct QuickRecognitionView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
-        }
         .onAppear {
             viewModel.bind(settings: settingsStore)
             viewModel.start()

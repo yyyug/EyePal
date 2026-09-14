@@ -1,0 +1,19 @@
+# Taste File
+- When fixing bugs/issues on one platform, proactively checks and fixes the same issues on other platforms (cross-platform consistency mindset). Confidence: 0.85
+- Prefers prompt commit and push when requested, without excessive process or ceremony. Confidence: 0.7
+- Reports bugs in structured numbered lists (1. 2. 3.) for clarity. Confidence: 0.75
+- Values thorough verification over surface-level checking — uses "DOUBLE CHECK" phrasing to emphasize this. Confidence: 0.7
+- Gives concise, direct instructions without preamble ("yes commit and push", "CORRECT THE IOS ID. ANDROID IS CORRECT"). Confidence: 0.8
+- Expects immediate action on explicit requests — no discussion or confirmation needed. Confidence: 0.8
+- Cross-platform parity is a high priority — expects identical behavior, settings, and identifiers (e.g., bundle ID) across Android and iOS. Confidence: 0.8
+- Proactively considers accessibility (TalkBack/VoiceOver) when implementing UI features. Confidence: 0.75
+- Prefers platform-native, well-tested APIs over bundling third-party ML models when reliability matters (e.g., Apple Vision's VNGenerateImageFeaturePrintRequest over ArcFace/ONNX for iOS face recognition). Confidence: 0.7
+- When a dependency or model becomes unused, expects it fully removed from the project and excluded from build artifacts (e.g., an unused model must not ship in the IPA). Confidence: 0.8
+- Builds iOS unsigned IPAs via GitHub Actions and downloads the artifact; builds Android debug APKs locally. Confidence: 0.7
+- Distinguishes investigation-only tasks ("research, don't modify") from implementation — expects no code changes during research unless asked. Confidence: 0.8
+- For status-check questions (e.g., "is everything fixed?"), prefers a concise reply with no file changes. Confidence: 0.7
+- Actively cares about app/binary size — asks whether unused content can be removed to shrink the build (APK/IPA), questions unexplained size gaps between platforms (e.g., why Android is much larger than iOS), and approves size-reduction changes once verified. Confidence: 0.7
+- Benchmarks against reference/open-source implementations (e.g., OpenGlasses) to identify proven approaches before implementing a fix. Confidence: 0.6
+- Communicates in Traditional Chinese (mixed with English); complex technical requests are usually phrased in Chinese. Confidence: 0.7
+- Approves technical/packaging optimizations only on the condition that app functionality is unaffected — explicitly gates permission with "do it if it doesn't affect app functionality". Confidence: 0.8
+- Delegates technical judgment to the agent — asks "do you recommend X? if so, do it" instead of deciding himself, then expects the work to be carried out. Confidence: 0.7

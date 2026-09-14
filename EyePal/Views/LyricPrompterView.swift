@@ -9,7 +9,6 @@ struct LyricPrompterView: View {
     @State private var displayedSong: LyricSong?
 
     var body: some View {
-        NavigationStack {
             Group {
                 if showResults {
                     resultsListView
@@ -30,7 +29,6 @@ struct LyricPrompterView: View {
             )) {
                 Button(NSLocalizedString("common.ok", comment: "")) { viewModel.errorMessage = nil }
             } message: { Text(viewModel.errorMessage ?? "") }
-        }
     }
 
     private func openSong(_ song: LyricSong) {

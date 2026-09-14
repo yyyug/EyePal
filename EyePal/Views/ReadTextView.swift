@@ -5,8 +5,7 @@ struct ReadTextView: View {
     @StateObject private var viewModel = ReadTextViewModel()
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottom) {
                 CameraPreviewView(session: viewModel.camera.session)
                     .ignoresSafeArea()
 
@@ -56,7 +55,6 @@ struct ReadTextView: View {
             }) { result in
                 CapturedTextResultView(result: result)
             }
-        }
         .onAppear {
             viewModel.bind(settings: settingsStore)
             viewModel.start()

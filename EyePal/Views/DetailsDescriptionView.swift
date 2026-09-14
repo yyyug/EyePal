@@ -36,8 +36,7 @@ struct DetailsDescriptionView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottom) {
                 CameraPreviewView(session: viewModel.camera.session)
                     .ignoresSafeArea()
 
@@ -128,7 +127,6 @@ struct DetailsDescriptionView: View {
             } message: {
                 Text(NSLocalizedString("details.promptMessage", comment: ""))
             }
-        }
         .onAppear {
             viewModel.bind(openAIStore: openAIStore)
             viewModel.start()

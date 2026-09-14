@@ -4,12 +4,14 @@ actor FaceStore {
     private let fileManager = FileManager.default
     private let metadataURL: URL
     private let imagesDirectoryURL: URL
+    private let recordingsDirectoryURL: URL
 
     init() {
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let baseDirectory = appSupport.appendingPathComponent("EyePal", isDirectory: true)
         metadataURL = baseDirectory.appendingPathComponent("faces.json")
         imagesDirectoryURL = baseDirectory.appendingPathComponent("FaceImages", isDirectory: true)
+        recordingsDirectoryURL = baseDirectory.appendingPathComponent("FaceAudio", isDirectory: true)
     }
 
     func loadProfiles() throws -> [FaceProfile] {
@@ -49,6 +51,24 @@ actor FaceStore {
         try fileManager.removeItem(at: url)
     }
 
+    func saveRecording(_ data: Data, for faceID: UUID) throws -> String {
+        try ensureDirectories()
+        let filename = "\(faceID.uuidString).m4a"
+        let url = recordingsDirectoryURL.appendingPathComponent(filename)
+        try data.write(to: url, options: .atomic)
+        return filename
+    }
+
+    func recordingURL(for filename: String) -> URL {
+        recordingsDirectoryURL.appendingPathComponent(filename)
+    }
+
+    func deleteRecording(named filename: String) {
+        let url = recordingURL(for: filename)
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        try? fileManager.removeItem(at: url)
+    }
+
     private func ensureDirectories() throws {
         let baseDirectory = metadataURL.deletingLastPathComponent()
         if !fileManager.fileExists(atPath: baseDirectory.path) {
@@ -56,6 +76,9 @@ actor FaceStore {
         }
         if !fileManager.fileExists(atPath: imagesDirectoryURL.path) {
             try fileManager.createDirectory(at: imagesDirectoryURL, withIntermediateDirectories: true, attributes: nil)
+        }
+        if !fileManager.fileExists(atPath: recordingsDirectoryURL.path) {
+            try fileManager.createDirectory(at: recordingsDirectoryURL, withIntermediateDirectories: true, attributes: nil)
         }
     }
 }

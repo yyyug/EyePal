@@ -320,3 +320,65 @@
 "read.documentDetectionOffHint" = "關閉文件偵測。";
 "read.recognizedText" = "辨識文字";
 "read.language" = "語言：%@";
+
+/* New UI styles */
+"settings.appearance" = "外觀";
+"settings.uiStyle" = "風格";
+"settings.uiStyle.simple" = "簡潔";
+"settings.uiStyle.traditional" = "傳統";
+
+/* New UI tabs */
+"tab.vision" = "視覺";
+"tab.assist" = "協助";
+
+/* Vision page */
+"vision.statusIdle" = "相機已就緒，請選擇下方動作。";
+"vision.statusStarting" = "正在啟動相機…";
+"vision.quickContinuousOn" = "連續快拍描述執行中。";
+"vision.noFrame" = "相機畫面尚未就緒。";
+"vision.quickReady" = "快拍描述完成。";
+"vision.quickNoResult" = "快拍描述沒有結果。";
+"vision.quickFailed" = "快拍描述失敗。";
+"vision.detailsAnalyzing" = "正在描述場景…";
+"vision.detailsReady" = "詳細描述完成。";
+"vision.detailsFailed" = "詳細描述失敗。";
+"vision.detailsSignInRequired" = "需先登入 ChatGPT 才能使用詳細描述。";
+"vision.statusLiveOn" = "持續偵測執行中。";
+"vision.quick" = "快拍";
+"vision.details" = "細節";
+"vision.text" = "文字";
+"vision.faces" = "面孔";
+"vision.enableContinuous" = "開啟連續模式";
+"vision.disableContinuous" = "關閉連續模式";
+"vision.showFeaturePage" = "顯示功能頁";
+"vision.savedFaces" = "已儲存面孔";
+"vision.settings" = "設定";
+"vision.buttonHint" = "點一下執行動作，長按或使用無障礙動作查看更多選項。";
+"vision.selectedOn" = "已開啟";
+"vision.selectedOff" = "已關閉";
+
+/* Face enrollment */
+"face.saveFace" = "儲存面孔";
+"face.confirmSave" = "儲存錄音";
+"face.reRecord" = "重新錄音";
+"face.newFaceReady" = "有一個新面孔可儲存。";
+"face.newFaceHint" = "發現新面孔，點一下錄製語音備註並儲存。";
+"face.recordingPrompt" = "正在錄製語音備註…";
+"face.recordingStarted" = "開始錄音，請說話。";
+"face.recordedPrompt" = "錄音完成，點「儲存錄音」完成。";
+"face.recordedReady" = "語音備註已錄製。";
+"face.enrollmentCancelled" = "未儲存面孔。";
+"face.micPermissionRequired" = "需要麥克風權限才能錄製語音備註。";
+"face.duplicateBlocked" = "此面孔與已儲存面孔過於相似，未儲存。";
+"face.saveFailed" = "儲存面孔失敗。";
+"face.saveDisabledHint" = "出現新面孔時才能儲存。";
+"face.saveHint" = "點一下開始錄製語音備註，再點一下儲存。";
+"face.unlabeled" = "未命名的面孔";
+
+/* Face text notes */
+"face.spokenTextLabel" = "備註：%@";
+"face.replayRecording" = "播放語音備註";
+"face.noRecording" = "未儲存語音備註。";
+"face.enterText" = "輸入文字備註";
+"face.spokenTextPrompt" = "備註文字";
+"face.spokenTextMessage" = "辨識到此面孔時，會朗讀這段文字。";

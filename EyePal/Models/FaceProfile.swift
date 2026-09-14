@@ -7,6 +7,8 @@ struct FaceProfile: Identifiable, Codable, Equatable {
     var updatedAt: Date
     var sampleEmbeddings: [[Float]]
     var sampleImageFilename: String?
+    var spokenText: String?
+    var voiceNoteFilename: String?
 
     var embedding: [Float] {
         sampleEmbeddings.first ?? []
@@ -18,7 +20,9 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         createdAt: Date = .now,
         updatedAt: Date = .now,
         sampleEmbeddings: [[Float]],
-        sampleImageFilename: String? = nil
+        sampleImageFilename: String? = nil,
+        spokenText: String? = nil,
+        voiceNoteFilename: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -26,6 +30,8 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         self.updatedAt = updatedAt
         self.sampleEmbeddings = sampleEmbeddings
         self.sampleImageFilename = sampleImageFilename
+        self.spokenText = spokenText
+        self.voiceNoteFilename = voiceNoteFilename
     }
 
     init(
@@ -34,7 +40,9 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         createdAt: Date = .now,
         updatedAt: Date = .now,
         embedding: [Float],
-        sampleImageFilename: String? = nil
+        sampleImageFilename: String? = nil,
+        spokenText: String? = nil,
+        voiceNoteFilename: String? = nil
     ) {
         self.init(
             id: id,
@@ -42,7 +50,9 @@ struct FaceProfile: Identifiable, Codable, Equatable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             sampleEmbeddings: [embedding],
-            sampleImageFilename: sampleImageFilename
+            sampleImageFilename: sampleImageFilename,
+            spokenText: spokenText,
+            voiceNoteFilename: voiceNoteFilename
         )
     }
 
@@ -54,6 +64,8 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         case sampleEmbeddings
         case embedding
         case sampleImageFilename
+        case spokenText
+        case voiceNoteFilename
     }
 
     init(from decoder: Decoder) throws {
@@ -63,6 +75,8 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         sampleImageFilename = try container.decodeIfPresent(String.self, forKey: .sampleImageFilename)
+        spokenText = try container.decodeIfPresent(String.self, forKey: .spokenText)
+        voiceNoteFilename = try container.decodeIfPresent(String.self, forKey: .voiceNoteFilename)
 
         if let sampleEmbeddings = try container.decodeIfPresent([[Float]].self, forKey: .sampleEmbeddings),
            !sampleEmbeddings.isEmpty {
@@ -82,6 +96,8 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(sampleEmbeddings, forKey: .sampleEmbeddings)
-        try container.encode(sampleImageFilename, forKey: .sampleImageFilename)
+        try container.encodeIfPresent(sampleImageFilename, forKey: .sampleImageFilename)
+        try container.encodeIfPresent(spokenText, forKey: .spokenText)
+        try container.encodeIfPresent(voiceNoteFilename, forKey: .voiceNoteFilename)
     }
 }

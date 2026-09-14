@@ -319,3 +319,65 @@
 "read.documentDetectionOffHint" = "Turns document detection off.";
 "read.recognizedText" = "Recognized text";
 "read.language" = "Language: %@";
+
+/* New UI styles */
+"settings.appearance" = "Appearance";
+"settings.uiStyle" = "Style";
+"settings.uiStyle.simple" = "Simple";
+"settings.uiStyle.traditional" = "Traditional";
+
+/* New UI tabs */
+"tab.vision" = "Vision";
+"tab.assist" = "Assist";
+
+/* Vision page */
+"vision.statusIdle" = "Your camera is ready. Choose an action below.";
+"vision.statusStarting" = "Starting camera...";
+"vision.quickContinuousOn" = "Continuous quick description is running.";
+"vision.noFrame" = "No camera frame is ready yet.";
+"vision.quickReady" = "Quick description result is ready.";
+"vision.quickNoResult" = "Quick description returned no result.";
+"vision.quickFailed" = "Quick description failed.";
+"vision.detailsAnalyzing" = "Describing the scene...";
+"vision.detailsReady" = "Detailed description result is ready.";
+"vision.detailsFailed" = "Detailed description failed.";
+"vision.detailsSignInRequired" = "Sign in to ChatGPT to use detailed description.";
+"vision.statusLiveOn" = "Live modes are running.";
+"vision.quick" = "Quick";
+"vision.details" = "Details";
+"vision.text" = "Text";
+"vision.faces" = "Faces";
+"vision.enableContinuous" = "Enable Continuous Mode";
+"vision.disableContinuous" = "Disable Continuous Mode";
+"vision.showFeaturePage" = "Open Feature Page";
+"vision.savedFaces" = "Saved Faces";
+"vision.settings" = "Settings";
+"vision.buttonHint" = "Tap to run the action. Long-press for more options.";
+"vision.selectedOn" = "On";
+"vision.selectedOff" = "Off";
+
+/* Face enrollment */
+"face.saveFace" = "Save Face";
+"face.confirmSave" = "Save Recording";
+"face.reRecord" = "Re-record";
+"face.newFaceReady" = "A new face is ready to save.";
+"face.newFaceHint" = "New face detected. Tap to record a voice note and save.";
+"face.recordingPrompt" = "Recording voice note...";
+"face.recordingStarted" = "Recording started. Speak now.";
+"face.recordedPrompt" = "Recording is ready. Save to finish.";
+"face.recordedReady" = "Recording saved to the new face.";
+"face.enrollmentCancelled" = "Face was not saved.";
+"face.micPermissionRequired" = "Microphone access is required to record a voice note.";
+"face.duplicateBlocked" = "This face is too similar to a saved face and was not saved.";
+"face.saveFailed" = "Failed to save this face.";
+"face.saveDisabledHint" = "Save is available when a new face appears.";
+"face.saveHint" = "Tap to record a voice note, then tap again to save.";
+"face.unlabeled" = "Unlabeled face";
+
+/* Face text notes */
+"face.spokenTextLabel" = "Note: %@";
+"face.replayRecording" = "Play Voice Note";
+"face.noRecording" = "No voice note saved.";
+"face.enterText" = "Enter Text Note";
+"face.spokenTextPrompt" = "Note text";
+"face.spokenTextMessage" = "This text will be announced when this face is recognized.";

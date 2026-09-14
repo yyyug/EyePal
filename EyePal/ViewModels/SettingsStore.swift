@@ -15,6 +15,20 @@ enum OCREngineChoice: String, CaseIterable, Identifiable {
     }
 }
 
+enum UIStyle: String, CaseIterable, Identifiable {
+    case simple
+    case traditional
+
+    var id: String { rawValue }
+
+    var displayTitle: String {
+        switch self {
+        case .simple: return NSLocalizedString("settings.uiStyle.simple", comment: "")
+        case .traditional: return NSLocalizedString("settings.uiStyle.traditional", comment: "")
+        }
+    }
+}
+
 @MainActor
 final class SettingsStore: ObservableObject {
     @AppStorage("faceSpeechCooldown") var faceSpeechCooldown = 2.5
@@ -50,6 +64,7 @@ final class SettingsStore: ObservableObject {
         faceRecognitionLogs = logStore.allEntries
     }
     @AppStorage("featureOrderData") private var featureOrderData = Data()
+    @AppStorage("uiStyle") var uiStyle: UIStyle = .simple
     @AppStorage("quickMoondreamAPIKey") var quickMoondreamAPIKey = ""
     @AppStorage("gemmaOfflineEnabled") var gemmaOfflineEnabled = false
     @AppStorage("quickModelProvider") var quickModelProvider = QuickModelProvider.gemma.rawValue

@@ -19,7 +19,10 @@ private enum FaceConfig {
 }
 
 struct FaceMatch: Equatable {
+    let id: UUID
     let name: String
+    let spokenText: String?
+    let voiceNoteFilename: String?
     let confidence: Float
 }
 
@@ -133,12 +136,16 @@ final class FaceRecognitionService {
         }
     }
 
-    func saveFace(name: String, suggestion: FaceSuggestion) async throws -> [FaceProfile] {
+    func saveFace(
+        name: String,
+        suggestion: FaceSuggestion,
+        voiceNoteData: Data? = nil
+    ) async throws -> FaceProfile? {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return profiles }
+        guard !trimmedName.isEmpty else { return nil }
 
         let sampleEmbeddings = suggestion.sampleEmbeddings.filter { !$0.isEmpty }
-        guard !sampleEmbeddings.isEmpty else { return profiles }
+        guard !sampleEmbeddings.isEmpty else { return nil }
 
         if let idx = profiles.firstIndex(where: { $0.name.caseInsensitiveCompare(trimmedName) == .orderedSame }) {
             profiles[idx].sampleEmbeddings = sampleEmbeddings
@@ -146,10 +153,16 @@ final class FaceRecognitionService {
             if let jpegData = suggestion.jpegData {
                 profiles[idx].sampleImageFilename = try await faceStore.saveImage(jpegData, for: profiles[idx].id)
             }
+            if let voiceNoteData {
+                if let oldName = profiles[idx].voiceNoteFilename {
+                    faceStore.deleteRecording(named: oldName)
+                }
+                profiles[idx].voiceNoteFilename = try await faceStore.saveRecording(voiceNoteData, for: profiles[idx].id)
+            }
             try await faceStore.saveProfiles(profiles)
             logProfileSimilarityDiagnostics(newProfile: profiles[idx])
             resetUnknownTracking()
-            return profiles
+            return profiles[idx]
         }
 
         let newEmbedding = sampleEmbeddings[0]
@@ -159,7 +172,7 @@ final class FaceRecognitionService {
             let sim = cosineSimilarity(newEmbedding, existingEmbedding)
             if sim >= FaceConfig.duplicateWarningThreshold {
                 onLog?("Duplicate save blocked: \(trimmedName) vs \(existing.name) similarity \(String(format: "%.4f", sim))")
-                return profiles
+                return nil
             }
         }
 
@@ -167,17 +180,46 @@ final class FaceRecognitionService {
         if let jpegData = suggestion.jpegData {
             profile.sampleImageFilename = try await faceStore.saveImage(jpegData, for: profile.id)
         }
+        if let voiceNoteData {
+            profile.voiceNoteFilename = try await faceStore.saveRecording(voiceNoteData, for: profile.id)
+        }
         profiles.append(profile)
         try await faceStore.saveProfiles(profiles)
         logProfileSimilarityDiagnostics(newProfile: profile)
         resetUnknownTracking()
-        return profiles
+        return profile
     }
 
     func deleteProfile(id: UUID) async throws -> [FaceProfile] {
+        if let profile = profiles.first(where: { $0.id == id }) {
+            if let name = profile.sampleImageFilename {
+                try? await faceStore.deleteImage(named: name)
+            }
+            if let filename = profile.voiceNoteFilename {
+                faceStore.deleteRecording(named: filename)
+            }
+        }
         profiles.removeAll { $0.id == id }
         try await faceStore.saveProfiles(profiles)
         return profiles
+    }
+
+    func renameProfile(id: UUID, newName: String) async throws -> FaceProfile? {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let idx = profiles.firstIndex(where: { $0.id == id }) else { return nil }
+        profiles[idx].name = trimmed
+        profiles[idx].updatedAt = .now
+        try await faceStore.saveProfiles(profiles)
+        return profiles[idx]
+    }
+
+    func updateSpokenText(id: UUID, text: String?) async throws -> FaceProfile? {
+        guard let idx = profiles.firstIndex(where: { $0.id == id }) else { return nil }
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        profiles[idx].spokenText = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        profiles[idx].updatedAt = .now
+        try await faceStore.saveProfiles(profiles)
+        return profiles[idx]
     }
 
     private func extractPrimaryFace(from sampleBuffer: CMSampleBuffer) throws -> CGImage {
@@ -262,7 +304,13 @@ final class FaceRecognitionService {
             return nil
         }
 
-        return FaceMatch(name: candidate.profile.name, confidence: candidate.confidence)
+        return FaceMatch(
+            id: candidate.profile.id,
+            name: candidate.profile.name,
+            spokenText: candidate.profile.spokenText,
+            voiceNoteFilename: candidate.profile.voiceNoteFilename,
+            confidence: candidate.confidence
+        )
     }
 
     private func rankedCandidates(for embedding: [Float]) -> [CandidateMatch] {

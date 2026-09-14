@@ -11,10 +11,23 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section {
-                NavigationLink(NSLocalizedString("settings.featureOrder", comment: "")) {
-                    FeatureOrderSettingsView()
-                        .environmentObject(settingsStore)
+            Section(NSLocalizedString("settings.appearance", comment: "")) {
+                Picker(NSLocalizedString("settings.uiStyle", comment: ""), selection: Binding(
+                    get: { settingsStore.uiStyle },
+                    set: { settingsStore.uiStyle = $0 }
+                )) {
+                    Text(NSLocalizedString("settings.uiStyle.simple", comment: "")).tag(UIStyle.simple)
+                    Text(NSLocalizedString("settings.uiStyle.traditional", comment: "")).tag(UIStyle.traditional)
+                }
+                .pickerStyle(.menu)
+            }
+
+            if settingsStore.uiStyle == .traditional {
+                Section {
+                    NavigationLink(NSLocalizedString("settings.featureOrder", comment: "")) {
+                        FeatureOrderSettingsView()
+                            .environmentObject(settingsStore)
+                    }
                 }
             }
 
@@ -997,10 +1010,12 @@ private struct ReadTextRecognitionSettingsView: View {
     }
 }
 
-private struct SavedFacesView: View {
+struct SavedFacesView: View {
     @StateObject private var viewModel = SavedFacesViewModel()
     @State private var renamingProfile: FaceProfile?
     @State private var draftName = ""
+    @State private var textEditingProfile: FaceProfile?
+    @State private var draftText = ""
 
     var body: some View {
         List {
@@ -1009,26 +1024,66 @@ private struct SavedFacesView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(viewModel.profiles) { profile in
-                    Text(profile.name)
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                viewModel.deleteFaces(at: IndexSet(integer: viewModel.profiles.firstIndex(where: { $0.id == profile.id }) ?? 0))
-                            } label: {
-                                Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
-                            }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(profile.name)
+                            .font(.headline)
+
+                        if let spokenText = profile.spokenText, !spokenText.isEmpty {
+                            Text(String(format: NSLocalizedString("face.spokenTextLabel", comment: ""), spokenText))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        .contextMenu {
+
+                        HStack(spacing: 16) {
                             Button {
-                                draftName = profile.name
-                                renamingProfile = profile
+                                viewModel.togglePlay(profile)
                             } label: {
-                                Label(NSLocalizedString("common.rename", comment: ""), systemImage: "pencil")
+                                Label(
+                                    NSLocalizedString(viewModel.playingProfileID == profile.id ? "common.stop" : "face.replayRecording", comment: ""),
+                                    systemImage: viewModel.playingProfileID == profile.id ? "stop.circle" : "play.circle"
+                                )
+                            }
+                            .disabled(profile.voiceNoteFilename == nil)
+                            .accessibilityHint(profile.voiceNoteFilename == nil ? NSLocalizedString("face.noRecording", comment: "") : "")
+
+                            Button {
+                                draftText = profile.spokenText ?? ""
+                                textEditingProfile = profile
+                            } label: {
+                                Label(NSLocalizedString("face.enterText", comment: ""), systemImage: "text.bubble")
                             }
                         }
-                        .accessibilityAction(named: Text(NSLocalizedString("common.rename", comment: "") + " \(profile.name)")) {
+                        .font(.subheadline)
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            viewModel.deleteFaces(at: IndexSet(integer: viewModel.profiles.firstIndex(where: { $0.id == profile.id }) ?? 0))
+                        } label: {
+                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
+                        }
+                    }
+                    .contextMenu {
+                        Button {
                             draftName = profile.name
                             renamingProfile = profile
+                        } label: {
+                            Label(NSLocalizedString("common.rename", comment: ""), systemImage: "pencil")
                         }
+                        Button {
+                            draftText = profile.spokenText ?? ""
+                            textEditingProfile = profile
+                        } label: {
+                            Label(NSLocalizedString("face.enterText", comment: ""), systemImage: "text.bubble")
+                        }
+                    }
+                    .accessibilityAction(named: Text(NSLocalizedString("common.rename", comment: "") + " \(profile.name)")) {
+                        draftName = profile.name
+                        renamingProfile = profile
+                    }
+                    .accessibilityAction(named: Text(NSLocalizedString("face.enterText", comment: ""))) {
+                        draftText = profile.spokenText ?? ""
+                        textEditingProfile = profile
+                    }
                 }
                 .onDelete(perform: viewModel.deleteFaces)
             }
@@ -1036,6 +1091,9 @@ private struct SavedFacesView: View {
         .navigationTitle(NSLocalizedString("face.savedFaces", comment: ""))
         .task {
             viewModel.loadProfiles()
+        }
+        .onDisappear {
+            viewModel.stopPlayback()
         }
         .alert(NSLocalizedString("face.savedFacesError", comment: ""), isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
             Button(NSLocalizedString("common.ok", comment: "")) {
@@ -1060,6 +1118,21 @@ private struct SavedFacesView: View {
         } message: {
             Text(NSLocalizedString("face.renameMessage", comment: ""))
         }
+        .alert(NSLocalizedString("face.enterText", comment: ""), isPresented: Binding(get: { textEditingProfile != nil }, set: { if !$0 { textEditingProfile = nil } })) {
+            TextField(NSLocalizedString("face.spokenTextPrompt", comment: ""), text: $draftText)
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                textEditingProfile = nil
+                draftText = ""
+            }
+            Button(NSLocalizedString("common.save", comment: "")) {
+                guard let textEditingProfile else { return }
+                viewModel.updateSpokenText(id: textEditingProfile.id, text: draftText)
+                self.textEditingProfile = nil
+                draftText = ""
+            }
+        } message: {
+            Text(NSLocalizedString("face.spokenTextMessage", comment: ""))
+        }
     }
 }
 
@@ -1067,8 +1140,10 @@ private struct SavedFacesView: View {
 private final class SavedFacesViewModel: ObservableObject {
     @Published var profiles: [FaceProfile] = []
     @Published var errorMessage: String?
+    @Published var playingProfileID: UUID?
 
     private let faceStore = FaceStore()
+    private let player = FaceAudioPlayer()
 
     func loadProfiles() {
         Task {
@@ -1078,6 +1153,28 @@ private final class SavedFacesViewModel: ObservableObject {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    func togglePlay(_ profile: FaceProfile) {
+        guard let filename = profile.voiceNoteFilename else { return }
+        if playingProfileID == profile.id {
+            stopPlayback()
+            return
+        }
+        playingProfileID = profile.id
+        Task { @MainActor in
+            let url = await faceStore.recordingURL(for: filename)
+            player.onFinish = { [weak self] in
+                self?.playingProfileID = nil
+            }
+            player.play(url: url)
+        }
+    }
+
+    func stopPlayback() {
+        player.stop()
+        player.onFinish = nil
+        playingProfileID = nil
     }
 
     func deleteFaces(at offsets: IndexSet) {
@@ -1093,6 +1190,9 @@ private final class SavedFacesViewModel: ObservableObject {
                 for profile in deletedProfiles {
                     if let filename = profile.sampleImageFilename {
                         try await faceStore.deleteImage(named: filename)
+                    }
+                    if let filename = profile.voiceNoteFilename {
+                        faceStore.deleteRecording(named: filename)
                     }
                 }
                 try await faceStore.saveProfiles(remainingProfiles)
@@ -1111,6 +1211,23 @@ private final class SavedFacesViewModel: ObservableObject {
         guard let profileIndex = updatedProfiles.firstIndex(where: { $0.id == id }) else { return }
 
         updatedProfiles[profileIndex].name = trimmedName
+        updatedProfiles[profileIndex].updatedAt = .now
+
+        Task {
+            do {
+                try await faceStore.saveProfiles(updatedProfiles)
+                profiles = updatedProfiles
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func updateSpokenText(id: UUID, text: String) {
+        var updatedProfiles = profiles
+        guard let profileIndex = updatedProfiles.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        updatedProfiles[profileIndex].spokenText = trimmed.isEmpty ? nil : trimmed
         updatedProfiles[profileIndex].updatedAt = .now
 
         Task {
