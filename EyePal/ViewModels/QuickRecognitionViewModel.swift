@@ -18,6 +18,7 @@ final class QuickRecognitionViewModel: ObservableObject {
     @Published var isContinuousCapture = false
     @Published var errorMessage: String?
     @Published var capturedPreview: UIImage?
+    @Published var followUpQuestion = ""
 #if canImport(Translation)
     @Published var translationRequest: QuickTranslationRequest?
     #endif
@@ -108,6 +109,69 @@ final class QuickRecognitionViewModel: ObservableObject {
                 sourceImage: latestCapturedImage,
                 useFullResolution: true
             )
+        }
+    }
+
+    func submitFollowUp() {
+        let trimmed = followUpQuestion.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !isProcessing else { return }
+        guard let settingsStore else {
+            errorMessage = "Quick Recognition settings are unavailable."
+            return
+        }
+        guard let latestCapturedImage else {
+            statusText = "No captured image to ask about."
+            return
+        }
+
+        let provider = QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma
+        let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
+        let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
+
+        let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !useGemmaOffline, apiKey.isEmpty {
+            errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
+            return
+        }
+
+        followUpQuestion = ""
+        isProcessing = true
+        statusText = "Asking a follow-up question."
+        #if canImport(Translation)
+        translationRequest = nil
+        #endif
+
+        Task {
+            do {
+                let response: String
+                if useGemmaOffline {
+                    response = try await gemmaService.queryImage(
+                        image: latestCapturedImage,
+                        question: trimmed,
+                        enforceSingleSentenceResponse: false,
+                        kind: selectedKind
+                    )
+                } else {
+                    let imageDataURL = try service.prepareImageDataURL(
+                        from: latestCapturedImage,
+                        maximumDimension: nil,
+                        compressionQuality: 0.8
+                    )
+                    response = try await service.queryImage(
+                        imageDataURL: imageDataURL,
+                        question: trimmed,
+                        enforceSingleSentenceResponse: false,
+                        apiKey: apiKey
+                    )
+                }
+                handleRecognitionSuccess(response)
+            } catch is CancellationError {
+                isProcessing = false
+            } catch {
+                errorMessage = error.localizedDescription
+                statusText = "Quick Recognition failed."
+                isProcessing = false
+            }
         }
     }
 

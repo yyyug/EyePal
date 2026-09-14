@@ -45,6 +45,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     val isProcessing = mutableStateOf(false)
     val isContinuousCapture = mutableStateOf(false)
     val capturedImage = mutableStateOf<Bitmap?>(null)
+    val followUpQuestion = mutableStateOf("")
     val errorMessage = mutableStateOf<String?>(null)
     val apiKey = mutableStateOf("")
     val quickModelProvider = mutableStateOf(Defaults.QUICK_MODEL_PROVIDER)
@@ -150,6 +151,47 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     fun takePhoto() { lastPrompt = "Describe what you see briefly"; capture() }
 
     fun takePresetPhoto(prompt: String) { lastPrompt = prompt; capture() }
+
+    fun submitFollowUp() {
+        val trimmed = followUpQuestion.value.trim()
+        if (trimmed.isEmpty() || isProcessing.value) return
+        val bitmap = capturedImage.value
+        if (bitmap == null) {
+            statusText.value = str(R.string.error_take_photo_first)
+            return
+        }
+        followUpQuestion.value = ""
+        isProcessing.value = true
+        errorMessage.value = null
+        statusText.value = str(R.string.status_follow_up_processing)
+        viewModelScope.launch {
+            try {
+                val selectedKind = selectedGemmaKind()
+                val useGemmaOffline = settings.quickModelProvider.first() == "gemma" && gemmaService.canRun(selectedKind)
+                val result: String
+                if (useGemmaOffline) {
+                    result = gemmaService.queryImage(bitmap, trimmed, false, selectedKind)
+                } else {
+                    val apiKey = settings.quickMoondreamAPIKey.first()
+                    if (apiKey.isEmpty()) { responseText.value = str(R.string.quick_no_api_key); isProcessing.value = false; return@launch }
+                    result = moondream.describeImage(bitmap, apiKey, trimmed)
+                }
+                val translationEnabled = settings.quickTranslationEnabled.first()
+                val targetLanguage = settings.quickTranslationTarget.first()
+                if (translationEnabled) {
+                    translationService.setLanguages("en", targetLanguage)
+                    val translated = translationService.translate(result)
+                    responseText.value = translated
+                    announcer.announce(translated)
+                } else {
+                    responseText.value = result
+                    announcer.announce(result)
+                }
+                statusText.value = str(R.string.status_result_ready)
+            } catch (e: Exception) { errorMessage.value = e.message; statusText.value = str(R.string.status_failed, e.message) }
+            isProcessing.value = false
+        }
+    }
 
     fun startContinuousMode() {
         if (isContinuousCapture.value) return

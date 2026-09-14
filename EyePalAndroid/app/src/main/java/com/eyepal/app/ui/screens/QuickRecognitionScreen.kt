@@ -78,6 +78,23 @@ fun QuickRecognitionScreen(viewModel: QuickRecognitionViewModel = viewModel()) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Text(responseText, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = viewModel.followUpQuestion.value,
+                            onValueChange = { viewModel.followUpQuestion.value = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text(stringResource(R.string.label_ask_follow_up)) },
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { viewModel.submitFollowUp() },
+                            enabled = !isProcessing && viewModel.followUpQuestion.value.isNotBlank()
+                        ) {
+                            Text(stringResource(R.string.btn_send))
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

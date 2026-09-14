@@ -295,6 +295,7 @@
     <string name="status_analyzing_scene">正在分析場景…</string>
     <string name="error_camera_not_ready">相機尚未就緒 — 請再試一次</string>
     <string name="status_result_ready">結果已就緒。</string>
+    <string name="status_follow_up_processing">正在追問...</string>
     <string name="status_failed">失敗：%s</string>
     <string name="error_onnx_failed">ONNX 模型載入失敗</string>
     <string name="status_face_engine_unavailable">人臉引擎無法使用：%s</string>

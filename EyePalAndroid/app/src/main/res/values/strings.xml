@@ -295,6 +295,7 @@
     <string name="status_analyzing_scene">Analyzing scene...</string>
     <string name="error_camera_not_ready">Camera not ready — try again</string>
     <string name="status_result_ready">Result ready.</string>
+    <string name="status_follow_up_processing">Asking a follow-up question...</string>
     <string name="status_failed">Failed: %s</string>
     <string name="error_onnx_failed">ONNX model failed to load</string>
     <string name="status_face_engine_unavailable">Face engine unavailable: %s</string>

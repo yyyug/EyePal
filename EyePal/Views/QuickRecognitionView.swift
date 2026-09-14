@@ -138,12 +138,37 @@ struct QuickRecognitionView: View {
                 }
 
                 if !viewModel.responseText.isEmpty {
-                    TextEditor(text: .constant(viewModel.responseText))
-                        .frame(minHeight: 120, maxHeight: 180)
-                        .scrollContentBackground(.hidden)
-                        .padding(8)
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .accessibilityLabel(NSLocalizedString("quick.resultLabel", comment: ""))
+                    ScrollView {
+                        Text(viewModel.responseText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                    }
+                    .frame(minHeight: 120, maxHeight: 180)
+                    .scrollContentBackground(.hidden)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityLabel(NSLocalizedString("quick.resultLabel", comment: ""))
+
+                    HStack(spacing: 8) {
+                        TextField(
+                            NSLocalizedString("details.followUpQuestion", comment: ""),
+                            text: $viewModel.followUpQuestion
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.send)
+                        .onSubmit {
+                            viewModel.submitFollowUp()
+                        }
+                        .accessibilityLabel(NSLocalizedString("details.followUpQuestion", comment: ""))
+
+                        Button(NSLocalizedString("common.send", comment: "")) {
+                            viewModel.submitFollowUp()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(
+                            viewModel.isProcessing
+                                || viewModel.followUpQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
+                    }
                 }
             }
         }
