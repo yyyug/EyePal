@@ -362,4 +362,39 @@
     <string name="settings_model_provider">Recognition Model</string>
     <string name="settings_model_provider_moondream">MoonDream (Online)</string>
     <string name="settings_model_provider_gemma">Gemma (On-device)</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_style">Style</string>
+    <string name="settings_style_simple">Simple</string>
+    <string name="settings_style_traditional">Traditional</string>
+
+    <string name="tab_vision">Vision</string>
+    <string name="tab_assist">Assist</string>
+
+    <string name="vision_quick">Quick</string>
+    <string name="vision_details">Details</string>
+    <string name="vision_text">Text</string>
+    <string name="vision_faces">Faces</string>
+    <string name="vision_enable_continuous">Enable Continuous Mode</string>
+    <string name="vision_disable_continuous">Disable Continuous Mode</string>
+    <string name="vision_show_feature_page">Open Feature Page</string>
+    <string name="vision_saved_faces">Saved Faces</string>
+
+    <string name="btn_save_face">Save Face</string>
+    <string name="btn_reRecord">Re-record</string>
+    <string name="btn_play_note">Play voice note</string>
+    <string name="btn_enter_text_note">Enter text note</string>
+    <string name="status_new_face_ready">A new face is ready to save.</string>
+    <string name="status_new_face_save_hint">New face detected. Tap to record a voice note and save.</string>
+    <string name="status_recording_prompt">Recording voice note...</string>
+    <string name="status_recording_started">Recording started. Speak now.</string>
+    <string name="status_recorded_ready">Voice note recorded. Tap Save to finish.</string>
+    <string name="status_recorded_prompt">Tap Save to finish saving this face.</string>
+    <string name="status_saved_with_note">%1\ saved with voice note.</string>
+    <string name="status_face_failed">Failed to save this face.</string>
+    <string name="status_face_cancelled">Face was not saved.</string>
+    <string name="status_mic_required">Microphone access is required to record a voice note.</string>
+    <string name="face_save_disabled_hint">Save is available when a new face appears.</string>
+    <string name="label_text_note">Note: %1\</string>
+    <string name="text_note_prompt">Note text</string>
+    <string name="text_note_message">This text will be spoken when this face is recognized.</string>
 </resources>

@@ -21,7 +21,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -165,23 +167,42 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
 fun FacesScreen(viewModel: FacesViewModel = viewModel()) {
     val statusText by viewModel.statusText
     val recognizedName by viewModel.recognizedName
-    val pendingSaveName by viewModel.pendingSaveName
+    val enrollmentState by viewModel.enrollmentState
+    val enrollmentProgressText by viewModel.enrollmentProgressText
     val pendingSampleCount by viewModel.pendingSampleCount
     val sampleTarget = viewModel.sampleTarget
-    var nameInput by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
+    val saveFaceLabel = stringResource(R.string.btn_save_face)
 
     DisposableEffect(Unit) { onDispose { viewModel.stopCamera() } }
 
     LaunchedEffect(Unit) { viewModel.startCamera() }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics {
+                customActions = buildList {
+                    add(
+                        CustomAccessibilityAction(saveFaceLabel) {
+                            viewModel.triggerEnrollment()
+                            true
+                        }
+                    )
+                }
+                liveRegion = LiveRegionMode.Polite
+            }
+    ) {
         AndroidView(factory = { ctx -> PreviewView(ctx).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT); scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
             modifier = Modifier.fillMaxWidth().weight(1f), update = { preview -> viewModel.startCamera(preview) })
 
         Card(modifier = Modifier.fillMaxWidth().padding(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))) {
             Column(modifier = Modifier.padding(16.dp)) {
-                if (pendingSampleCount > 0 && pendingSaveName == null) {
+                if (enrollmentState != FacesViewModel.EnrollmentState.IDLE) {
+                    enrollmentProgressText?.let {
+                        Text(it, style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                } else if (pendingSampleCount > 0) {
                     LinearProgressIndicator(
                         progress = { pendingSampleCount.toFloat() / sampleTarget },
                         modifier = Modifier.fillMaxWidth(),
@@ -195,19 +216,75 @@ fun FacesScreen(viewModel: FacesViewModel = viewModel()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(name, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary)
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                when (enrollmentState) {
+                    FacesViewModel.EnrollmentState.IDLE -> {
+                        val disabledHint = stringResource(R.string.face_save_disabled_hint)
+                        Button(
+                            onClick = { viewModel.triggerEnrollment() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false
+                        ) {
+                            Text(stringResource(R.string.btn_save_face))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(disabledHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                    }
+                    FacesViewModel.EnrollmentState.PENDING -> {
+                        Button(
+                            onClick = { viewModel.triggerEnrollment() },
+                            modifier = Modifier.fillMaxWidth().semantics {
+                                customActions = buildList {
+                                    add(CustomAccessibilityAction(saveFaceLabel) { viewModel.triggerEnrollment(); true })
+                                }
+                            }
+                        ) {
+                            Text(stringResource(R.string.btn_save_face))
+                        }
+                    }
+                    FacesViewModel.EnrollmentState.RECORDING -> {
+                        Button(
+                            onClick = { viewModel.triggerEnrollment() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.btn_save))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.cancelEnrollment() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.btn_cancel))
+                        }
+                    }
+                    FacesViewModel.EnrollmentState.RECORDED -> {
+                        Button(
+                            onClick = { viewModel.triggerEnrollment() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.btn_save))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.reRecord() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.btn_reRecord))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.cancelEnrollment() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.btn_cancel))
+                        }
+                    }
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-    }
-
-    if (pendingSaveName != null) {
-        val onSave = { if (nameInput.isNotBlank()) { viewModel.saveFace(nameInput); nameInput = ""; focusManager.clearFocus() } }
-        AlertDialog(onDismissRequest = { viewModel.dismissSave() }, title = { Text(stringResource(R.string.faces_add_person)) },
-            text = { OutlinedTextField(value = nameInput, onValueChange = { nameInput = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text(stringResource(R.string.faces_person_name)) }, singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onSave() })) },
-            confirmButton = { TextButton(onClick = { onSave() }, enabled = nameInput.isNotBlank()) { Text(stringResource(R.string.btn_save)) } },
-            dismissButton = { TextButton(onClick = { nameInput = ""; viewModel.dismissSave() }) { Text(stringResource(R.string.btn_not_now)) } })
     }
 }
 

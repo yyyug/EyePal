@@ -16,13 +16,19 @@ import com.eyepal.app.config.Defaults
 import com.eyepal.app.services.GoogleGlassState
 import com.eyepal.app.services.FaceRecognitionService
 import com.eyepal.app.services.FaceRecognitionLogStore
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 class FacesViewModel(application: Application) : AndroidViewModel(application) {
     data class RenameTarget(val id: String, val currentName: String)
+
+    enum class EnrollmentState { IDLE, PENDING, RECORDING, RECORDED }
 
     private fun str(resId: Int): String = getApplication<Application>().getString(resId)
     private fun str(resId: Int, vararg args: Any?): String = getApplication<Application>().getString(resId, *args)
@@ -33,17 +39,24 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
     private val processingLock = AtomicBoolean(false)
     val errorMessage = mutableStateOf<String?>(null)
     val profiles = mutableStateOf<List<FaceRecognitionService.SavedFaceProfile>>(emptyList())
-    val pendingSaveName = mutableStateOf<String?>(null)
-    val pendingEmbedding = mutableStateOf<FloatArray?>(null)
+    val enrollmentState = mutableStateOf(EnrollmentState.IDLE)
+    val enrollmentProgressText = mutableStateOf<String?>(null)
     val pendingSampleCount = mutableStateOf(0)
     val sampleTarget = 4
     private val pendingSampleEmbeddings = mutableListOf<FloatArray>()
+    private var pendingAudioFile: File? = null
+    private var autoStopJob: kotlinx.coroutines.Job? = null
+    private val recordingDurationMs = 5000L
 
     private val container = (application as EyePalApplication).container
     val camera = container.cameraService
     private val faceService = container.faceRecognitionService
     private val announcer = container.announcer
     private val settings = container.settingsRepository
+    private val recorder = com.eyepal.app.services.FaceAudioRecorder(
+        File(getApplication<Application>().filesDir, "face_audio")
+    )
+    private val playbackPlayer = com.eyepal.app.services.FaceAudioPlayer(getApplication())
     private var storedLifecycleOwner: LifecycleOwner? = null
     private var storedPreview: PreviewView? = null
     private var cameraStarted = false
@@ -97,8 +110,8 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
     fun startCamera(previewView: android.view.View) {
         if (GoogleGlassState.useGlassCamera.value || cameraStarted) return
         val lo = (previewView.context as? LifecycleOwner) ?: return
-        storedLifecycleOwner = lo
         val pv = previewView as? PreviewView ?: return
+        storedLifecycleOwner = lo
         storedPreview = pv
         cameraStarted = true
         camera.startCamera(lo, pv) { bitmap ->
@@ -129,13 +142,12 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
                     recognizedName.value = result.match.name
                     statusText.value = str(R.string.status_recognized_with_confidence, result.match.name, String.format(Locale.US, "%.3f", result.match.confidence))
                     val faceCooldownMs = (faceSpeechCooldown * 1000).toLong()
-                    announcer.announce(str(R.string.status_recognized, result.match.name), minimumInterval = faceCooldownMs)
+                    announceRecognized(result.match.name, faceCooldownMs)
                     logEntries.value = faceService.logStore.getEntries()
                     pendingSampleEmbeddings.clear()
                     pendingSampleCount.value = 0
-                    if (pendingSaveName.value != null) {
-                        pendingSaveName.value = null
-                        faceService.resetSampleCollection()
+                    if (enrollmentState.value != EnrollmentState.IDLE) {
+                        cancelEnrollment()
                     }
                 } else if (result.pendingSamples != null) {
                     recognizedName.value = null
@@ -144,14 +156,13 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
                     pendingSampleEmbeddings.clear()
                     pendingSampleEmbeddings.addAll(result.pendingSamples.embeddings)
                     pendingSampleCount.value = count
-                    if (count >= target || result.pendingSamples.suggestNow) {
-                        pendingSaveName.value = ""
-                        statusText.value = str(R.string.status_unknown_face_enter_name)
-                        val faceCooldownMs = (faceSpeechCooldown * 1000).toLong()
-                        announcer.announce(str(R.string.status_unknown_face_save), minimumInterval = faceCooldownMs)
+                    if (result.pendingSamples.suggestNow) {
+                        beginEnrollment(pendingSampleEmbeddings.toList())
                     } else {
-                        statusText.value = str(R.string.label_capturing_samples, count, target)
-                        announcer.announce(str(R.string.status_capturing_samples_announce, count, target), minimumInterval = 2000)
+                        if (enrollmentState.value == EnrollmentState.IDLE) {
+                            statusText.value = str(R.string.label_capturing_samples, count, target)
+                            announcer.announce(str(R.string.status_capturing_samples_announce, count, target), minimumInterval = 2000)
+                        }
                     }
                 } else {
                     if (recognizedName.value != null) {
@@ -167,45 +178,154 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun saveFace(name: String) {
-        viewModelScope.launch {
-            if (pendingSampleEmbeddings.isEmpty()) {
-                pendingSaveName.value = null
-                pendingEmbedding.value = null
-                pendingSampleCount.value = 0
-                faceService.resetSampleCollection()
-                statusText.value = str(R.string.status_no_samples)
-                return@launch
-            }
-            faceService.saveFaceMultiple(name, pendingSampleEmbeddings.toList())?.let { reason ->
-                statusText.value = reason
-                return@launch
-            }
-            profiles.value = faceService.getProfiles()
-            logEntries.value = faceService.logStore.getEntries()
-            pendingSaveName.value = null
-            pendingEmbedding.value = null
-            pendingSampleEmbeddings.clear()
-            pendingSampleCount.value = 0
-            statusText.value = str(R.string.status_saved_samples, name)
+    private fun announceRecognized(name: String, cooldownMs: Long) {
+        val profile = profiles.value.firstOrNull { it.name == name }
+        val note = profile?.textNote?.trim().orEmpty()
+        if (note.isNotEmpty()) {
+            announcer.announce(note, minimumInterval = cooldownMs)
+            return
+        }
+        val file = profile?.soundFilename?.let { faceService.recordingFile(it) }
+        if (file?.exists() == true) {
+            playbackPlayer.play(file)
+            return
+        }
+        announcer.announce(str(R.string.status_recognized, name), minimumInterval = cooldownMs)
+    }
+
+    // MARK: - No-dialog enrollment
+
+    fun beginEnrollment(embeddings: List<FloatArray>) {
+        if (enrollmentState.value != EnrollmentState.IDLE) return
+        if (embeddings.isEmpty()) return
+        pendingSampleEmbeddings.clear()
+        pendingSampleEmbeddings.addAll(embeddings)
+        pendingAudioFile = null
+        enrollmentState.value = EnrollmentState.PENDING
+        enrollmentProgressText.value = str(R.string.status_new_face_ready)
+        statusText.value = str(R.string.status_new_face_save_hint)
+        announcer.announce(str(R.string.status_new_face_save_hint), minimumInterval = 0)
+    }
+
+    fun triggerEnrollment() {
+        when (enrollmentState.value) {
+            EnrollmentState.IDLE -> Unit
+            EnrollmentState.PENDING -> startRecording()
+            EnrollmentState.RECORDING, EnrollmentState.RECORDED -> completeSave()
         }
     }
 
-    fun dismissSave() {
-        pendingSaveName.value = null
-        pendingEmbedding.value = null
-        pendingSampleEmbeddings.clear()
-        pendingSampleCount.value = 0
-        faceService.resetSampleCollection()
+    fun reRecord() {
+        if (enrollmentState.value != EnrollmentState.RECORDING && enrollmentState.value != EnrollmentState.RECORDED) return
+        autoStopJob?.cancel()
+        autoStopJob = null
+        recorder.cancel()
+        pendingAudioFile = null
+        startRecording()
     }
 
-    fun cancelCollection() {
-        pendingSaveName.value = null
-        pendingEmbedding.value = null
+    fun cancelEnrollment() {
+        autoStopJob?.cancel()
+        autoStopJob = null
+        recorder.cancel()
+        pendingAudioFile = null
         pendingSampleEmbeddings.clear()
         pendingSampleCount.value = 0
         faceService.resetSampleCollection()
+        enrollmentState.value = EnrollmentState.IDLE
+        enrollmentProgressText.value = null
+        statusText.value = str(R.string.status_face_cancelled)
+        announcer.announce(str(R.string.status_face_cancelled), minimumInterval = 0)
+    }
+
+    fun dismissSave() = cancelEnrollment()
+
+    fun cancelCollection() {
+        if (enrollmentState.value != EnrollmentState.IDLE) {
+            cancelEnrollment()
+            return
+        }
+        faceService.resetSampleCollection()
         statusText.value = str(R.string.status_collection_cancelled)
+    }
+
+    private fun startRecording() {
+        if (enrollmentState.value != EnrollmentState.PENDING) return
+        if (!recorder.start()) {
+            val msg = recorder.lastError?.let { str(R.string.status_face_failed) } ?: str(R.string.status_mic_required)
+            enrollmentProgressText.value = msg
+            statusText.value = msg
+            announcer.announce(msg, minimumInterval = 0)
+            return
+        }
+        enrollmentState.value = EnrollmentState.RECORDING
+        enrollmentProgressText.value = str(R.string.status_recording_prompt)
+        statusText.value = str(R.string.status_recording_started)
+        announcer.announce(str(R.string.status_recording_started), minimumInterval = 0)
+        autoStopJob = viewModelScope.launch {
+            delay(recordingDurationMs)
+            autoStopJob = null
+            finishRecording()
+        }
+    }
+
+    private fun finishRecording() {
+        if (enrollmentState.value != EnrollmentState.RECORDING) return
+        val file = recorder.stop()
+        pendingAudioFile = file
+        enrollmentState.value = EnrollmentState.RECORDED
+        enrollmentProgressText.value = str(R.string.status_recorded_ready)
+        if (file == null) {
+            enrollmentProgressText.value = recorder.lastError ?: str(R.string.status_face_failed)
+            statusText.value = enrollmentProgressText.value ?: ""
+            announcer.announce(enrollmentProgressText.value ?: "", minimumInterval = 0)
+            return
+        }
+        statusText.value = str(R.string.status_recorded_prompt)
+        announcer.announce(str(R.string.status_recorded_ready), minimumInterval = 0)
+    }
+
+    private fun completeSave() {
+        if (enrollmentState.value != EnrollmentState.RECORDING && enrollmentState.value != EnrollmentState.RECORDED) return
+        if (enrollmentState.value == EnrollmentState.RECORDING) {
+            autoStopJob?.cancel()
+            autoStopJob = null
+            pendingAudioFile = recorder.stop()
+        }
+        val embeddings = pendingSampleEmbeddings.toList()
+        val audio = pendingAudioFile
+        if (embeddings.isEmpty()) {
+            cancelEnrollment()
+            return
+        }
+        val autoName = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+        viewModelScope.launch {
+            try {
+                val reason = faceService.saveFaceMultiple(autoName, embeddings, audio)
+                if (reason != null) {
+                    enrollmentProgressText.value = reason
+                    statusText.value = reason
+                    announcer.announce(reason, minimumInterval = 0)
+                } else {
+                    profiles.value = faceService.getProfiles()
+                    logEntries.value = faceService.logStore.getEntries()
+                    val done = str(R.string.status_saved_with_note, autoName)
+                    enrollmentProgressText.value = done
+                    statusText.value = done
+                    announcer.announce(done, minimumInterval = 0)
+                }
+                pendingAudioFile = null
+                pendingSampleEmbeddings.clear()
+                pendingSampleCount.value = 0
+                faceService.resetSampleCollection()
+                enrollmentState.value = EnrollmentState.IDLE
+            } catch (e: Exception) {
+                val failed = str(R.string.status_face_failed)
+                enrollmentProgressText.value = failed
+                statusText.value = failed
+                announcer.announce(failed, minimumInterval = 0)
+            }
+        }
     }
 
     fun renameFace(id: String, newName: String) {
@@ -233,5 +353,12 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
         clipboard.setPrimaryClip(ClipData.newPlainText("Face Log", text))
     }
 
-    override fun onCleared() { super.onCleared(); faceService.close() }
+    override fun onCleared() {
+        super.onCleared()
+        autoStopJob?.cancel()
+        autoStopJob = null
+        runCatching { recorder.cancel() }
+        playbackPlayer.release()
+        faceService.close()
+    }
 }

@@ -54,7 +54,13 @@ class FaceRecognitionService(private val context: Context) {
     private var lastSampleFaceCenterX = 0f
     private var lastSampleFaceCenterY = 0f
 
-    data class SavedFaceProfile(val id: String, val name: String, val embeddings: List<FloatArray>)
+    data class SavedFaceProfile(
+        val id: String,
+        val name: String,
+        val embeddings: List<FloatArray>,
+        val soundFilename: String? = null,
+        val textNote: String? = null
+    )
     data class FaceMatch(val name: String, val confidence: Float)
     data class PendingSamples(val embeddings: List<FloatArray>, val count: Int, val target: Int, val suggestNow: Boolean = false)
 
@@ -74,7 +80,15 @@ class FaceRecognitionService(private val context: Context) {
                     val floats = embArr.getJSONArray(j)
                     embeddings.add(FloatArray(floats.length()) { floats.getDouble(it).toFloat() })
                 }
-                profiles.add(SavedFaceProfile(obj.getString("id"), obj.getString("name"), embeddings))
+                profiles.add(
+                    SavedFaceProfile(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        embeddings = embeddings,
+                        soundFilename = obj.optStringOrNull("soundFilename"),
+                        textNote = obj.optStringOrNull("textNote")
+                    )
+                )
             }
             logInterProfileSimilarities()
         }
@@ -312,20 +326,51 @@ class FaceRecognitionService(private val context: Context) {
         null
     }
 
-    suspend fun saveFaceMultiple(name: String, embeddings: List<FloatArray>): String? = withContext(Dispatchers.IO) {
+    suspend fun saveFaceMultiple(
+        name: String,
+        embeddings: List<FloatArray>,
+        audioSource: File? = null
+    ): String? = withContext(Dispatchers.IO) {
         val validEmbeddings = embeddings.filter { it.isNotEmpty() }
         if (validEmbeddings.isEmpty()) return@withContext null
         val primary = validEmbeddings.first()
         val existing = profiles.firstOrNull { it.name.equals(name, ignoreCase = true) }
         if (existing != null) {
-            profiles = profiles.map { if (it.id == existing.id) it.copy(embeddings = listOf(primary)) else it }.toMutableList()
+            val soundFilename = if (audioSource != null) {
+                existing.soundFilename?.let { deleteAudioFile(it) }
+                installAudioFile(audioSource, existing.id)
+            } else {
+                existing.soundFilename
+            }
+            profiles = profiles.map {
+                if (it.id == existing.id) it.copy(embeddings = listOf(primary), soundFilename = soundFilename) else it
+            }.toMutableList()
         } else {
             checkDuplicateSave(name, listOf(primary))?.let { return@withContext it }
-            profiles.add(SavedFaceProfile(id = System.currentTimeMillis().toString(), name = name, embeddings = listOf(primary)))
+            val id = System.currentTimeMillis().toString()
+            val soundFilename = audioSource?.let { installAudioFile(it, id) }
+            profiles.add(SavedFaceProfile(id = id, name = name, embeddings = listOf(primary), soundFilename = soundFilename))
         }
         logStore.append("Saved: $name")
         persistFaces()
         null
+    }
+
+    private fun audioDir(): File =
+        File(context.filesDir, "face_audio").apply { if (!exists()) mkdirs() }
+
+    private fun installAudioFile(source: File, profileId: String): String {
+        val filename = "$profileId.m4a"
+        val target = File(audioDir(), filename)
+        source.copyTo(target, overwrite = true)
+        return filename
+    }
+
+    fun recordingFile(filename: String): File = File(audioDir(), filename)
+
+    private fun deleteAudioFile(filename: String) {
+        val file = audioDir().listFiles()?.firstOrNull { it.name == filename } ?: return
+        runCatching { file.delete() }
     }
 
     private fun checkDuplicateSave(newName: String, newEmbeddings: List<FloatArray>): String? {
@@ -358,6 +403,8 @@ class FaceRecognitionService(private val context: Context) {
     }
 
     suspend fun deleteFace(id: String) = withContext(Dispatchers.IO) {
+        val profile = profiles.firstOrNull { it.id == id }
+        profile?.soundFilename?.let { deleteAudioFile(it) }
         profiles.removeAll { it.id == id }
         persistFaces()
     }
@@ -366,6 +413,14 @@ class FaceRecognitionService(private val context: Context) {
         val trimmedName = newName.trim()
         if (trimmedName.isEmpty()) return@withContext
         profiles = profiles.map { if (it.id == id) it.copy(name = trimmedName) else it }.toMutableList()
+        persistFaces()
+    }
+
+    suspend fun updateTextNote(id: String, text: String?) = withContext(Dispatchers.IO) {
+        val trimmed = text?.trim().orEmpty()
+        profiles = profiles.map {
+            if (it.id == id) it.copy(textNote = trimmed.ifEmpty { null }) else it
+        }.toMutableList()
         persistFaces()
     }
 
@@ -380,7 +435,13 @@ class FaceRecognitionService(private val context: Context) {
                 for (v in emb) floatArr.put(v.toDouble())
                 embArr.put(floatArr)
             }
-            arr.put(JSONObject().apply { put("id", profile.id); put("name", profile.name); put("embeddings", embArr) })
+            arr.put(JSONObject().apply {
+                put("id", profile.id)
+                put("name", profile.name)
+                put("embeddings", embArr)
+                if (profile.soundFilename != null) put("soundFilename", profile.soundFilename)
+                if (profile.textNote != null) put("textNote", profile.textNote)
+            })
         }
         File(context.filesDir, "faces.json").writeText(JSONObject().put("faces", arr).toString())
     }
@@ -394,6 +455,9 @@ class FaceRecognitionService(private val context: Context) {
 
     fun close() { faceDetector.close(); embeddingEngine.close() }
 }
+
+private fun JSONObject.optStringOrNull(key: String): String? =
+    if (has(key) && !isNull(key)) optString(key) else null
 
 data class FaceProcessResult(
     val match: FaceRecognitionService.FaceMatch?,

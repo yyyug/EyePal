@@ -170,4 +170,39 @@
     <string name="settings_model_provider">辨識模型</string>
     <string name="settings_model_provider_moondream">MoonDream（線上）</string>
 <string name="settings_model_provider_gemma">Gemma（裝置端）</string>
+    <string name="settings_appearance">外觀</string>
+    <string name="settings_style">樣式</string>
+    <string name="settings_style_simple">簡潔</string>
+    <string name="settings_style_traditional">傳統</string>
+
+    <string name="tab_vision">視覺</string>
+    <string name="tab_assist">協助</string>
+
+    <string name="vision_quick">快速</string>
+    <string name="vision_details">細節</string>
+    <string name="vision_text">文字</string>
+    <string name="vision_faces">面孔</string>
+    <string name="vision_enable_continuous">開啟連續模式</string>
+    <string name="vision_disable_continuous">關閉連續模式</string>
+    <string name="vision_show_feature_page">開啟功能頁面</string>
+    <string name="vision_saved_faces">已儲存面孔</string>
+
+    <string name="btn_save_face">儲存面孔</string>
+    <string name="btn_reRecord">重新錄音</string>
+    <string name="btn_play_note">播放語音備註</string>
+    <string name="btn_enter_text_note">輸入文字備註</string>
+    <string name="status_new_face_ready">有新面孔可以儲存。</string>
+    <string name="status_new_face_save_hint">偵測到新面孔。輕觸以錄製語音備註並儲存。</string>
+    <string name="status_recording_prompt">正在錄製語音備註...</string>
+    <string name="status_recording_started">錄音已開始。請說話。</string>
+    <string name="status_recorded_ready">語音備註已錄製。輕觸儲存以完成。</string>
+    <string name="status_recorded_prompt">輕觸儲存以完成此面孔的儲存。</string>
+    <string name="status_saved_with_note">%1\ 已與語音備註一起儲存。</string>
+    <string name="status_face_failed">儲存此面孔失敗。</string>
+    <string name="status_face_cancelled">面孔未儲存。</string>
+    <string name="status_mic_required">需要麥克風權限才能錄製語音備註。</string>
+    <string name="face_save_disabled_hint">出現新面孔時才能儲存。</string>
+    <string name="label_text_note">備註：%1\</string>
+    <string name="text_note_prompt">備註文字</string>
+    <string name="text_note_message">辨識到此面孔時會朗讀這段文字。</string>
 </resources>
