@@ -319,7 +319,7 @@ final class VisionViewModel: ObservableObject {
             }
             if let filename = match.voiceNoteFilename {
                 Task { @MainActor in
-                    guard let url = await self.faceStore.recordingURL(for: filename) else { return }
+                    let url = await self.faceStore.recordingURL(for: filename)
                     self.facePlayer.play(url: url)
                 }
                 return

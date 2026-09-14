@@ -83,7 +83,7 @@ struct VisionView: View {
         .onDisappear {
             viewModel.stop()
         }
-        .accessibilityAction(named: .magicTap) {
+        .accessibilityAction(.magicTap) {
             viewModel.enrollment.trigger()
         }
     }

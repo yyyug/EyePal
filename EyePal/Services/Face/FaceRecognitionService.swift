@@ -155,7 +155,7 @@ final class FaceRecognitionService {
             }
             if let voiceNoteData {
                 if let oldName = profiles[idx].voiceNoteFilename {
-                    faceStore.deleteRecording(named: oldName)
+                    await faceStore.deleteRecording(named: oldName)
                 }
                 profiles[idx].voiceNoteFilename = try await faceStore.saveRecording(voiceNoteData, for: profiles[idx].id)
             }
@@ -196,7 +196,7 @@ final class FaceRecognitionService {
                 try? await faceStore.deleteImage(named: name)
             }
             if let filename = profile.voiceNoteFilename {
-                faceStore.deleteRecording(named: filename)
+                await faceStore.deleteRecording(named: filename)
             }
         }
         profiles.removeAll { $0.id == id }
