@@ -18,6 +18,7 @@ import androidx.navigation.NavController
 import com.eyepal.app.R
 import com.eyepal.app.data.SettingsRepository
 import com.eyepal.app.models.AppFeature
+import com.eyepal.app.config.Defaults
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,23 +32,37 @@ fun SettingsScreen(
     onNavigateToLyricsSettings: () -> Unit = {},
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val settings = remember { SettingsRepository(context) }
+    val uiStyle by settings.uiStyle.collectAsState(initial = Defaults.UI_STYLE)
+    val isSimple = uiStyle == "simple"
+    val scope = rememberCoroutineScope()
+
     LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         item {
             TopAppBar(title = { Text(stringResource(R.string.tab_settings)) })
         }
         item {
-            Text(stringResource(R.string.tab_feature_order), modifier = Modifier.clickable { onNavigateToFeatureOrder() }.padding(vertical = 12.dp))
+            Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.settings_style_simple), modifier = Modifier.clickable { scope.launch { settings.setUiStyle("simple") } }.padding(vertical = 8.dp))
+            Text(stringResource(R.string.settings_style_traditional), modifier = Modifier.clickable { scope.launch { settings.setUiStyle("traditional") } }.padding(vertical = 8.dp))
         }
         item { HorizontalDivider() }
-        item {
-            Text(stringResource(R.string.settings_features), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
-            Text(stringResource(R.string.settings_details_recognition), modifier = Modifier.clickable { onNavigateToDetailsSettings() }.padding(vertical = 8.dp))
-            Text(stringResource(R.string.settings_quick_recognition), modifier = Modifier.clickable { onNavigateToQuickSettings() }.padding(vertical = 8.dp))
-            Text(stringResource(R.string.settings_text_recognition), modifier = Modifier.clickable { onNavigateToTextSettings() }.padding(vertical = 8.dp))
-            Text(stringResource(R.string.tab_faces), modifier = Modifier.clickable { onNavigateToFacesSettings() }.padding(vertical = 8.dp))
-            Text(stringResource(R.string.settings_lyric_prompter), modifier = Modifier.clickable { onNavigateToLyricsSettings() }.padding(vertical = 8.dp))
+        if (!isSimple) {
+            item {
+                Text(stringResource(R.string.tab_feature_order), modifier = Modifier.clickable { onNavigateToFeatureOrder() }.padding(vertical = 12.dp))
+            }
+            item { HorizontalDivider() }
+            item {
+                Text(stringResource(R.string.settings_features), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+                Text(stringResource(R.string.settings_details_recognition), modifier = Modifier.clickable { onNavigateToDetailsSettings() }.padding(vertical = 8.dp))
+                Text(stringResource(R.string.settings_quick_recognition), modifier = Modifier.clickable { onNavigateToQuickSettings() }.padding(vertical = 8.dp))
+                Text(stringResource(R.string.settings_text_recognition), modifier = Modifier.clickable { onNavigateToTextSettings() }.padding(vertical = 8.dp))
+                Text(stringResource(R.string.tab_faces), modifier = Modifier.clickable { onNavigateToFacesSettings() }.padding(vertical = 8.dp))
+                Text(stringResource(R.string.settings_lyric_prompter), modifier = Modifier.clickable { onNavigateToLyricsSettings() }.padding(vertical = 8.dp))
+            }
+            item { HorizontalDivider() }
         }
-        item { HorizontalDivider() }
         item {
             Text(stringResource(R.string.tab_google_glass), style = MaterialTheme.typography.titleMedium, modifier = Modifier.clickable { onNavigateToGoogleGlass() }.padding(vertical = 12.dp))
         }

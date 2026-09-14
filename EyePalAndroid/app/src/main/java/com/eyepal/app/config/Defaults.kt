@@ -31,5 +31,6 @@ object Defaults {
     const val LYRIC_ADVANCE_OFFSET = 0f
     const val CHAT_INTERPRETER_LANG_A = "en"
     const val CHAT_INTERPRETER_LANG_B = "ja"
+    const val UI_STYLE = "simple"
     val FEATURE_ORDER: List<String> = AppFeature.defaultOrder.map { it.name }
 }

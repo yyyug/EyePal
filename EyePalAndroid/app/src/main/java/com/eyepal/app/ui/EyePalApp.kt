@@ -49,6 +49,8 @@ sealed class Screen(val route: String, @StringRes val labelRes: Int, val icon: I
     data object FeatureOrder : Screen("featureorder", R.string.tab_feature_order, Icons.Default.Reorder)
     data object GoogleGlass : Screen("googleglass", R.string.tab_google_glass, Icons.Default.Visibility)
     data object SavedFaces : Screen("savedfaces", R.string.tab_saved_faces, Icons.Default.People)
+    data object Vision : Screen("vision", R.string.tab_vision, Icons.Default.Visibility)
+    data object Assist : Screen("assist", R.string.tab_assist, Icons.Default.Assistant)
     data object DetailsSettings : Screen("details_settings", R.string.tab_settings, Icons.Default.Settings)
     data object QuickSettings : Screen("quick_settings", R.string.tab_settings, Icons.Default.Settings)
     data object TextSettings : Screen("text_settings", R.string.tab_settings, Icons.Default.Settings)
@@ -109,7 +111,10 @@ fun EyePalApp() {
     val glassViewModel: GoogleGlassViewModel = viewModel()
 
     val settings = remember { SettingsRepository(context) }
+    val uiStyle by settings.uiStyle.collectAsState(initial = "simple")
+    val isSimple = uiStyle == "simple"
     val savedFeatureOrder by settings.featureOrder.collectAsState(initial = null)
+    val simpleTabs = listOf(Screen.Vision, Screen.Assist)
 
     val orderedFeatureNames = savedFeatureOrder ?: AppFeature.defaultOrder.map { it.name }
     val orderedScreens = orderedFeatureNames.mapNotNull { featureNameToScreen[it] }
@@ -117,6 +122,18 @@ fun EyePalApp() {
     val moreFeatures = if (orderedScreens.size >= 4)
         orderedFeatureNames.drop(4).mapNotNull { name -> AppFeature.entries.find { it.name == name } }
     else emptyList()
+
+    // When the UI style changes, reseat the navigation to the correct start destination.
+    LaunchedEffect(isSimple) {
+        val target = if (isSimple) Screen.Vision.route else (bottomTabs.firstOrNull()?.route ?: Screen.FloorDetection.route)
+        if (currentRoute != target) {
+            navController.navigate(target) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
 
     // Auto-connect to audio glasses on startup
     LaunchedEffect(Unit) {
@@ -126,7 +143,27 @@ fun EyePalApp() {
 
     Scaffold(
         bottomBar = {
-            if (currentRoute in bottomTabs.map { it.route } || currentRoute == Screen.More.route) {
+            if (isSimple) {
+                if (currentRoute == Screen.Vision.route || currentRoute == Screen.Assist.route) {
+                    NavigationBar {
+                        simpleTabs.forEach { screen ->
+                            val label = stringResource(screen.labelRes)
+                            NavigationBarItem(
+                                icon = { Icon(screen.icon, contentDescription = label) },
+                                label = { Text(label) },
+                                selected = currentRoute == screen.route,
+                                onClick = {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            } else if (currentRoute in bottomTabs.map { it.route } || currentRoute == Screen.More.route) {
                 NavigationBar {
                     bottomTabs.forEach { screen ->
                         val label = stringResource(screen.labelRes)
@@ -162,7 +199,7 @@ fun EyePalApp() {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = (bottomTabs.firstOrNull()?.route ?: Screen.FloorDetection.route),
+            startDestination = if (isSimple) Screen.Vision.route else (bottomTabs.firstOrNull()?.route ?: Screen.FloorDetection.route),
             modifier = Modifier.padding(padding)
         ) {
             composable(Screen.QuickRecognition.route) { QuickRecognitionScreen() }
@@ -175,6 +212,18 @@ fun EyePalApp() {
             composable(Screen.FloorDetection.route) { FloorDetectionScreen() }
             composable(Screen.Chat.route) { ChatScreen() }
             composable(Screen.LyricPrompter.route) { LyricPrompterScreen() }
+            composable(Screen.Vision.route) {
+                VisionNavigatorScreen(
+                    onNavigateTo = { screen -> navController.navigate(screen.route) },
+                    onOpenSavedFaces = { navController.navigate(Screen.SavedFaces.route) },
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
+            composable(Screen.Assist.route) {
+                AssistNavigatorScreen(
+                    onNavigateTo = { screen -> navController.navigate(screen.route) }
+                )
+            }
             composable(Screen.More.route) {
                 MoreScreen(
                     moreFeatures = moreFeatures,
