@@ -97,58 +97,66 @@ struct VisionView: View {
                     viewModel.performQuick()
                 }
             } menu: {
-                VisionMenuItem(title: viewModel.quickIsOn
-                               ? NSLocalizedString("vision.disableContinuous", comment: "")
-                               : NSLocalizedString("vision.enableContinuous", comment: ""),
-                               systemImage: viewModel.quickIsOn ? "pause.circle" : "play.circle", role: .standard) {
-                    viewModel.toggleQuick()
-                }
-                VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
-                    showFullScreen(to: .quickRecognition)
-                }
-                settingsMenuItem(for: .quickRecognition)
+                return [
+                    VisionMenuItem(title: viewModel.quickIsOn
+                                   ? NSLocalizedString("vision.disableContinuous", comment: "")
+                                   : NSLocalizedString("vision.enableContinuous", comment: ""),
+                                   systemImage: viewModel.quickIsOn ? "pause.circle" : "play.circle", role: .standard) {
+                        viewModel.toggleQuick()
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
+                        showFullScreen(to: .quickRecognition)
+                    },
+                    settingsMenuItem(for: .quickRecognition)
+                ]
             }
 
             modeButton(NSLocalizedString("vision.details", comment: ""), systemImage: "sparkles", isOn: viewModel.isDetailsProcessing) {
                 viewModel.performDetails()
             } menu: {
-                VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
-                    showFullScreen(to: .detailsRecognition)
-                }
-                settingsMenuItem(for: .detailsRecognition)
+                return [
+                    VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
+                        showFullScreen(to: .detailsRecognition)
+                    },
+                    settingsMenuItem(for: .detailsRecognition)
+                ]
             }
 
             modeButton(NSLocalizedString("vision.text", comment: ""), systemImage: "text.viewfinder", isOn: viewModel.textIsOn) {
                 viewModel.toggleText()
             } menu: {
-                VisionMenuItem(title: viewModel.textIsOn
-                               ? NSLocalizedString("vision.disableContinuous", comment: "")
-                               : NSLocalizedString("vision.enableContinuous", comment: ""),
-                               systemImage: viewModel.textIsOn ? "pause.circle" : "play.circle", role: .standard) {
-                    viewModel.toggleText()
-                }
-                VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
-                    showFullScreen(to: .readText)
-                }
-                settingsMenuItem(for: .readText)
+                return [
+                    VisionMenuItem(title: viewModel.textIsOn
+                                   ? NSLocalizedString("vision.disableContinuous", comment: "")
+                                   : NSLocalizedString("vision.enableContinuous", comment: ""),
+                                   systemImage: viewModel.textIsOn ? "pause.circle" : "play.circle", role: .standard) {
+                        viewModel.toggleText()
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
+                        showFullScreen(to: .readText)
+                    },
+                    settingsMenuItem(for: .readText)
+                ]
             }
 
             modeButton(NSLocalizedString("vision.faces", comment: ""), systemImage: "face.smiling", isOn: viewModel.facesIsOn) {
                 viewModel.toggleFaces()
             } menu: {
-                VisionMenuItem(title: viewModel.facesIsOn
-                               ? NSLocalizedString("vision.disableContinuous", comment: "")
-                               : NSLocalizedString("vision.enableContinuous", comment: ""),
-                               systemImage: viewModel.facesIsOn ? "pause.circle" : "play.circle", role: .standard) {
-                    viewModel.toggleFaces()
-                }
-                VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
-                    showFullScreen(to: .faces)
-                }
-                VisionMenuItem(title: NSLocalizedString("vision.savedFaces", comment: ""), systemImage: "person.text.rectangle", role: .standard) {
-                    showSavedFaces = true
-                }
-                settingsMenuItem(for: .faces)
+                return [
+                    VisionMenuItem(title: viewModel.facesIsOn
+                                   ? NSLocalizedString("vision.disableContinuous", comment: "")
+                                   : NSLocalizedString("vision.enableContinuous", comment: ""),
+                                   systemImage: viewModel.facesIsOn ? "pause.circle" : "play.circle", role: .standard) {
+                        viewModel.toggleFaces()
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
+                        showFullScreen(to: .faces)
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.savedFaces", comment: ""), systemImage: "person.text.rectangle", role: .standard) {
+                        showSavedFaces = true
+                    },
+                    settingsMenuItem(for: .faces)
+                ]
             }
         }
     }
