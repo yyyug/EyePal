@@ -1192,7 +1192,7 @@ private final class SavedFacesViewModel: ObservableObject {
                         try await faceStore.deleteImage(named: filename)
                     }
                     if let filename = profile.voiceNoteFilename {
-                        faceStore.deleteRecording(named: filename)
+                        await faceStore.deleteRecording(named: filename)
                     }
                 }
                 try await faceStore.saveProfiles(remainingProfiles)
