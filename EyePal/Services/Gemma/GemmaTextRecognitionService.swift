@@ -81,9 +81,21 @@ final class GemmaTextRecognitionService {
             Content.text(prompt)
         ])
 
-        let response = try await conversation.sendMessage(message)
+        var responseText = ""
+        do {
+            for try await chunk in conversation.sendMessageStream(message) {
+                let delta = chunk.toString
+                if !delta.isEmpty {
+                    responseText += delta
+                }
+            }
+        } catch {
+            // The streaming path reports the native error string, unlike the
+            // blocking sendMessage which only returns null. Keep that detail.
+            throw GemmaRecognitionError.engineFailure(error.localizedDescription)
+        }
 
-        let trimmed = response.toString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             throw GemmaRecognitionError.emptyResponse
         }
@@ -95,16 +107,13 @@ final class GemmaTextRecognitionService {
             return engine
         }
         let modelPath = modelURL.path
-        let cacheDir = NSTemporaryDirectory()
+        let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.path ?? NSTemporaryDirectory()
 
         // Gemma 4 is a variable-resolution vision model: a single image can need
         // several hundred visual tokens. 256 is too small to hold image + prompt
-        // + reply, which makes the native sendMessage return null. Use the
-        // package's own Gemma 4 E2B defaults: a 2048-token KV cache and a
-        // 280-token per-image budget to keep GPU memory bounded.
-        ExperimentalFlags.optIntoExperimentalAPIs()
-        ExperimentalFlags.visualTokenBudget = 280
-
+        // + reply, which makes native inference return null. Use the package's
+        // own Gemma 4 E2B defaults: a 2048-token KV cache and a 280-token
+        // per-image budget to keep GPU memory bounded.
         let config = try EngineConfig(
             modelPath: modelPath,
             backend: .gpu,
@@ -115,7 +124,9 @@ final class GemmaTextRecognitionService {
         let engine = Engine(engineConfig: config)
         try await engine.initialize()
         self.engine = engine
-        conversation = try await engine.createConversation()
+        conversation = try await engine.createConversation(
+            with: ConversationConfig(visualTokenBudget: 280)
+        )
         currentModelPath = modelPath
         return engine
     }
