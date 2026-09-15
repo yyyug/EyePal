@@ -96,11 +96,20 @@ final class GemmaTextRecognitionService {
         }
         let modelPath = modelURL.path
         let cacheDir = NSTemporaryDirectory()
+
+        // Gemma 4 is a variable-resolution vision model: a single image can need
+        // several hundred visual tokens. 256 is too small to hold image + prompt
+        // + reply, which makes the native sendMessage return null. Use the
+        // package's own Gemma 4 E2B defaults: a 2048-token KV cache and a
+        // 280-token per-image budget to keep GPU memory bounded.
+        ExperimentalFlags.optIntoExperimentalAPIs()
+        ExperimentalFlags.visualTokenBudget = 280
+
         let config = try EngineConfig(
             modelPath: modelPath,
             backend: .gpu,
             visionBackend: .cpu(),
-            maxNumTokens: 256,
+            maxNumTokens: 2048,
             cacheDir: cacheDir
         )
         let engine = Engine(engineConfig: config)
