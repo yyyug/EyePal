@@ -9,14 +9,14 @@ enum class GemmaModelKind(
 ) {
     E2B(
         code = "e2b",
-        displayName = "Gemma 4 2B",
+        displayName = "Gemma 4 2B ~2.6GB",
         fileName = "gemma-4-E2B-it.litertlm",
         directoryName = "gemma-4-E2B-it-litert-lm",
         downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
     ),
     E4B(
         code = "e4b",
-        displayName = "Gemma 4 4B",
+        displayName = "Gemma 4 4B ~3.5GB",
         fileName = "gemma-4-E4B-it.litertlm",
         directoryName = "gemma-4-E4B-it-litert-lm",
         downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm"

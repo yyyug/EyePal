@@ -17,3 +17,4 @@
 - Communicates in Traditional Chinese (mixed with English); complex technical requests are usually phrased in Chinese. Confidence: 0.7
 - Approves technical/packaging optimizations only on the condition that app functionality is unaffected — explicitly gates permission with "do it if it doesn't affect app functionality". Confidence: 0.8
 - Delegates technical judgment to the agent — asks "do you recommend X? if so, do it" instead of deciding himself, then expects the work to be carried out. Confidence: 0.7
+- Wants resource/download size surfaced in the UI so end users know the storage cost before downloading (e.g., appending file capacity to model options like "2B ~2.6GB"). Confidence: 0.6

@@ -8,8 +8,8 @@ enum GemmaModelKind: String, CaseIterable, Identifiable, Codable {
 
     var displayName: String {
         switch self {
-        case .e2b: return "Gemma 4 2B"
-        case .e4b: return "Gemma 4 4B"
+        case .e2b: return "Gemma 4 2B ~2.6GB"
+        case .e4b: return "Gemma 4 4B ~3.5GB"
         }
     }
 

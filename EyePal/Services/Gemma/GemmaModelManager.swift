@@ -214,28 +214,29 @@ extension GemmaModelManager: URLSessionDownloadDelegate {
     ) {
         guard let kind = registry.kind(for: downloadTask.taskIdentifier) else { return }
         let destination = fileURL(for: kind)
+
+        // The system deletes the file at `location` as soon as this delegate method returns,
+        // so the move must happen synchronously here — never inside an async hop such as a
+        // `Task { @MainActor in ... }`, which would run after the temp file is gone.
+        let outcome: Result<Void, Error>
+        do {
+            let directory = destination.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.moveItem(at: location, to: destination)
+            outcome = .success(())
+        } catch {
+            outcome = .failure(error)
+        }
+
         Task { @MainActor in
-            do {
-                let directory = destination.deletingLastPathComponent()
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                if FileManager.default.fileExists(atPath: destination.path) {
-                    try FileManager.default.removeItem(at: destination)
-                }
-                guard FileManager.default.fileExists(atPath: location.path) else {
-                    throw NSError(
-                        domain: "GemmaModelManager",
-                        code: 1,
-                        userInfo: [NSLocalizedDescriptionKey: "The downloaded temporary file is no longer available."]
-                    )
-                }
-                // Copy then delete: the session's temporary file may be transient, and a plain
-                // moveItem can fail if it outlives its temp-file life.
-                try FileManager.default.copyItem(at: location, to: destination)
-                try? FileManager.default.removeItem(at: location)
-                self.registerFinish(kind: kind, task: downloadTask)
+            self.registerFinish(kind: kind, task: downloadTask)
+            switch outcome {
+            case .success:
                 self.states[kind] = .downloaded
-            } catch {
-                self.registerFinish(kind: kind, task: downloadTask)
+            case .failure(let error):
                 self.states[kind] = .failed(error.localizedDescription)
             }
         }
