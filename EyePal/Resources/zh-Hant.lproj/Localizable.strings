@@ -336,6 +336,8 @@
 "vision.statusStarting" = "正在啟動相機…";
 "vision.quickContinuousOn" = "連續快拍描述執行中。";
 "vision.noFrame" = "相機畫面尚未就緒。";
+"vision.cameraUnauthorized" = "「視覺」需要使用相機，請至系統設定允許相機存取。";
+"vision.cameraFailed" = "相機錯誤：";
 "vision.quickReady" = "快拍描述完成。";
 "vision.quickNoResult" = "快拍描述沒有結果。";
 "vision.quickFailed" = "快拍描述失敗。";

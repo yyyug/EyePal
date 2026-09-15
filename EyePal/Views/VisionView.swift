@@ -18,7 +18,6 @@ struct VisionView: View {
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var viewModel = VisionViewModel()
     @State private var pushedFeature: AppFeature?
-    @State private var showSettings = false
     @State private var showSavedFaces = false
 
     var body: some View {
@@ -38,17 +37,6 @@ struct VisionView: View {
         .navigationDestination(item: $pushedFeature) { feature in
             destinationView(for: feature)
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    SettingsView()
-                        .environmentObject(settingsStore)
-                        .environmentObject(openAIStore)
-                } label: {
-                    Label(NSLocalizedString("tab.settings", comment: ""), systemImage: "gearshape")
-                }
-            }
-        }
         .alert(NSLocalizedString("common.error", comment: ""), isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if (!$0) { viewModel.errorMessage = nil } }), actions: {
             Button(NSLocalizedString("common.ok", comment: "")) {
                 viewModel.errorMessage = nil
@@ -56,13 +44,6 @@ struct VisionView: View {
         }, message: {
             Text(viewModel.errorMessage ?? "")
         })
-        .sheet(isPresented: $showSettings) {
-            NavigationStack {
-                SettingsView()
-                    .environmentObject(settingsStore)
-                    .environmentObject(openAIStore)
-            }
-        }
         .sheet(isPresented: $showSavedFaces) {
             NavigationStack {
                 SavedFacesView()
@@ -106,8 +87,7 @@ struct VisionView: View {
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .quickRecognition)
-                    },
-                    settingsMenuItem(for: .quickRecognition)
+                    }
                 ]
             }
 
@@ -117,8 +97,7 @@ struct VisionView: View {
                 return [
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .detailsRecognition)
-                    },
-                    settingsMenuItem(for: .detailsRecognition)
+                    }
                 ]
             }
 
@@ -134,8 +113,7 @@ struct VisionView: View {
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .readText)
-                    },
-                    settingsMenuItem(for: .readText)
+                    }
                 ]
             }
 
@@ -154,16 +132,9 @@ struct VisionView: View {
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.savedFaces", comment: ""), systemImage: "person.text.rectangle", role: .standard) {
                         showSavedFaces = true
-                    },
-                    settingsMenuItem(for: .faces)
+                    }
                 ]
             }
-        }
-    }
-
-    private func settingsMenuItem(for feature: AppFeature) -> VisionMenuItem {
-        VisionMenuItem(title: NSLocalizedString("vision.settings", comment: ""), systemImage: "gearshape", role: .standard) {
-            showSettings = true
         }
     }
 
@@ -225,6 +196,22 @@ struct VisionView: View {
     @ViewBuilder
     private var resultBox: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if case .unauthorized = viewModel.cameraState {
+                Text(NSLocalizedString("vision.cameraUnauthorized", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                Button(NSLocalizedString("settings.openSystemSettings", comment: "")) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                .font(.footnote.weight(.semibold))
+            } else if case .failed(let message) = viewModel.cameraState {
+                Text(NSLocalizedString("vision.cameraFailed", comment: "") + " \(message)")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
             if let lastResult = viewModel.lastResult {
                 Text(lastResult)
                     .font(.headline)

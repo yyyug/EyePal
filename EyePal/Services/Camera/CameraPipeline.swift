@@ -25,27 +25,88 @@ final class CameraPipeline: NSObject, ObservableObject {
     private let ciContext = CIContext()
     private var isConfigured = false
     private var latestSampleBuffer: CMSampleBuffer?
+    // Accessed only on sessionQueue.
+    private var shouldBeRunning = false
+    // An interrupted session still reports isRunning == true but delivers no
+    // frames, so restarts must not rely on isRunning alone.
+    private var wasInterrupted = false
+    private var interruptionObservers: [NSObjectProtocol] = []
+
+    override init() {
+        super.init()
+        let center = NotificationCenter.default
+        interruptionObservers.append(center.addObserver(
+            forName: .AVCaptureSessionWasInterrupted,
+            object: session,
+            queue: nil
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.sessionQueue.async {
+                self.wasInterrupted = true
+            }
+        })
+        interruptionObservers.append(center.addObserver(
+            forName: .AVCaptureSessionInterruptionEnded,
+            object: session,
+            queue: nil
+        ) { [weak self] _ in
+            self?.resumeIfNeeded()
+        })
+        interruptionObservers.append(center.addObserver(
+            forName: .AVCaptureSessionRuntimeError,
+            object: session,
+            queue: nil
+        ) { [weak self] _ in
+            self?.resumeIfNeeded()
+        })
+        interruptionObservers.append(center.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.resumeIfNeeded()
+        })
+    }
+
+    deinit {
+        interruptionObservers.forEach(NotificationCenter.default.removeObserver)
+    }
 
     func start() {
         sessionQueue.async {
-            self.configureIfNeeded()
-            guard self.state != .unauthorized else { return }
-            guard self.isConfigured else { return }
-            guard !self.session.isRunning else { return }
-            self.session.startRunning()
-            DispatchQueue.main.async {
-                self.state = .running
-            }
+            self.shouldBeRunning = true
+            self.startOnSessionQueue()
         }
     }
 
     func stop() {
         sessionQueue.async {
+            self.shouldBeRunning = false
+            self.wasInterrupted = false
             guard self.session.isRunning else { return }
             self.session.stopRunning()
             DispatchQueue.main.async {
                 self.state = .idle
             }
+        }
+    }
+
+    private func resumeIfNeeded() {
+        sessionQueue.async {
+            guard self.shouldBeRunning else { return }
+            self.startOnSessionQueue()
+        }
+    }
+
+    private func startOnSessionQueue() {
+        configureIfNeeded()
+        guard state != .unauthorized else { return }
+        guard isConfigured else { return }
+        if session.isRunning, !wasInterrupted { return }
+        wasInterrupted = false
+        session.startRunning()
+        DispatchQueue.main.async {
+            self.state = .running
         }
     }
 

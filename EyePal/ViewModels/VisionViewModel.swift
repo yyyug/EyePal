@@ -83,6 +83,10 @@ final class VisionViewModel: ObservableObject {
     }
 
     func start() {
+        // Start the camera first so a slow profile load can never leave the
+        // Vision tab without frames.
+        statusText = NSLocalizedString("vision.statusStarting", comment: "")
+        camera.start()
         Task {
             do {
                 _ = try await faceRecognitionService.loadProfiles()
@@ -90,8 +94,6 @@ final class VisionViewModel: ObservableObject {
             } catch {
                 errorMessage = error.localizedDescription
             }
-            statusText = NSLocalizedString("vision.statusStarting", comment: "")
-            camera.start()
         }
     }
 
@@ -106,12 +108,12 @@ final class VisionViewModel: ObservableObject {
         enrollment.reset()
         facePlayer.stop()
         stopContinuousQuick()
+        statusText = NSLocalizedString("vision.statusStarting", comment: "")
+        camera.start()
         Task {
             do {
                 _ = try await faceRecognitionService.loadProfiles()
             } catch { }
-            statusText = NSLocalizedString("vision.statusStarting", comment: "")
-            camera.start()
         }
     }
 
@@ -150,13 +152,25 @@ final class VisionViewModel: ObservableObject {
         continuousQuickTask = nil
     }
 
+    /// Called when a capture finds no camera frame. Kicks the session to
+    /// recover from an interruption instead of leaving a dead-end message,
+    /// and surfaces the blocked-permission case honestly.
+    private func noteMissingFrame() {
+        if cameraState == .unauthorized {
+            statusText = NSLocalizedString("vision.cameraUnauthorized", comment: "")
+        } else {
+            camera.start()
+            statusText = NSLocalizedString("vision.statusStarting", comment: "")
+        }
+    }
+
     private func captureQuick() async {
         guard let settingsStore else {
             errorMessage = "Quick Recognition settings are unavailable."
             return
         }
         guard let image = camera.currentFrameImage() else {
-            statusText = NSLocalizedString("vision.noFrame", comment: "")
+            noteMissingFrame()
             return
         }
 
@@ -219,7 +233,7 @@ final class VisionViewModel: ObservableObject {
             return
         }
         guard let image = camera.currentFrameImage() else {
-            statusText = NSLocalizedString("vision.noFrame", comment: "")
+            noteMissingFrame()
             return
         }
 

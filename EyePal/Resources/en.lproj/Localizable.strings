@@ -335,6 +335,8 @@
 "vision.statusStarting" = "Starting camera...";
 "vision.quickContinuousOn" = "Continuous quick description is running.";
 "vision.noFrame" = "No camera frame is ready yet.";
+"vision.cameraUnauthorized" = "Camera access is required for Vision. Open Settings to allow access.";
+"vision.cameraFailed" = "Camera error:";
 "vision.quickReady" = "Quick description result is ready.";
 "vision.quickNoResult" = "Quick description returned no result.";
 "vision.quickFailed" = "Quick description failed.";
