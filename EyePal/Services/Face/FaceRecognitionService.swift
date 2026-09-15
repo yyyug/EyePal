@@ -165,15 +165,9 @@ final class FaceRecognitionService {
             return profiles[idx]
         }
 
-        let newEmbedding = sampleEmbeddings[0]
-        for existing in profiles {
-            let existingEmbedding = existing.sampleEmbeddings.first(where: { !$0.isEmpty }) ?? []
-            guard !existingEmbedding.isEmpty else { continue }
-            let sim = cosineSimilarity(newEmbedding, existingEmbedding)
-            if sim >= FaceConfig.duplicateWarningThreshold {
-                onLog?("Duplicate save blocked: \(resolvedName) vs \(existing.name) similarity \(String(format: "%.4f", sim))")
-                return nil
-            }
+        if let duplicate = duplicateMatch(for: suggestion) {
+            onLog?("Duplicate save blocked: \(resolvedName) vs \(duplicate.profile.name) similarity \(String(format: "%.4f", duplicate.similarity))")
+            return nil
         }
 
         var profile = FaceProfile(name: resolvedName, sampleEmbeddings: sampleEmbeddings)
@@ -203,6 +197,22 @@ final class FaceRecognitionService {
             index += 1
         }
         return "\(base) \(index)"
+    }
+
+    /// The existing profile that this suggested face is too similar to save as a
+    /// new face, if any. This is the same comparison used to block duplicates on
+    /// save, so the "offer to save" and "blocked on save" paths stay consistent.
+    private func duplicateMatch(for suggestion: FaceSuggestion) -> (profile: FaceProfile, similarity: Float)? {
+        guard let newEmbedding = suggestion.sampleEmbeddings.first(where: { !$0.isEmpty }) else { return nil }
+        for existing in profiles {
+            let existingEmbedding = existing.sampleEmbeddings.first(where: { !$0.isEmpty }) ?? []
+            guard !existingEmbedding.isEmpty else { continue }
+            let similarity = cosineSimilarity(newEmbedding, existingEmbedding)
+            if similarity >= FaceConfig.duplicateWarningThreshold {
+                return (existing, similarity)
+            }
+        }
+        return nil
     }
 
     func deleteProfile(id: UUID) async throws -> [FaceProfile] {
@@ -396,12 +406,24 @@ final class FaceRecognitionService {
             return nil
         }
 
-        lastUnknownSuggestionDate = now
-        enrollmentSuggested = true
         let suggestion = FaceSuggestion(
             sampleEmbeddings: Array(pendingUnknownEmbeddings.prefix(enrollmentSampleTarget)),
             jpegData: pendingUnknownJPEGData
         )
+
+        if let duplicate = duplicateMatch(for: suggestion) {
+            resetUnknownTracking()
+            lastUnknownSuggestionDate = now
+            let message = "Not offering save: too similar to \(duplicate.profile.name) similarity \(String(format: "%.4f", duplicate.similarity))"
+            Task { @MainActor in self.onLog?(message) }
+            return nil
+        }
+
+        lastUnknownSuggestionDate = now
+        enrollmentSuggested = true
+        let topCandidate = rankedCandidates.first
+        let topDescription = topCandidate.map { "\($0.profile.name) \(String(format: "%.3f", $0.confidence))" } ?? "none"
+        Task { @MainActor in self.onLog?("Offering save suggestion (top existing match: \(topDescription))") }
         return suggestion
     }
 
