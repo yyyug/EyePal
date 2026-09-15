@@ -12,6 +12,8 @@ struct QuickRecognitionView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = QuickRecognitionViewModel()
     @State private var selectedActionIndex = 0
+    @State private var showPromptEditor = false
+    @State private var promptDraft = ""
 
     private var quickPresetEntries: [(slot: RecognitionButtonSlot, preset: QuickQueryPreset)] {
         RecognitionButtonSlot.allCases
@@ -79,6 +81,18 @@ struct QuickRecognitionView: View {
                         }
                         .buttonStyle(.bordered)
                         .disabled(viewModel.isProcessing && !viewModel.isContinuousCapture)
+                        .contextMenu {
+                            Button {
+                                promptDraft = settingsStore.quickTakePhotoCustomPrompt
+                                showPromptEditor = true
+                            } label: {
+                                Label(NSLocalizedString("quick.editPrompt", comment: ""), systemImage: "text.cursor")
+                            }
+                        }
+                        .accessibilityAction(named: Text(NSLocalizedString("quick.editPrompt", comment: ""))) {
+                            promptDraft = settingsStore.quickTakePhotoCustomPrompt
+                            showPromptEditor = true
+                        }
                     }
                 }
                 .padding()
@@ -101,6 +115,15 @@ struct QuickRecognitionView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "")
+            }
+            .alert(NSLocalizedString("quick.editPrompt", comment: ""), isPresented: $showPromptEditor) {
+                TextField(NSLocalizedString("quick.promptPlaceholder", comment: ""), text: $promptDraft)
+                Button(NSLocalizedString("common.save", comment: "")) {
+                    settingsStore.quickTakePhotoCustomPrompt = promptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
+            } message: {
+                Text(NSLocalizedString("quick.editPromptMessage", comment: ""))
             }
         .onAppear {
             viewModel.bind(settings: settingsStore)

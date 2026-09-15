@@ -206,7 +206,7 @@ final class VisionViewModel: ObservableObject {
             }
             let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty {
-                presentResult(trimmed, statusKey: quickIsOn ? "vision.quickContinuousOn" : "vision.quickReady")
+                presentResult(trimmed, statusKey: quickIsOn ? "vision.quickContinuousOn" : nil)
             } else {
                 statusText = NSLocalizedString("vision.quickNoResult", comment: "")
             }
@@ -224,12 +224,12 @@ final class VisionViewModel: ObservableObject {
         guard !isDetailsProcessing else { return }
         guard let openAIStore else {
             errorMessage = OpenAISubscriptionError.notSignedIn.localizedDescription
-            presentResult(NSLocalizedString("vision.detailsSignInRequired", comment: ""), statusKey: "vision.detailsReady")
+            presentResult(NSLocalizedString("vision.detailsSignInRequired", comment: ""))
             return
         }
         guard openAIStore.isSignedIn else {
             errorMessage = OpenAISubscriptionError.notSignedIn.localizedDescription
-            presentResult(NSLocalizedString("vision.detailsSignInRequired", comment: ""), statusKey: "vision.detailsReady")
+            presentResult(NSLocalizedString("vision.detailsSignInRequired", comment: ""))
             return
         }
         guard let image = camera.currentFrameImage() else {
@@ -253,7 +253,7 @@ final class VisionViewModel: ObservableObject {
                     conversation: conversation,
                     store: openAIStore
                 )
-                presentResult(response, statusKey: "vision.detailsReady")
+                presentResult(response)
             } catch {
                 errorMessage = error.localizedDescription
                 statusText = NSLocalizedString("vision.detailsFailed", comment: "")
@@ -483,9 +483,13 @@ final class VisionViewModel: ObservableObject {
 
     // MARK: - Result surfacing
 
-    private func presentResult(_ text: String, statusKey: String, announce: Bool = true, statusKeyArgs: [CVarArg] = []) {
+    private func presentResult(_ text: String, statusKey: String? = nil, announce: Bool = true, statusKeyArgs: [CVarArg] = []) {
         lastResult = text
-        statusText = String(format: NSLocalizedString(statusKey, comment: ""), statusKeyArgs)
+        if let statusKey {
+            statusText = String(format: NSLocalizedString(statusKey, comment: ""), statusKeyArgs)
+        } else {
+            statusText = ""
+        }
         if announce {
             announcer.announce(text, minimumInterval: 0)
         }

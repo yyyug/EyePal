@@ -224,6 +224,9 @@ final class QuickRecognitionViewModel: ObservableObject {
             return
         }
 
+        // A user-supplied prompt replaces the default description prompt.
+        let customPrompt = settingsStore.quickTakePhotoCustomPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+
         guard let image = sourceImage ?? camera.currentFrameImage() else {
             statusText = "No camera frame is ready yet."
             return
@@ -246,11 +249,20 @@ final class QuickRecognitionViewModel: ObservableObject {
             if useGemmaOffline {
                 switch request {
                 case .caption(let length):
-                    response = try await gemmaService.generateCaption(image: image, length: length, kind: selectedKind)
+                    if customPrompt.isEmpty {
+                        response = try await gemmaService.generateCaption(image: image, length: length, kind: selectedKind)
+                    } else {
+                        response = try await gemmaService.queryImage(
+                            image: image,
+                            question: customPrompt,
+                            enforceSingleSentenceResponse: false,
+                            kind: selectedKind
+                        )
+                    }
                 case .query(let preset):
                     response = try await gemmaService.queryImage(
                         image: image,
-                        question: preset.prompt,
+                        question: preset.resolvedPrompt(useGemma: true),
                         enforceSingleSentenceResponse: false,
                         kind: selectedKind
                     )
@@ -263,11 +275,20 @@ final class QuickRecognitionViewModel: ObservableObject {
                 )
                 switch request {
                 case .caption(let length):
-                    response = try await service.generateCaption(
-                        imageDataURL: imageDataURL,
-                        length: length,
-                        apiKey: apiKey
-                    )
+                    if customPrompt.isEmpty {
+                        response = try await service.generateCaption(
+                            imageDataURL: imageDataURL,
+                            length: length,
+                            apiKey: apiKey
+                        )
+                    } else {
+                        response = try await service.queryImage(
+                            imageDataURL: imageDataURL,
+                            question: customPrompt,
+                            enforceSingleSentenceResponse: false,
+                            apiKey: apiKey
+                        )
+                    }
                 case .query(let preset):
                     response = try await service.queryImage(
                         imageDataURL: imageDataURL,

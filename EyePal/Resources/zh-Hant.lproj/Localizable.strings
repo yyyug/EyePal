@@ -302,6 +302,9 @@
 "quick.caption.concise" = "簡潔";
 "quick.caption.standard" = "標準";
 "quick.caption.detailed" = "詳細";
+"quick.editPrompt" = "編輯提示詞";
+"quick.promptPlaceholder" = "提示詞內容";
+"quick.editPromptMessage" = "此提示詞會取代預設的描述提示詞，留空則使用預設值。";
 "quick.trigger.time" = "定時間隔";
 "quick.trigger.onTheMove" = "動作中";
 "quick.interval.second" = "1 秒";

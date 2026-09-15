@@ -123,7 +123,7 @@ struct VisionView: View {
                 ]
             }
 
-            modeButton(NSLocalizedString("vision.details", comment: ""), systemImage: "sparkles", isOn: viewModel.isDetailsProcessing) {
+            modeButton(NSLocalizedString("vision.details", comment: ""), systemImage: "sparkles", isOn: false) {
                 viewModel.performDetails()
             } menu: {
                 return [
@@ -142,12 +142,6 @@ struct VisionView: View {
                 return [
                     VisionMenuItem(title: NSLocalizedString("read.takePicture", comment: ""), systemImage: "camera", role: .standard) {
                         showFullScreen(to: .readText, autoCapture: true)
-                    },
-                    VisionMenuItem(title: viewModel.textIsOn
-                                   ? NSLocalizedString("vision.disableContinuous", comment: "")
-                                   : NSLocalizedString("vision.enableContinuous", comment: ""),
-                                   systemImage: viewModel.textIsOn ? "pause.circle" : "play.circle", role: .standard) {
-                        viewModel.toggleText()
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .readText)
@@ -240,7 +234,7 @@ struct VisionView: View {
         .accessibilityLabel(label)
         .accessibilityValue(isOn
                             ? NSLocalizedString("vision.selectedOn", comment: "")
-                            : NSLocalizedString("vision.selectedOff", comment: ""))
+                            : "")
         .accessibilityHint(NSLocalizedString("vision.buttonHint", comment: ""))
         .accessibilityActions {
             ForEach(items) { item in

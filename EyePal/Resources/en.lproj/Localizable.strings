@@ -301,6 +301,9 @@
 "quick.caption.concise" = "Concise";
 "quick.caption.standard" = "Standard";
 "quick.caption.detailed" = "Detailed";
+"quick.editPrompt" = "Edit Prompt";
+"quick.promptPlaceholder" = "Prompt text";
+"quick.editPromptMessage" = "This prompt replaces the default description prompt. Leave it empty to use the default.";
 "quick.trigger.time" = "Time interval";
 "quick.trigger.onTheMove" = "On the move";
 "quick.interval.second" = "1 second";

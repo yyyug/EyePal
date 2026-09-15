@@ -166,12 +166,41 @@ enum RecognitionActionControlStyle: String, CaseIterable, Identifiable {
     }
 }
 
+enum QuickPromptLanguage {
+    /// True when the device's preferred language is any Chinese variant
+    /// (zh-Hans, zh-Hant, zh-HK, zh-TW, ...).
+    static var isChinese: Bool {
+        Locale.preferredLanguages.first?.lowercased().hasPrefix("zh") ?? false
+    }
+}
+
 struct QuickQueryPreset: Identifiable, Equatable {
     let title: String
     let prompt: String
     let systemImageName: String
 
     var id: String { title }
+
+    /// Chinese equivalent of the built-in prompt, used when Gemma runs on a
+    /// Chinese-language device. Custom (user-typed) prompts pass through unchanged.
+    var chinesePrompt: String {
+        switch prompt {
+        case "Describe the main product in this image with 1 or 2 sentences, including its brand, name and primary function":
+            return "請用一至兩句描述圖片中的主要產品，包括品牌、名稱和主要功能。"
+        case "Describe the layout of the food on the plate or tray. Use clock positions or spatial terms":
+            return "請描述食物在盤子或托盤上的擺放位置，使用時鐘方向或空間詞語。"
+        case "Describe the alphanumeric text visible in the image":
+            return "請描述圖片中可見的英數字文字。"
+        default:
+            return prompt
+        }
+    }
+
+    /// The prompt to send for the given engine. Gemma uses Chinese on a
+    /// Chinese-language device; Moondream always uses English.
+    func resolvedPrompt(useGemma: Bool) -> String {
+        useGemma && QuickPromptLanguage.isChinese ? chinesePrompt : prompt
+    }
 
     var localizedTitle: String {
         switch title {

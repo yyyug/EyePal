@@ -70,6 +70,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("quickModelProvider") var quickModelProvider = QuickModelProvider.gemma.rawValue
     @AppStorage("quickGemmaModelKind") var quickGemmaModelKind = GemmaModelKind.e2b.rawValue
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
+    @AppStorage("quickTakePhotoCustomPrompt") var quickTakePhotoCustomPrompt = ""
     @AppStorage("quickContinuousCaptureInterval") var quickContinuousCaptureInterval = QuickContinuousCaptureInterval.defaultInterval.rawValue
     @AppStorage("quickContinuousTriggerMode") var quickContinuousTriggerMode = QuickRecognitionTriggerMode.defaultMode.rawValue
     @AppStorage("quickActionControlStyle") var quickActionControlStyle = RecognitionActionControlStyle.onScreenButtons.rawValue
