@@ -65,6 +65,22 @@ final class ReadTextViewModel: ObservableObject {
         camera.stop()
     }
 
+    /// Takes a photo as soon as a camera frame is available. Used when the Take
+    /// Photo action is invoked from the Vision tab before this page is shown.
+    func autoCaptureWhenReady() {
+        Task { @MainActor in
+            for _ in 0..<60 {
+                if camera.currentFrameImage() != nil {
+                    capturePhoto(triggeredAutomatically: false)
+                    return
+                }
+                if Task.isCancelled { return }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            cameraStateDescription = "No camera frame is ready yet."
+        }
+    }
+
     func toggleDocumentDetection() {
         isDocumentDetectionEnabled.toggle()
         if isDocumentDetectionEnabled {

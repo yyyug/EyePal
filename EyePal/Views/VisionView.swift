@@ -13,12 +13,25 @@ private struct VisionMenuItem: Identifiable {
     let action: () -> Void
 }
 
+private enum VisionSettingsDestination: String, Identifiable {
+    case quickRecognition
+    case detailsRecognition
+    case readText
+    case faces
+
+    var id: String { rawValue }
+}
+
 struct VisionView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @StateObject private var viewModel = VisionViewModel()
     @State private var pushedFeature: AppFeature?
+    @State private var pushedSettings: VisionSettingsDestination?
+    @State private var readTextAutoCapture = false
     @State private var showSavedFaces = false
+    @State private var showNameDialog = false
+    @State private var faceNameInput = ""
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -37,6 +50,9 @@ struct VisionView: View {
         .navigationDestination(item: $pushedFeature) { feature in
             destinationView(for: feature)
         }
+        .navigationDestination(item: $pushedSettings) { destination in
+            settingsDestinationView(for: destination)
+        }
         .alert(NSLocalizedString("common.error", comment: ""), isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if (!$0) { viewModel.errorMessage = nil } }), actions: {
             Button(NSLocalizedString("common.ok", comment: "")) {
                 viewModel.errorMessage = nil
@@ -44,6 +60,19 @@ struct VisionView: View {
         }, message: {
             Text(viewModel.errorMessage ?? "")
         })
+        .alert(NSLocalizedString("face.addPerson", comment: ""), isPresented: $showNameDialog) {
+            TextField(NSLocalizedString("face.personName", comment: ""), text: $faceNameInput)
+            Button(NSLocalizedString("common.save", comment: "")) {
+                let name = faceNameInput
+                faceNameInput = ""
+                viewModel.enrollment.saveWithTextName(name)
+            }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                faceNameInput = ""
+            }
+        } message: {
+            Text(NSLocalizedString("face.nameMessage", comment: ""))
+        }
         .sheet(isPresented: $showSavedFaces) {
             NavigationStack {
                 SavedFacesView()
@@ -87,6 +116,9 @@ struct VisionView: View {
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .quickRecognition)
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.settings", comment: ""), systemImage: "gearshape", role: .standard) {
+                        pushedSettings = .quickRecognition
                     }
                 ]
             }
@@ -97,6 +129,9 @@ struct VisionView: View {
                 return [
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .detailsRecognition)
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.settings", comment: ""), systemImage: "gearshape", role: .standard) {
+                        pushedSettings = .detailsRecognition
                     }
                 ]
             }
@@ -105,6 +140,9 @@ struct VisionView: View {
                 viewModel.toggleText()
             } menu: {
                 return [
+                    VisionMenuItem(title: NSLocalizedString("read.takePicture", comment: ""), systemImage: "camera", role: .standard) {
+                        showFullScreen(to: .readText, autoCapture: true)
+                    },
                     VisionMenuItem(title: viewModel.textIsOn
                                    ? NSLocalizedString("vision.disableContinuous", comment: "")
                                    : NSLocalizedString("vision.enableContinuous", comment: ""),
@@ -113,6 +151,9 @@ struct VisionView: View {
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .readText)
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.settings", comment: ""), systemImage: "gearshape", role: .standard) {
+                        pushedSettings = .readText
                     }
                 ]
             }
@@ -121,25 +162,42 @@ struct VisionView: View {
                 viewModel.toggleFaces()
             } menu: {
                 return [
-                    VisionMenuItem(title: viewModel.facesIsOn
-                                   ? NSLocalizedString("vision.disableContinuous", comment: "")
-                                   : NSLocalizedString("vision.enableContinuous", comment: ""),
-                                   systemImage: viewModel.facesIsOn ? "pause.circle" : "play.circle", role: .standard) {
-                        viewModel.toggleFaces()
-                    },
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .faces)
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.savedFaces", comment: ""), systemImage: "person.text.rectangle", role: .standard) {
                         showSavedFaces = true
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.settings", comment: ""), systemImage: "gearshape", role: .standard) {
+                        pushedSettings = .faces
                     }
                 ]
             }
         }
     }
 
-    private func showFullScreen(to feature: AppFeature) {
+    private func showFullScreen(to feature: AppFeature, autoCapture: Bool = false) {
+        readTextAutoCapture = autoCapture
         pushedFeature = feature
+    }
+
+    @ViewBuilder
+    private func settingsDestinationView(for destination: VisionSettingsDestination) -> some View {
+        switch destination {
+        case .quickRecognition:
+            QuickRecognitionSettingsView()
+                .environmentObject(settingsStore)
+        case .detailsRecognition:
+            DetailsDescriptionSettingsView()
+                .environmentObject(settingsStore)
+                .environmentObject(openAIStore)
+        case .readText:
+            ReadTextRecognitionSettingsView()
+                .environmentObject(settingsStore)
+        case .faces:
+            FaceRecognitionSettingsView()
+                .environmentObject(settingsStore)
+        }
     }
 
     private func modeButton(
@@ -242,6 +300,18 @@ struct VisionView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!viewModel.enrollment.isSaveButtonEnabled)
             .accessibilityHint(NSLocalizedString("face.saveHint", comment: ""))
+            .contextMenu {
+                Button {
+                    faceNameInput = ""
+                    showNameDialog = true
+                } label: {
+                    Label(NSLocalizedString("face.nameWithText", comment: ""), systemImage: "text.cursor")
+                }
+            }
+            .accessibilityAction(named: Text(NSLocalizedString("face.nameWithText", comment: ""))) {
+                faceNameInput = ""
+                showNameDialog = true
+            }
         case .recording:
             Button(action: { viewModel.enrollment.trigger() }) {
                 Label(viewModel.enrollment.engageLabel, systemImage: "stop.circle")
@@ -289,7 +359,7 @@ struct VisionView: View {
         case .detailsRecognition:
             DetailsDescriptionView()
         case .readText:
-            ReadTextView()
+            ReadTextView(autoCaptureOnAppear: readTextAutoCapture)
         case .faces:
             FaceRecognitionView()
         case .lyricPrompter:

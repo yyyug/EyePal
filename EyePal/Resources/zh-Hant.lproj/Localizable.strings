@@ -376,6 +376,9 @@
 "face.saveDisabledHint" = "出現新面孔時才能儲存。";
 "face.saveHint" = "點一下開始錄製語音備註，再點一下儲存。";
 "face.unlabeled" = "未命名的面孔";
+"face.unnamedName" = "未命名的面孔";
+"face.nameWithText" = "以文字命名";
+"face.nameMessage" = "輸入此面孔的名稱，留空則以「未命名」儲存。";
 
 /* Face text notes */
 "face.spokenTextLabel" = "備註：%@";

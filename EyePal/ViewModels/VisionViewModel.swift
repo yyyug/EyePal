@@ -338,7 +338,7 @@ final class VisionViewModel: ObservableObject {
                 }
                 return
             }
-            presentResult(NSLocalizedString("face.unlabeled", comment: ""), statusKey: "vision.statusLiveOn", announce: true)
+            presentResult(match.name, statusKey: "vision.statusLiveOn", announce: true)
         } else {
             lastSpokenFaceID = nil
             if facesIsOn {

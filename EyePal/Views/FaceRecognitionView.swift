@@ -3,6 +3,8 @@ import SwiftUI
 struct FaceRecognitionView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = FaceRecognitionViewModel()
+    @State private var showNameDialog = false
+    @State private var faceNameInput = ""
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -50,6 +52,19 @@ struct FaceRecognitionView: View {
         }, message: {
             Text(viewModel.errorMessage ?? "")
         })
+        .alert(NSLocalizedString("face.addPerson", comment: ""), isPresented: $showNameDialog) {
+            TextField(NSLocalizedString("face.personName", comment: ""), text: $faceNameInput)
+            Button(NSLocalizedString("common.save", comment: "")) {
+                let name = faceNameInput
+                faceNameInput = ""
+                viewModel.enrollment.saveWithTextName(name)
+            }
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                faceNameInput = ""
+            }
+        } message: {
+            Text(NSLocalizedString("face.nameMessage", comment: ""))
+        }
         .onAppear {
             viewModel.bind(settings: settingsStore)
             viewModel.start()
@@ -82,6 +97,18 @@ struct FaceRecognitionView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!viewModel.enrollment.isSaveButtonEnabled)
             .accessibilityHint(NSLocalizedString("face.saveHint", comment: ""))
+            .contextMenu {
+                Button {
+                    faceNameInput = ""
+                    showNameDialog = true
+                } label: {
+                    Label(NSLocalizedString("face.nameWithText", comment: ""), systemImage: "text.cursor")
+                }
+            }
+            .accessibilityAction(named: Text(NSLocalizedString("face.nameWithText", comment: ""))) {
+                faceNameInput = ""
+                showNameDialog = true
+            }
         case .recording:
             Button(action: { viewModel.enrollment.trigger() }) {
                 Label(viewModel.enrollment.engageLabel, systemImage: "stop.circle")

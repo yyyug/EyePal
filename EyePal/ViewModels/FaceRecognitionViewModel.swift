@@ -124,6 +124,6 @@ final class FaceRecognitionViewModel: ObservableObject {
             }
             return
         }
-        announcer.announce(NSLocalizedString("face.unlabeled", comment: ""), minimumInterval: 0)
+        announcer.announce(match.name, minimumInterval: 0)
     }
 }

@@ -67,8 +67,15 @@ final class FaceEnrollmentCoordinator: ObservableObject {
         case .pending:
             startRecording()
         case .recording, .recorded:
-            completeSave()
+            completeSave(name: nil)
         }
+    }
+
+    /// Saves the pending face using a name typed by the user, without recording a
+    /// voice note. An empty name saves the face as unnamed.
+    func saveWithTextName(_ name: String) {
+        guard state == .pending, pendingFace != nil else { return }
+        completeSave(name: name)
     }
 
     func cancel() {
@@ -125,7 +132,7 @@ final class FaceEnrollmentCoordinator: ObservableObject {
         onAnnounce?(NSLocalizedString("face.recordedReady", comment: ""))
     }
 
-    private func completeSave() {
+    private func completeSave(name: String?) {
         guard let pendingFace else { return }
         guard !isProcessingSave else { return }
 
@@ -140,15 +147,12 @@ final class FaceEnrollmentCoordinator: ObservableObject {
         isProcessingSave = true
         let candidate = pendingFace
         let audioData = pendingAudioData
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        let autoName = formatter.string(from: .now)
 
         Task {
             defer { isProcessingSave = false }
             do {
                 if let saved = try await recognitionService.saveFace(
-                    name: autoName,
+                    name: name,
                     suggestion: candidate,
                     voiceNoteData: audioData
                 ) {

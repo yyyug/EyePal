@@ -468,7 +468,7 @@ private final class MapsDevicesMonitor: NSObject, ObservableObject, CLLocationMa
         .environmentObject(OpenAISubscriptionStore())
 }
 
-private struct DetailsDescriptionSettingsView: View {
+struct DetailsDescriptionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
     @State private var showSignOutConfirmation = false
@@ -579,7 +579,7 @@ private struct DetailsDescriptionSettingsView: View {
     }
 }
 
-private struct QuickRecognitionSettingsView: View {
+struct QuickRecognitionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var gemmaModelManager = GemmaModelManager.shared
 
@@ -885,7 +885,7 @@ private struct RecognitionButtonSettingsEditor: View {
     }
 }
 
-private struct FaceRecognitionSettingsView: View {
+struct FaceRecognitionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
 
     var body: some View {
@@ -957,7 +957,7 @@ private struct FaceRecognitionSettingsView: View {
     }
 }
 
-private struct ReadTextRecognitionSettingsView: View {
+struct ReadTextRecognitionSettingsView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @ObservedObject private var logStore = OcrEngineLogStore.shared
 

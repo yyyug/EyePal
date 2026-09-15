@@ -375,6 +375,9 @@
 "face.saveDisabledHint" = "Save is available when a new face appears.";
 "face.saveHint" = "Tap to record a voice note, then tap again to save.";
 "face.unlabeled" = "Unlabeled face";
+"face.unnamedName" = "Unnamed face";
+"face.nameWithText" = "Name with Text";
+"face.nameMessage" = "Enter a name for this face, or leave it empty to save it as unnamed.";
 
 /* Face text notes */
 "face.spokenTextLabel" = "Note: %@";

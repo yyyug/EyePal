@@ -4,6 +4,12 @@ struct ReadTextView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @StateObject private var viewModel = ReadTextViewModel()
 
+    let autoCaptureOnAppear: Bool
+
+    init(autoCaptureOnAppear: Bool = false) {
+        self.autoCaptureOnAppear = autoCaptureOnAppear
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
                 CameraPreviewView(session: viewModel.camera.session)
@@ -58,6 +64,9 @@ struct ReadTextView: View {
         .onAppear {
             viewModel.bind(settings: settingsStore)
             viewModel.start()
+            if autoCaptureOnAppear {
+                viewModel.autoCaptureWhenReady()
+            }
         }
         .onDisappear {
             viewModel.stop()

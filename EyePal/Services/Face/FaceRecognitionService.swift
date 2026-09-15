@@ -137,17 +137,17 @@ final class FaceRecognitionService {
     }
 
     func saveFace(
-        name: String,
+        name: String?,
         suggestion: FaceSuggestion,
         voiceNoteData: Data? = nil
     ) async throws -> FaceProfile? {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return nil }
+        let trimmedName = (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedName = trimmedName.isEmpty ? unnamedName() : trimmedName
 
         let sampleEmbeddings = suggestion.sampleEmbeddings.filter { !$0.isEmpty }
         guard !sampleEmbeddings.isEmpty else { return nil }
 
-        if let idx = profiles.firstIndex(where: { $0.name.caseInsensitiveCompare(trimmedName) == .orderedSame }) {
+        if let idx = profiles.firstIndex(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) {
             profiles[idx].sampleEmbeddings = sampleEmbeddings
             profiles[idx].updatedAt = .now
             if let jpegData = suggestion.jpegData {
@@ -171,12 +171,12 @@ final class FaceRecognitionService {
             guard !existingEmbedding.isEmpty else { continue }
             let sim = cosineSimilarity(newEmbedding, existingEmbedding)
             if sim >= FaceConfig.duplicateWarningThreshold {
-                onLog?("Duplicate save blocked: \(trimmedName) vs \(existing.name) similarity \(String(format: "%.4f", sim))")
+                onLog?("Duplicate save blocked: \(resolvedName) vs \(existing.name) similarity \(String(format: "%.4f", sim))")
                 return nil
             }
         }
 
-        var profile = FaceProfile(name: trimmedName, sampleEmbeddings: sampleEmbeddings)
+        var profile = FaceProfile(name: resolvedName, sampleEmbeddings: sampleEmbeddings)
         if let jpegData = suggestion.jpegData {
             profile.sampleImageFilename = try await faceStore.saveImage(jpegData, for: profile.id)
         }
@@ -188,6 +188,21 @@ final class FaceRecognitionService {
         logProfileSimilarityDiagnostics(newProfile: profile)
         resetUnknownTracking()
         return profile
+    }
+
+    /// A default display name for a face saved without a typed name. A numeric
+    /// suffix keeps each unnamed face distinct so saving another one never
+    /// overwrites an existing profile.
+    private func unnamedName() -> String {
+        let base = NSLocalizedString("face.unnamedName", comment: "")
+        guard profiles.contains(where: { $0.name.caseInsensitiveCompare(base) == .orderedSame }) else {
+            return base
+        }
+        var index = 2
+        while profiles.contains(where: { $0.name.caseInsensitiveCompare("\(base) \(index)") == .orderedSame }) {
+            index += 1
+        }
+        return "\(base) \(index)"
     }
 
     func deleteProfile(id: UUID) async throws -> [FaceProfile] {
