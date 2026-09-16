@@ -42,27 +42,7 @@ final class GemmaTextRecognitionService {
     }
 
     func generateCaption(image: UIImage, length: QuickCaptionLength, kind: GemmaModelKind? = nil) async throws -> String {
-        let prompt: String
-        if QuickPromptLanguage.isChinese {
-            switch length {
-            case .short:
-                prompt = "請用一句簡短的中文描述這張圖片。"
-            case .normal:
-                prompt = "請用一至兩句簡潔的中文描述這張圖片。"
-            case .long:
-                prompt = "請用幾句中文詳細描述這張圖片。"
-            }
-        } else {
-            switch length {
-            case .short:
-                prompt = "Describe this image in one short sentence."
-            case .normal:
-                prompt = "Describe this image in 1 or 2 concise sentences."
-            case .long:
-                prompt = "Describe this image in detail, in a few sentences."
-            }
-        }
-        return try await run(prompt: prompt, image: image, kind: kind)
+        try await run(prompt: length.onDevicePrompt, image: image, kind: kind)
     }
 
     func queryImage(image: UIImage, question: String, enforceSingleSentenceResponse: Bool, kind: GemmaModelKind? = nil) async throws -> String {

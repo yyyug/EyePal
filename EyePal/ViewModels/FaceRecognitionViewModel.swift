@@ -32,7 +32,12 @@ final class FaceRecognitionViewModel: ObservableObject {
         }
         camera.$state.sink { [weak self] newState in
             Task { @MainActor in
-                self?.cameraState = newState
+                guard let self else { return }
+                self.cameraState = newState
+                // Clear the "Starting camera…" text once the camera is live.
+                if case .running = newState, self.enrollment.state == .idle {
+                    self.statusText = NSLocalizedString("face.scanning", comment: "")
+                }
             }
         }.store(in: &cancellables)
     }

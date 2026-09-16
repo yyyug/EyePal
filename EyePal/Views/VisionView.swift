@@ -32,6 +32,7 @@ struct VisionView: View {
     @State private var showSavedFaces = false
     @State private var showNameDialog = false
     @State private var faceNameInput = ""
+    @State private var showQuickPromptEditor = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -40,6 +41,12 @@ struct VisionView: View {
 
             VStack(spacing: 12) {
                 modeButtons
+                    .sheet(isPresented: $showQuickPromptEditor) {
+                        QuickPromptEditorView(initialText: settingsStore.quickTakePhotoCustomPrompt) { prompt in
+                            settingsStore.quickTakePhotoCustomPrompt = prompt
+                            viewModel.startContinuousQuick(with: prompt)
+                        }
+                    }
 
                 resultBox
             }
@@ -113,6 +120,9 @@ struct VisionView: View {
                                    : NSLocalizedString("vision.enableContinuous", comment: ""),
                                    systemImage: viewModel.quickIsOn ? "pause.circle" : "play.circle", role: .standard) {
                         viewModel.toggleQuick()
+                    },
+                    VisionMenuItem(title: NSLocalizedString("vision.continueWithPrompt", comment: ""), systemImage: "text.bubble", role: .standard) {
+                        showQuickPromptEditor = true
                     },
                     VisionMenuItem(title: NSLocalizedString("vision.showFeaturePage", comment: ""), systemImage: "app.dashed", role: .standard) {
                         showFullScreen(to: .quickRecognition)

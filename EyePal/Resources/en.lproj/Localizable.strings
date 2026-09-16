@@ -284,7 +284,10 @@
 "gemma.status.notDownloaded" = "Not downloaded";
 "gemma.status.downloaded" = "Downloaded";
 "gemma.status.downloading" = "Downloading… %d%%";
+"gemma.status.paused" = "Paused · %d%%";
 "gemma.action.download" = "Download";
+"gemma.action.pause" = "Pause";
+"gemma.action.resume" = "Resume";
 "gemma.action.delete" = "Delete";
 "gemma.action.cancel" = "Cancel";
 "gemma.error.noModel" = "Download an offline Gemma model in Settings > Quick Recognition first.";
@@ -294,6 +297,12 @@
 "settings.modelProvider" = "Recognition Model";
 "settings.modelProvider.moondream" = "MoonDream (Online)";
 "settings.modelProvider.gemma" = "Gemma (On-device)";
+"settings.modelProvider.apple" = "Apple";
+"settings.appleModelReady" = "Apple Intelligence is ready.";
+"settings.appleModelUnavailable" = "Apple Intelligence is unavailable on this device.";
+"applefm.error.unsupportedOS" = "Apple Foundation Models require iOS 26 or later.";
+"applefm.error.unavailable" = "Apple Intelligence is not available on this device.";
+"applefm.error.empty" = "The Apple Foundation Model returned an empty response.";
 "settings.sectionAPIKey" = "Online API Key";
 
 /* Quick Recognition - option labels */
@@ -304,6 +313,10 @@
 "quick.editPrompt" = "Edit Prompt";
 "quick.promptPlaceholder" = "Prompt text";
 "quick.editPromptMessage" = "This prompt replaces the default description prompt. Leave it empty to use the default.";
+"quick.dictation.start" = "Start Dictation";
+"quick.dictation.stop" = "Stop Dictation";
+"quick.dictation.noPermission" = "Speech recognition permission is required for dictation.";
+"quick.dictation.unavailable" = "Dictation is unavailable for the current language.";
 "quick.trigger.time" = "Time interval";
 "quick.trigger.onTheMove" = "On the move";
 "quick.interval.second" = "1 second";
@@ -356,6 +369,7 @@
 "vision.disableContinuous" = "Disable Continuous Mode";
 "vision.showFeaturePage" = "Open Feature Page";
 "vision.savedFaces" = "Saved Faces";
+"vision.continueWithPrompt" = "Continuous with Prompt";
 "vision.settings" = "Settings";
 "vision.buttonHint" = "Tap to run the action. Long-press for more options.";
 "vision.selectedOn" = "On";

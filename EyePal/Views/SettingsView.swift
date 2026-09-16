@@ -665,6 +665,16 @@ struct QuickRecognitionSettingsView: View {
                 gemmaOfflineSection
             }
 
+            if selectedModelProvider.wrappedValue == .apple {
+                Section(NSLocalizedString("settings.modelProvider.apple", comment: "")) {
+                    Text(AppleFoundationModelService.isAvailable
+                         ? NSLocalizedString("settings.appleModelReady", comment: "")
+                         : NSLocalizedString("settings.appleModelUnavailable", comment: ""))
+                        .font(.footnote)
+                        .foregroundStyle(AppleFoundationModelService.isAvailable ? Color.secondary : Color.red)
+                }
+            }
+
             Section(NSLocalizedString("settings.sectionTakePhoto", comment: "")) {
                 Picker(NSLocalizedString("settings.captionLength", comment: ""), selection: selectedCaptionLength) {
                     ForEach(QuickCaptionLength.allCases) { length in
@@ -1499,6 +1509,13 @@ private struct GemmaModelRow: View {
                     Text(String(format: NSLocalizedString("gemma.status.downloading", comment: ""), Int((fraction * 100).rounded())))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                case .paused(let fraction):
+                    ProgressView(value: min(max(fraction, 0), 1))
+                        .progressViewStyle(.linear)
+                        .accessibilityHidden(true)
+                    Text(String(format: NSLocalizedString("gemma.status.paused", comment: ""), Int((fraction * 100).rounded())))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 case .failed(let message):
                     Text(message)
                         .font(.caption)
@@ -1519,13 +1536,22 @@ private struct GemmaModelRow: View {
                     .accessibilityHidden(true)
             }
 
+            if state.isPaused {
+                Button {
+                    manager.delete(kind)
+                } label: {
+                    Text(NSLocalizedString("gemma.action.delete", comment: ""))
+                }
+                .tint(.red)
+            }
+
             Button {
                 switch state {
                 case .downloaded:
                     manager.delete(kind)
                 case .downloading:
-                    manager.cancel(kind)
-                case .failed, .notDownloaded:
+                    manager.pause(kind)
+                case .paused, .failed, .notDownloaded:
                     manager.download(kind)
                 }
             } label: {
@@ -1544,7 +1570,9 @@ private struct GemmaModelRow: View {
         case .downloaded:
             return NSLocalizedString("gemma.action.delete", comment: "")
         case .downloading:
-            return NSLocalizedString("gemma.action.cancel", comment: "")
+            return NSLocalizedString("gemma.action.pause", comment: "")
+        case .paused:
+            return NSLocalizedString("gemma.action.resume", comment: "")
         case .failed, .notDownloaded:
             return NSLocalizedString("gemma.action.download", comment: "")
         }

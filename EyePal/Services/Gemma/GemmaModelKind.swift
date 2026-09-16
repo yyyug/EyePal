@@ -20,14 +20,19 @@ enum GemmaModelKind: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var downloadURL: URL {
-        let base = "https://huggingface.co/litert-community/"
+    /// Candidate sources, fastest-first. `hf-mirror.com` is a drop-in Hugging Face
+    /// mirror that is typically much faster from China / parts of Taiwan and
+    /// South-East Asia; the official host is the fallback.
+    var downloadURLs: [URL] {
+        let path: String
         switch self {
         case .e2b:
-            return URL(string: base + "gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm")!
+            path = "litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
         case .e4b:
-            return URL(string: base + "gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm")!
+            path = "litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm"
         }
+        return ["https://hf-mirror.com/", "https://huggingface.co/"]
+            .compactMap { URL(string: $0 + path) }
     }
 
     var directoryName: String {

@@ -65,10 +65,35 @@ enum QuickCaptionLength: String, CaseIterable, Identifiable {
             return NSLocalizedString("quick.caption.detailed", comment: "")
         }
     }
+
+    /// Description prompt used by on-device models (Gemma / Apple), following the
+    /// app's UI language.
+    var onDevicePrompt: String {
+        if QuickPromptLanguage.isChinese {
+            switch self {
+            case .short:
+                return "請用一至兩句中文描述這張圖片。"
+            case .normal:
+                return "請用三至五句中文描述這張圖片。"
+            case .long:
+                return "請用六句或以上中文詳細描述這張圖片，內容越詳細越好。"
+            }
+        } else {
+            switch self {
+            case .short:
+                return "Describe this image in 1 to 2 sentences."
+            case .normal:
+                return "Describe this image in 3 to 5 sentences."
+            case .long:
+                return "Describe this image in 6 or more sentences with as much detail as possible."
+            }
+        }
+    }
 }
 
 enum QuickModelProvider: String, CaseIterable, Identifiable {
     case gemma
+    case apple
     case moondream
 
     var id: String { rawValue }
@@ -77,8 +102,18 @@ enum QuickModelProvider: String, CaseIterable, Identifiable {
         switch self {
         case .gemma:
             return NSLocalizedString("settings.modelProvider.gemma", comment: "")
+        case .apple:
+            return NSLocalizedString("settings.modelProvider.apple", comment: "")
         case .moondream:
             return NSLocalizedString("settings.modelProvider.moondream", comment: "")
+        }
+    }
+
+    /// On-device models run locally (no API key) and use the UI-language prompts.
+    var isOnDevice: Bool {
+        switch self {
+        case .gemma, .apple: return true
+        case .moondream: return false
         }
     }
 }
@@ -167,10 +202,11 @@ enum RecognitionActionControlStyle: String, CaseIterable, Identifiable {
 }
 
 enum QuickPromptLanguage {
-    /// True when the device's preferred language is any Chinese variant
-    /// (zh-Hans, zh-Hant, zh-HK, zh-TW, ...).
+    /// True when the app's UI is Chinese (any variant). This follows the actual
+    /// UI localization (NSLocalizedString language) rather than the raw OS
+    /// language preference, so prompts match what the user reads in the app.
     static var isChinese: Bool {
-        Locale.preferredLanguages.first?.lowercased().hasPrefix("zh") ?? false
+        Bundle.main.preferredLocalizations.first?.lowercased().hasPrefix("zh") ?? false
     }
 }
 
@@ -196,10 +232,10 @@ struct QuickQueryPreset: Identifiable, Equatable {
         }
     }
 
-    /// The prompt to send for the given engine. Gemma uses Chinese on a
-    /// Chinese-language device; Moondream always uses English.
-    func resolvedPrompt(useGemma: Bool) -> String {
-        useGemma && QuickPromptLanguage.isChinese ? chinesePrompt : prompt
+    /// The prompt to send for the given engine. On-device models (Gemma / Apple)
+    /// use Chinese on a Chinese-language UI; Moondream always uses English.
+    func resolvedPrompt(onDevice: Bool) -> String {
+        onDevice && QuickPromptLanguage.isChinese ? chinesePrompt : prompt
     }
 
     var localizedTitle: String {

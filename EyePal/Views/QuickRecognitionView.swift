@@ -1,3 +1,5 @@
+import AVFoundation
+import Speech
 import SwiftUI
 #if canImport(Translation)
 import Translation
@@ -13,7 +15,6 @@ struct QuickRecognitionView: View {
     @StateObject private var viewModel = QuickRecognitionViewModel()
     @State private var selectedActionIndex = 0
     @State private var showPromptEditor = false
-    @State private var promptDraft = ""
 
     private var quickPresetEntries: [(slot: RecognitionButtonSlot, preset: QuickQueryPreset)] {
         RecognitionButtonSlot.allCases
@@ -83,14 +84,12 @@ struct QuickRecognitionView: View {
                         .disabled(viewModel.isProcessing && !viewModel.isContinuousCapture)
                         .contextMenu {
                             Button {
-                                promptDraft = settingsStore.quickTakePhotoCustomPrompt
                                 showPromptEditor = true
                             } label: {
                                 Label(NSLocalizedString("quick.editPrompt", comment: ""), systemImage: "text.cursor")
                             }
                         }
                         .accessibilityAction(named: Text(NSLocalizedString("quick.editPrompt", comment: ""))) {
-                            promptDraft = settingsStore.quickTakePhotoCustomPrompt
                             showPromptEditor = true
                         }
                     }
@@ -116,14 +115,13 @@ struct QuickRecognitionView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
-            .alert(NSLocalizedString("quick.editPrompt", comment: ""), isPresented: $showPromptEditor) {
-                TextField(NSLocalizedString("quick.promptPlaceholder", comment: ""), text: $promptDraft)
-                Button(NSLocalizedString("common.save", comment: "")) {
-                    settingsStore.quickTakePhotoCustomPrompt = promptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+            .sheet(isPresented: $showPromptEditor) {
+                QuickPromptEditorView(initialText: settingsStore.quickTakePhotoCustomPrompt) { prompt in
+                    settingsStore.quickTakePhotoCustomPrompt = prompt
+                    if !viewModel.isContinuousCapture {
+                        viewModel.startContinuousMode()
+                    }
                 }
-                Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
-            } message: {
-                Text(NSLocalizedString("quick.editPromptMessage", comment: ""))
             }
         .onAppear {
             viewModel.bind(settings: settingsStore)
@@ -354,4 +352,234 @@ struct QuickRecognitionView: View {
 #Preview {
     QuickRecognitionView()
         .environmentObject(SettingsStore())
+}
+
+// MARK: - Prompt editor
+
+/// A page to type or dictate the prompt that replaces the default description
+/// prompt. Send starts the continuous capture; the microphone button runs
+/// on-device dictation that stops automatically after a pause.
+struct QuickPromptEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var dictation = DictationController()
+    @State private var text: String
+    let onSend: (String) -> Void
+
+    init(initialText: String, onSend: @escaping (String) -> Void) {
+        _text = State(initialValue: initialText)
+        self.onSend = onSend
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack(spacing: 8) {
+                        TextField(NSLocalizedString("quick.promptPlaceholder", comment: ""), text: $text, axis: .vertical)
+                            .lineLimit(1...4)
+                            .textFieldStyle(.roundedBorder)
+                            .submitLabel(.send)
+                            .onSubmit { send() }
+
+                        Button {
+                            send()
+                        } label: {
+                            Image(systemName: "paperplane.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityLabel(NSLocalizedString("common.send", comment: ""))
+
+                        Button {
+                            dictation.toggle()
+                        } label: {
+                            Image(systemName: dictation.isRecording ? "mic.fill" : "mic")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(dictation.isRecording ? .red : .accentColor)
+                        .accessibilityLabel(NSLocalizedString(dictation.isRecording ? "quick.dictation.stop" : "quick.dictation.start", comment: ""))
+                    }
+                } footer: {
+                    Text(NSLocalizedString("quick.editPromptMessage", comment: ""))
+                }
+
+                if let error = dictation.errorMessage {
+                    Section {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle(NSLocalizedString("quick.editPrompt", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onChange(of: dictation.transcript) { newValue in
+            guard !newValue.isEmpty else { return }
+            text = newValue
+        }
+        .accessibilityAction(.magicTap) {
+            dictation.toggle()
+        }
+        .onDisappear {
+            dictation.stop()
+        }
+    }
+
+    private func send() {
+        onSend(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        dismiss()
+    }
+}
+
+// MARK: - Dictation
+
+/// On-device speech recognition that stops itself after a short silence.
+@MainActor
+final class DictationController: ObservableObject {
+    @Published private(set) var isRecording = false
+    @Published var transcript = ""
+    @Published var errorMessage: String?
+
+    private let audioEngine = AVAudioEngine()
+    private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var task: SFSpeechRecognitionTask?
+    private var silenceTimer: Timer?
+    private var hasTap = false
+    private var lastVoiceDate = Date()
+    private let silenceInterval: TimeInterval = 1.8
+    private let voiceThreshold: Float = 0.02
+
+    func toggle() {
+        if isRecording { stop() } else { start() }
+    }
+
+    func start() {
+        guard !isRecording else { return }
+        errorMessage = nil
+        transcript = ""
+
+        SFSpeechRecognizer.requestAuthorization { [weak self] status in
+            Task { @MainActor in
+                guard let self else { return }
+                guard status == .authorized else {
+                    self.errorMessage = NSLocalizedString("quick.dictation.noPermission", comment: "")
+                    return
+                }
+                self.beginSession()
+            }
+        }
+    }
+
+    func stop() {
+        silenceTimer?.invalidate()
+        silenceTimer = nil
+
+        if hasTap {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasTap = false
+        }
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+        request?.endAudio()
+        task?.cancel()
+        request = nil
+        task = nil
+        isRecording = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func beginSession() {
+        guard let recognizer = SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
+            errorMessage = NSLocalizedString("quick.dictation.unavailable", comment: "")
+            return
+        }
+
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        self.request = request
+
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+
+        let inputNode = audioEngine.inputNode
+        let format = inputNode.outputFormat(forBus: 0)
+        guard format.channelCount > 0 else {
+            errorMessage = NSLocalizedString("quick.dictation.unavailable", comment: "")
+            return
+        }
+        if hasTap {
+            inputNode.removeTap(onBus: 0)
+            hasTap = false
+        }
+        let voiceThreshold = self.voiceThreshold
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+            request.append(buffer)
+            if DictationController.rmsLevel(buffer) > voiceThreshold {
+                Task { @MainActor in self?.lastVoiceDate = Date() }
+            }
+        }
+        hasTap = true
+
+        audioEngine.prepare()
+        do {
+            try audioEngine.start()
+        } catch {
+            errorMessage = error.localizedDescription
+            stop()
+            return
+        }
+
+        task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            Task { @MainActor in
+                guard let self else { return }
+                if let result {
+                    self.transcript = result.bestTranscription.formattedString
+                    self.lastVoiceDate = Date()
+                }
+                if error != nil || (result?.isFinal ?? false) {
+                    self.stop()
+                }
+            }
+        }
+
+        isRecording = true
+        lastVoiceDate = Date()
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkForSilence()
+            }
+        }
+    }
+
+    private func checkForSilence() {
+        guard isRecording else { return }
+        if Date().timeIntervalSince(lastVoiceDate) >= silenceInterval {
+            stop()
+        }
+    }
+
+    private static func rmsLevel(_ buffer: AVAudioPCMBuffer) -> Float {
+        guard let channel = buffer.floatChannelData?[0] else { return 0 }
+        let frames = Int(buffer.frameLength)
+        guard frames > 0 else { return 0 }
+        var sum: Float = 0
+        for index in 0..<frames {
+            sum += channel[index] * channel[index]
+        }
+        return sqrt(sum / Float(frames))
+    }
 }

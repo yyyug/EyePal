@@ -35,6 +35,7 @@ final class VisionViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     private var continuousQuickTask: Task<Void, Never>?
+    private var continuousPrompt: String?
     private var frameCounter = 0
     private var isFaceProcessing = false
     private var isTextProcessing = false
@@ -64,7 +65,12 @@ final class VisionViewModel: ObservableObject {
         }
         camera.$state.sink { [weak self] newState in
             Task { @MainActor in
-                self?.cameraState = newState
+                guard let self else { return }
+                self.cameraState = newState
+                // Clear the "Starting camera…" text once the camera is live.
+                if case .running = newState {
+                    self.updateStatusText()
+                }
             }
         }.store(in: &cancellables)
     }
@@ -127,10 +133,22 @@ final class VisionViewModel: ObservableObject {
     func toggleQuick() {
         quickIsOn.toggle()
         if quickIsOn {
+            continuousPrompt = nil
             startContinuousQuick()
         } else {
             stopContinuousQuick()
         }
+    }
+
+    /// Starts continuous quick description using a user-supplied prompt instead
+    /// of the default description prompt.
+    func startContinuousQuick(with prompt: String) {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        continuousPrompt = trimmed.isEmpty ? nil : trimmed
+        if !quickIsOn {
+            quickIsOn = true
+        }
+        startContinuousQuick()
     }
 
     private func startContinuousQuick() {
@@ -178,7 +196,7 @@ final class VisionViewModel: ObservableObject {
         let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
         let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !useGemmaOffline, apiKey.isEmpty {
+        if provider == .moondream, apiKey.isEmpty {
             errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
             return
         }
@@ -186,12 +204,24 @@ final class VisionViewModel: ObservableObject {
         isQuickProcessing = true
         do {
             let response: String
-            if useGemmaOffline {
-                response = try await gemmaService.generateCaption(
-                    image: image,
-                    length: .short,
-                    kind: selectedKind
-                )
+            if provider == .apple {
+                let prompt = continuousPrompt ?? QuickCaptionLength.short.onDevicePrompt
+                response = try await AppleFoundationModelService.shared.generate(prompt: prompt, image: image)
+            } else if useGemmaOffline {
+                if let continuousPrompt {
+                    response = try await gemmaService.queryImage(
+                        image: image,
+                        question: continuousPrompt,
+                        enforceSingleSentenceResponse: false,
+                        kind: selectedKind
+                    )
+                } else {
+                    response = try await gemmaService.generateCaption(
+                        image: image,
+                        length: .short,
+                        kind: selectedKind
+                    )
+                }
             } else {
                 let imageDataURL = try quickService.prepareImageDataURL(
                     from: image,

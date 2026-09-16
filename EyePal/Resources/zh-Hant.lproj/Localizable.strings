@@ -284,7 +284,10 @@
 "gemma.status.notDownloaded" = "尚未下載";
 "gemma.status.downloaded" = "已下載";
 "gemma.status.downloading" = "下載中… %d%%";
+"gemma.status.paused" = "已暫停 · %d%%";
 "gemma.action.download" = "下載";
+"gemma.action.pause" = "暫停";
+"gemma.action.resume" = "繼續";
 "gemma.action.delete" = "刪除";
 "gemma.action.cancel" = "取消";
 "gemma.error.noModel" = "請先在「設定 > 快速辨識」下載離線 Gemma 模型。";
@@ -295,6 +298,12 @@
 "settings.modelProvider" = "辨識模型";
 "settings.modelProvider.moondream" = "MoonDream（線上）";
 "settings.modelProvider.gemma" = "Gemma（裝置端）";
+"settings.modelProvider.apple" = "Apple";
+"settings.appleModelReady" = "Apple Intelligence 已就緒。";
+"settings.appleModelUnavailable" = "此裝置無法使用 Apple Intelligence。";
+"applefm.error.unsupportedOS" = "Apple Foundation Models 需要 iOS 26 或以上。";
+"applefm.error.unavailable" = "此裝置無法使用 Apple Intelligence。";
+"applefm.error.empty" = "Apple Foundation Model 沒有回傳結果。";
 "settings.sectionAPIKey" = "線上 API 金鑰";
 
 /* Quick Recognition - option labels */
@@ -305,6 +314,10 @@
 "quick.editPrompt" = "編輯提示詞";
 "quick.promptPlaceholder" = "提示詞內容";
 "quick.editPromptMessage" = "此提示詞會取代預設的描述提示詞，留空則使用預設值。";
+"quick.dictation.start" = "開始聽寫";
+"quick.dictation.stop" = "停止聽寫";
+"quick.dictation.noPermission" = "聽寫需要語音辨識權限。";
+"quick.dictation.unavailable" = "目前語言無法使用聽寫。";
 "quick.trigger.time" = "定時間隔";
 "quick.trigger.onTheMove" = "動作中";
 "quick.interval.second" = "1 秒";
@@ -357,6 +370,7 @@
 "vision.disableContinuous" = "關閉連續模式";
 "vision.showFeaturePage" = "顯示功能頁";
 "vision.savedFaces" = "已儲存面孔";
+"vision.continueWithPrompt" = "以提示詞連續模式";
 "vision.settings" = "設定";
 "vision.buttonHint" = "點一下執行動作，長按或使用無障礙動作查看更多選項。";
 "vision.selectedOn" = "已開啟";

@@ -240,6 +240,13 @@ struct EyePalApp: App {
                 .environmentObject(settingsStore)
                 .environmentObject(openAIStore)
                 .environmentObject(appActionCenter)
+                .task {
+                    // Preload the on-device Apple model when it is the selected
+                    // Quick Recognition engine, so the first capture is fast.
+                    if settingsStore.quickModelProvider == QuickModelProvider.apple.rawValue {
+                        AppleFoundationModelService.shared.preload()
+                    }
+                }
                 .onOpenURL { url in
                     appActionCenter.handleIncomingURL(url)
                 }
