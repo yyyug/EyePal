@@ -204,10 +204,7 @@ final class VisionViewModel: ObservableObject {
         isQuickProcessing = true
         do {
             let response: String
-            if provider == .apple {
-                let prompt = continuousPrompt ?? QuickCaptionLength.short.onDevicePrompt
-                response = try await AppleFoundationModelService.shared.generate(prompt: prompt, image: image)
-            } else if useGemmaOffline {
+            if useGemmaOffline {
                 if let continuousPrompt {
                     response = try await gemmaService.queryImage(
                         image: image,

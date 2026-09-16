@@ -1,8 +1,5 @@
 import Foundation
 import UIKit
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
 
 enum QuickRecognitionError: LocalizedError {
     case missingAPIKey
@@ -164,88 +161,4 @@ final class QuickRecognitionService {
 
         return json
     }
-}
-
-// MARK: - Apple Foundation Model (on-device)
-
-enum AppleFoundationModelError: LocalizedError {
-    case unsupportedOS
-    case unavailable
-    case emptyResponse
-
-    var errorDescription: String? {
-        switch self {
-        case .unsupportedOS:
-            return NSLocalizedString("applefm.error.unsupportedOS", comment: "")
-        case .unavailable:
-            return NSLocalizedString("applefm.error.unavailable", comment: "")
-        case .emptyResponse:
-            return NSLocalizedString("applefm.error.empty", comment: "")
-        }
-    }
-}
-
-/// Runs Quick Recognition through Apple's on-device Foundation Model
-/// (`LanguageModelSession`), including image prompts.
-final class AppleFoundationModelService {
-    static let shared = AppleFoundationModelService()
-
-    private var sessionStorage: Any?
-
-    /// Whether the on-device system model is ready to use right now.
-    static var isAvailable: Bool {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            if case .available = SystemLanguageModel.default.availability { return true }
-        }
-        #endif
-        return false
-    }
-
-    /// Loads the model into memory ahead of the first request.
-    func preload() {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            let session = currentSession() ?? LanguageModelSession()
-            sessionStorage = session
-            session.prewarm(promptPrefix: nil)
-        }
-        #endif
-    }
-
-    func generate(prompt: String, image: UIImage?) async throws -> String {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            guard case .available = SystemLanguageModel.default.availability else {
-                throw AppleFoundationModelError.unavailable
-            }
-            let session = currentSession() ?? LanguageModelSession()
-            sessionStorage = session
-
-            let text: String
-            if let cgImage = image?.cgImage {
-                let response = try await session.respond {
-                    prompt
-                    Attachment(cgImage)
-                }
-                text = response.content
-            } else {
-                let response = try await session.respond(to: prompt)
-                text = response.content
-            }
-
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { throw AppleFoundationModelError.emptyResponse }
-            return trimmed
-        }
-        #endif
-        throw AppleFoundationModelError.unsupportedOS
-    }
-
-    #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    private func currentSession() -> LanguageModelSession? {
-        sessionStorage as? LanguageModelSession
-    }
-    #endif
 }

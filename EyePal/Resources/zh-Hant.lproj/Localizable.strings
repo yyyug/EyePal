@@ -298,12 +298,6 @@
 "settings.modelProvider" = "辨識模型";
 "settings.modelProvider.moondream" = "MoonDream（線上）";
 "settings.modelProvider.gemma" = "Gemma（裝置端）";
-"settings.modelProvider.apple" = "Apple";
-"settings.appleModelReady" = "Apple Intelligence 已就緒。";
-"settings.appleModelUnavailable" = "此裝置無法使用 Apple Intelligence。";
-"applefm.error.unsupportedOS" = "Apple Foundation Models 需要 iOS 26 或以上。";
-"applefm.error.unavailable" = "此裝置無法使用 Apple Intelligence。";
-"applefm.error.empty" = "Apple Foundation Model 沒有回傳結果。";
 "settings.sectionAPIKey" = "線上 API 金鑰";
 
 /* Quick Recognition - option labels */

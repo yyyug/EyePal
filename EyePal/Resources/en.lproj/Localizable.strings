@@ -297,12 +297,6 @@
 "settings.modelProvider" = "Recognition Model";
 "settings.modelProvider.moondream" = "MoonDream (Online)";
 "settings.modelProvider.gemma" = "Gemma (On-device)";
-"settings.modelProvider.apple" = "Apple";
-"settings.appleModelReady" = "Apple Intelligence is ready.";
-"settings.appleModelUnavailable" = "Apple Intelligence is unavailable on this device.";
-"applefm.error.unsupportedOS" = "Apple Foundation Models require iOS 26 or later.";
-"applefm.error.unavailable" = "Apple Intelligence is not available on this device.";
-"applefm.error.empty" = "The Apple Foundation Model returned an empty response.";
 "settings.sectionAPIKey" = "Online API Key";
 
 /* Quick Recognition - option labels */

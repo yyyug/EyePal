@@ -93,7 +93,6 @@ enum QuickCaptionLength: String, CaseIterable, Identifiable {
 
 enum QuickModelProvider: String, CaseIterable, Identifiable {
     case gemma
-    case apple
     case moondream
 
     var id: String { rawValue }
@@ -102,18 +101,8 @@ enum QuickModelProvider: String, CaseIterable, Identifiable {
         switch self {
         case .gemma:
             return NSLocalizedString("settings.modelProvider.gemma", comment: "")
-        case .apple:
-            return NSLocalizedString("settings.modelProvider.apple", comment: "")
         case .moondream:
             return NSLocalizedString("settings.modelProvider.moondream", comment: "")
-        }
-    }
-
-    /// On-device models run locally (no API key) and use the UI-language prompts.
-    var isOnDevice: Bool {
-        switch self {
-        case .gemma, .apple: return true
-        case .moondream: return false
         }
     }
 }

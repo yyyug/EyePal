@@ -129,7 +129,7 @@ final class QuickRecognitionViewModel: ObservableObject {
         let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
 
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if provider == .moondream, apiKey.isEmpty {
+        if !useGemmaOffline, apiKey.isEmpty {
             errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
             return
         }
@@ -144,12 +144,7 @@ final class QuickRecognitionViewModel: ObservableObject {
         Task {
             do {
                 let response: String
-                if provider == .apple {
-                    response = try await AppleFoundationModelService.shared.generate(
-                        prompt: trimmed,
-                        image: latestCapturedImage
-                    )
-                } else if useGemmaOffline {
+                if useGemmaOffline {
                     response = try await gemmaService.queryImage(
                         image: latestCapturedImage,
                         question: trimmed,
@@ -224,7 +219,7 @@ final class QuickRecognitionViewModel: ObservableObject {
         let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
 
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if provider == .moondream, apiKey.isEmpty {
+        if !useGemmaOffline, apiKey.isEmpty {
             errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
             return
         }
@@ -251,18 +246,7 @@ final class QuickRecognitionViewModel: ObservableObject {
         do {
             let response: String
 
-            if provider == .apple {
-                switch request {
-                case .caption(let length):
-                    let prompt = customPrompt.isEmpty ? length.onDevicePrompt : customPrompt
-                    response = try await AppleFoundationModelService.shared.generate(prompt: prompt, image: image)
-                case .query(let preset):
-                    response = try await AppleFoundationModelService.shared.generate(
-                        prompt: preset.resolvedPrompt(onDevice: true),
-                        image: image
-                    )
-                }
-            } else if useGemmaOffline {
+            if useGemmaOffline {
                 switch request {
                 case .caption(let length):
                     if customPrompt.isEmpty {

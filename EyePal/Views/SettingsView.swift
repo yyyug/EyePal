@@ -665,16 +665,6 @@ struct QuickRecognitionSettingsView: View {
                 gemmaOfflineSection
             }
 
-            if selectedModelProvider.wrappedValue == .apple {
-                Section(NSLocalizedString("settings.modelProvider.apple", comment: "")) {
-                    Text(AppleFoundationModelService.isAvailable
-                         ? NSLocalizedString("settings.appleModelReady", comment: "")
-                         : NSLocalizedString("settings.appleModelUnavailable", comment: ""))
-                        .font(.footnote)
-                        .foregroundStyle(AppleFoundationModelService.isAvailable ? Color.secondary : Color.red)
-                }
-            }
-
             Section(NSLocalizedString("settings.sectionTakePhoto", comment: "")) {
                 Picker(NSLocalizedString("settings.captionLength", comment: ""), selection: selectedCaptionLength) {
                     ForEach(QuickCaptionLength.allCases) { length in
