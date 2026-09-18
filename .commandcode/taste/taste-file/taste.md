@@ -6,15 +6,35 @@
 - Gives concise, direct instructions without preamble ("yes commit and push", "CORRECT THE IOS ID. ANDROID IS CORRECT"). Confidence: 0.8
 - Expects immediate action on explicit requests — no discussion or confirmation needed. Confidence: 0.8
 - Cross-platform parity is a high priority — expects identical behavior, settings, and identifiers (e.g., bundle ID) across Android and iOS. Confidence: 0.8
+- Designs screen-reader-first: expects accessibility exposed through VoiceOver/TalkBack custom actions and long-press menus, not only visible on-screen controls. Confidence: 0.9
 - Proactively considers accessibility (TalkBack/VoiceOver) when implementing UI features. Confidence: 0.75
 - Prefers platform-native, well-tested APIs over bundling third-party ML models when reliability matters (e.g., Apple Vision's VNGenerateImageFeaturePrintRequest over ArcFace/ONNX for iOS face recognition). Confidence: 0.7
 - When a dependency or model becomes unused, expects it fully removed from the project and excluded from build artifacts (e.g., an unused model must not ship in the IPA). Confidence: 0.8
-- Builds iOS unsigned IPAs via GitHub Actions and downloads the artifact; builds Android debug APKs locally. Confidence: 0.7
+- Builds iOS unsigned IPAs via GitHub Actions and downloads the artifact; builds Android debug APKs locally. Confidence: 0.8
 - Distinguishes investigation-only tasks ("research, don't modify") from implementation — expects no code changes during research unless asked. Confidence: 0.8
-- For status-check questions (e.g., "is everything fixed?"), prefers a concise reply with no file changes. Confidence: 0.7
+- Sometimes wants edits applied but without building/committing ("fix these, but not build it for this round"), separating code changes from build and verification steps. Confidence: 0.7
+- For questions — status checks (e.g., "is everything fixed?") or explanations (e.g., "just tell me") — prefers a concise, direct reply with no file changes. Confidence: 0.7
 - Actively cares about app/binary size — asks whether unused content can be removed to shrink the build (APK/IPA), questions unexplained size gaps between platforms (e.g., why Android is much larger than iOS), and approves size-reduction changes once verified. Confidence: 0.7
 - Benchmarks against reference/open-source implementations (e.g., OpenGlasses) to identify proven approaches before implementing a fix. Confidence: 0.6
 - Communicates in Traditional Chinese (mixed with English); complex technical requests are usually phrased in Chinese. Confidence: 0.7
 - Approves technical/packaging optimizations only on the condition that app functionality is unaffected — explicitly gates permission with "do it if it doesn't affect app functionality". Confidence: 0.8
 - Delegates technical judgment to the agent — asks "do you recommend X? if so, do it" instead of deciding himself, then expects the work to be carried out. Confidence: 0.7
 - Wants resource/download size surfaced in the UI so end users know the storage cost before downloading (e.g., appending file capacity to model options like "2B ~2.6GB"). Confidence: 0.6
+- Keeps on-screen text minimal and meaningful — removes verbose metadata such as date/time stamps from logs and event lists, and drops redundant status lines (e.g., "result is ready") when the actual result already conveys the state. Confidence: 0.8
+- Audits for duplicated/overlapping actions by reviewing each button's long-press and VoiceOver action list one by one, requesting unwanted actions be dropped and missing ones added. Confidence: 0.7
+- Expects the same affordances to be available on every surface where a feature appears (e.g., the "Name with Text" save-face action on both the Faces feature page and the Vision tab Faces button). Confidence: 0.7
+- Expects new entry points to reuse existing functionality rather than duplicating it (e.g., the Vision Text button's Take Photo action should invoke the existing photo/OCR flow). Confidence: 0.65
+- Expects user-facing strings properly localized per UI language (English UI shows English, Chinese UI shows Chinese), with strings added to the relevant localization files. Confidence: 0.7
+- Wants diagnostic logging to capture the *reason* behind a decision (not just the outcome), and expects missing logs to be added proactively when they'd help troubleshoot a reported issue. Confidence: 0.7
+- Prefers user-facing error dialogs to show specific, detailed error information (e.g., the underlying native error string) rather than a generic message like "null". Confidence: 0.8
+- When a reported issue persists, expects the agent to also apply other fixes it already knows about ("if you know what else should fix, fix it") instead of only the single reported change. Confidence: 0.65
+- Supplies official developer documentation URLs (e.g., Apple Foundation Models docs) as the reference to follow when integrating a platform framework, and expects the agent to verify the implementation against that doc ("are we implementing the function correctly?"). Confidence: 0.7
+- Reviews the agent's summary by quoting its lines and annotating corrections point by point rather than restating the whole request. Confidence: 0.55
+- Iteratively tunes LLM prompt wording with explicit output-length targets (e.g., "3 to 5 sentences", "150 to 200 words"), revising upward until satisfied. Confidence: 0.55
+with automatic fallback (e.g., hf-mirror.com before huggingface.co for Asia), parallel chunked transfer when it helps, and pause/resume exposed in the UI. Confidence: 0.6
+- Expects transient on-screen status/loading text (e.g., "Initializing camera…") to be cleared as soon as the underlying component becomes ready, rather than lingering on screen. Confidence: 0.75
+- Prefers no status line at all over an idle/placeholder message — when a screen is ready but no function is active, the status text should be blank rather than replaced with a "ready" caption. Confidence: 0.7
+- Expects changes to be verified by actually building in the local environment rather than reported as "unverified" or deferred to the user — points out the toolchain is available ("build the android apk using local env, it is ready") and expects the build to be run. Confidence: 0.8
+- When told a feature has no parity equivalent on another platform, asks whether there is a way to close the gap ("any method to improve this?") before deciding — evaluates options rather than accepting the limitation. Confidence: 0.65
+- Prefers staged, incremental delivery over one big-bang change — approves the cheap, low-risk step first and defers the deeper refactor to a dedicated follow-up ("yes, do your suggestion and commit, build apk"). Confidence: 0.55
+- Treats an implementation request as complete only once the work is committed and the APK is (re)built — "do your suggestion and commit, build apk" is the expected finishing sequence. Confidence: 0.65
