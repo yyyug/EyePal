@@ -203,7 +203,6 @@
     <string name="btn_save_face">儲存面孔</string>
     <string name="btn_reRecord">重新錄音</string>
     <string name="btn_play_note">播放語音備註</string>
-    <string name="btn_enter_text_note">輸入文字備註</string>
     <string name="status_new_face_ready">有新面孔可以儲存。</string>
     <string name="status_new_face_save_hint">偵測到新面孔。輕觸以錄製語音備註並儲存。</string>
     <string name="status_recording_prompt">正在錄製語音備註...</string>
@@ -215,9 +214,6 @@
     <string name="status_face_cancelled">面孔未儲存。</string>
     <string name="status_mic_required">需要麥克風權限才能錄製語音備註。</string>
     <string name="face_save_disabled_hint">出現新面孔時才能儲存。</string>
-    <string name="label_text_note">備註：%1\</string>
-    <string name="text_note_prompt">備註文字</string>
-    <string name="text_note_message">辨識到此面孔時會朗讀這段文字。</string>
 
     <string name="status_follow_up_processing">正在追問...</string>
     <string name="label_ask_follow_up">追問</string>

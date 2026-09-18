@@ -21,7 +21,6 @@ private enum FaceConfig {
 struct FaceMatch: Equatable {
     let id: UUID
     let name: String
-    let spokenText: String?
     let voiceNoteFilename: String?
     let confidence: Float
 }
@@ -238,15 +237,6 @@ final class FaceRecognitionService {
         return profiles[idx]
     }
 
-    func updateSpokenText(id: UUID, text: String?) async throws -> FaceProfile? {
-        guard let idx = profiles.firstIndex(where: { $0.id == id }) else { return nil }
-        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
-        profiles[idx].spokenText = (trimmed?.isEmpty ?? true) ? nil : trimmed
-        profiles[idx].updatedAt = .now
-        try await faceStore.saveProfiles(profiles)
-        return profiles[idx]
-    }
-
     private func extractPrimaryFace(from sampleBuffer: CMSampleBuffer) throws -> CGImage {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw FaceEmbeddingError.invalidOutput
@@ -332,7 +322,6 @@ final class FaceRecognitionService {
         return FaceMatch(
             id: candidate.profile.id,
             name: candidate.profile.name,
-            spokenText: candidate.profile.spokenText,
             voiceNoteFilename: candidate.profile.voiceNoteFilename,
             confidence: candidate.confidence
         )

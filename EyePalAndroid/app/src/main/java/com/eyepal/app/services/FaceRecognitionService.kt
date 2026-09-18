@@ -58,8 +58,7 @@ class FaceRecognitionService(private val context: Context) {
         val id: String,
         val name: String,
         val embeddings: List<FloatArray>,
-        val soundFilename: String? = null,
-        val textNote: String? = null
+        val soundFilename: String? = null
     )
     data class FaceMatch(val name: String, val confidence: Float)
     data class PendingSamples(val embeddings: List<FloatArray>, val count: Int, val target: Int, val suggestNow: Boolean = false)
@@ -85,8 +84,7 @@ class FaceRecognitionService(private val context: Context) {
                         id = obj.getString("id"),
                         name = obj.getString("name"),
                         embeddings = embeddings,
-                        soundFilename = obj.optStringOrNull("soundFilename"),
-                        textNote = obj.optStringOrNull("textNote")
+                        soundFilename = obj.optStringOrNull("soundFilename")
                     )
                 )
             }
@@ -437,14 +435,6 @@ class FaceRecognitionService(private val context: Context) {
         persistFaces()
     }
 
-    suspend fun updateTextNote(id: String, text: String?) = withContext(Dispatchers.IO) {
-        val trimmed = text?.trim().orEmpty()
-        profiles = profiles.map {
-            if (it.id == id) it.copy(textNote = trimmed.ifEmpty { null }) else it
-        }.toMutableList()
-        persistFaces()
-    }
-
     fun getProfiles() = profiles.toList()
 
     private fun persistFaces() {
@@ -461,7 +451,6 @@ class FaceRecognitionService(private val context: Context) {
                 put("name", profile.name)
                 put("embeddings", embArr)
                 if (profile.soundFilename != null) put("soundFilename", profile.soundFilename)
-                if (profile.textNote != null) put("textNote", profile.textNote)
             })
         }
         File(context.filesDir, "faces.json").writeText(JSONObject().put("faces", arr).toString())

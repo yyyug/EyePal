@@ -117,11 +117,6 @@ final class FaceRecognitionViewModel: ObservableObject {
         guard lastSpokenFaceID != match.id else { return }
         lastSpokenFaceID = match.id
 
-        let spokenText = match.spokenText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !spokenText.isEmpty {
-            announcer.announce(spokenText, minimumInterval: 0)
-            return
-        }
         if let filename = match.voiceNoteFilename {
             Task { @MainActor in
                 let url = await self.faceStore.recordingURL(for: filename)

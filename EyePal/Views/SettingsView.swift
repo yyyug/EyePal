@@ -1014,8 +1014,6 @@ struct SavedFacesView: View {
     @StateObject private var viewModel = SavedFacesViewModel()
     @State private var renamingProfile: FaceProfile?
     @State private var draftName = ""
-    @State private var textEditingProfile: FaceProfile?
-    @State private var draftText = ""
 
     var body: some View {
         List {
@@ -1028,12 +1026,6 @@ struct SavedFacesView: View {
                         Text(profile.name)
                             .font(.headline)
 
-                        if let spokenText = profile.spokenText, !spokenText.isEmpty {
-                            Text(String(format: NSLocalizedString("face.spokenTextLabel", comment: ""), spokenText))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-
                         HStack(spacing: 16) {
                             Button {
                                 viewModel.togglePlay(profile)
@@ -1045,13 +1037,6 @@ struct SavedFacesView: View {
                             }
                             .disabled(profile.voiceNoteFilename == nil)
                             .accessibilityHint(profile.voiceNoteFilename == nil ? NSLocalizedString("face.noRecording", comment: "") : "")
-
-                            Button {
-                                draftText = profile.spokenText ?? ""
-                                textEditingProfile = profile
-                            } label: {
-                                Label(NSLocalizedString("face.enterText", comment: ""), systemImage: "text.bubble")
-                            }
                         }
                         .font(.subheadline)
                     }
@@ -1069,20 +1054,10 @@ struct SavedFacesView: View {
                         } label: {
                             Label(NSLocalizedString("common.rename", comment: ""), systemImage: "pencil")
                         }
-                        Button {
-                            draftText = profile.spokenText ?? ""
-                            textEditingProfile = profile
-                        } label: {
-                            Label(NSLocalizedString("face.enterText", comment: ""), systemImage: "text.bubble")
-                        }
                     }
                     .accessibilityAction(named: Text(NSLocalizedString("common.rename", comment: "") + " \(profile.name)")) {
                         draftName = profile.name
                         renamingProfile = profile
-                    }
-                    .accessibilityAction(named: Text(NSLocalizedString("face.enterText", comment: ""))) {
-                        draftText = profile.spokenText ?? ""
-                        textEditingProfile = profile
                     }
                 }
                 .onDelete(perform: viewModel.deleteFaces)
@@ -1117,21 +1092,6 @@ struct SavedFacesView: View {
             }
         } message: {
             Text(NSLocalizedString("face.renameMessage", comment: ""))
-        }
-        .alert(NSLocalizedString("face.enterText", comment: ""), isPresented: Binding(get: { textEditingProfile != nil }, set: { if !$0 { textEditingProfile = nil } })) {
-            TextField(NSLocalizedString("face.spokenTextPrompt", comment: ""), text: $draftText)
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
-                textEditingProfile = nil
-                draftText = ""
-            }
-            Button(NSLocalizedString("common.save", comment: "")) {
-                guard let textEditingProfile else { return }
-                viewModel.updateSpokenText(id: textEditingProfile.id, text: draftText)
-                self.textEditingProfile = nil
-                draftText = ""
-            }
-        } message: {
-            Text(NSLocalizedString("face.spokenTextMessage", comment: ""))
         }
     }
 }
@@ -1223,22 +1183,6 @@ private final class SavedFacesViewModel: ObservableObject {
         }
     }
 
-    func updateSpokenText(id: UUID, text: String) {
-        var updatedProfiles = profiles
-        guard let profileIndex = updatedProfiles.firstIndex(where: { $0.id == id }) else { return }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        updatedProfiles[profileIndex].spokenText = trimmed.isEmpty ? nil : trimmed
-        updatedProfiles[profileIndex].updatedAt = .now
-
-        Task {
-            do {
-                try await faceStore.saveProfiles(updatedProfiles)
-                profiles = updatedProfiles
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
-    }
 }
 
 #if canImport(Translation)

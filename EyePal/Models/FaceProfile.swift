@@ -7,7 +7,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
     var updatedAt: Date
     var sampleEmbeddings: [[Float]]
     var sampleImageFilename: String?
-    var spokenText: String?
     var voiceNoteFilename: String?
 
     var embedding: [Float] {
@@ -21,7 +20,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         updatedAt: Date = .now,
         sampleEmbeddings: [[Float]],
         sampleImageFilename: String? = nil,
-        spokenText: String? = nil,
         voiceNoteFilename: String? = nil
     ) {
         self.id = id
@@ -30,7 +28,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         self.updatedAt = updatedAt
         self.sampleEmbeddings = sampleEmbeddings
         self.sampleImageFilename = sampleImageFilename
-        self.spokenText = spokenText
         self.voiceNoteFilename = voiceNoteFilename
     }
 
@@ -41,7 +38,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         updatedAt: Date = .now,
         embedding: [Float],
         sampleImageFilename: String? = nil,
-        spokenText: String? = nil,
         voiceNoteFilename: String? = nil
     ) {
         self.init(
@@ -51,7 +47,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
             updatedAt: updatedAt,
             sampleEmbeddings: [embedding],
             sampleImageFilename: sampleImageFilename,
-            spokenText: spokenText,
             voiceNoteFilename: voiceNoteFilename
         )
     }
@@ -64,7 +59,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         case sampleEmbeddings
         case embedding
         case sampleImageFilename
-        case spokenText
         case voiceNoteFilename
     }
 
@@ -75,7 +69,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         sampleImageFilename = try container.decodeIfPresent(String.self, forKey: .sampleImageFilename)
-        spokenText = try container.decodeIfPresent(String.self, forKey: .spokenText)
         voiceNoteFilename = try container.decodeIfPresent(String.self, forKey: .voiceNoteFilename)
 
         if let sampleEmbeddings = try container.decodeIfPresent([[Float]].self, forKey: .sampleEmbeddings),
@@ -97,7 +90,6 @@ struct FaceProfile: Identifiable, Codable, Equatable {
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(sampleEmbeddings, forKey: .sampleEmbeddings)
         try container.encodeIfPresent(sampleImageFilename, forKey: .sampleImageFilename)
-        try container.encodeIfPresent(spokenText, forKey: .spokenText)
         try container.encodeIfPresent(voiceNoteFilename, forKey: .voiceNoteFilename)
     }
 }

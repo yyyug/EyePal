@@ -389,11 +389,5 @@
 "face.unnamedName" = "Unnamed face";
 "face.nameWithText" = "Name with Text";
 "face.nameMessage" = "Enter a name for this face, or leave it empty to save it as unnamed.";
-
-/* Face text notes */
-"face.spokenTextLabel" = "Note: %@";
 "face.replayRecording" = "Play Voice Note";
 "face.noRecording" = "No voice note saved.";
-"face.enterText" = "Enter Text Note";
-"face.spokenTextPrompt" = "Note text";
-"face.spokenTextMessage" = "This text will be announced when this face is recognized.";

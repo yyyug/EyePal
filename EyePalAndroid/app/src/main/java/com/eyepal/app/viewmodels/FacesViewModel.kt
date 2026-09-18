@@ -188,11 +188,6 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun announceRecognized(name: String, cooldownMs: Long) {
         val profile = profiles.value.firstOrNull { it.name == name }
-        val note = profile?.textNote?.trim().orEmpty()
-        if (note.isNotEmpty()) {
-            announcer.announce(note, minimumInterval = cooldownMs)
-            return
-        }
         val file = profile?.soundFilename?.let { faceService.recordingFile(it) }
         if (file?.exists() == true) {
             playbackPlayer.play(file)

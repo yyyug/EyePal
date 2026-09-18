@@ -390,11 +390,5 @@
 "face.unnamedName" = "未命名的面孔";
 "face.nameWithText" = "以文字命名";
 "face.nameMessage" = "輸入此面孔的名稱，留空則以「未命名」儲存。";
-
-/* Face text notes */
-"face.spokenTextLabel" = "備註：%@";
 "face.replayRecording" = "播放語音備註";
 "face.noRecording" = "未儲存語音備註。";
-"face.enterText" = "輸入文字備註";
-"face.spokenTextPrompt" = "備註文字";
-"face.spokenTextMessage" = "辨識到此面孔時，會朗讀這段文字。";

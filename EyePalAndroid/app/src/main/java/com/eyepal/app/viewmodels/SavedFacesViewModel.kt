@@ -69,13 +69,6 @@ class SavedFacesViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun updateTextNote(id: String, text: String?) {
-        viewModelScope.launch {
-            faceService.updateTextNote(id, text)
-            profiles.value = faceService.getProfiles()
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
         player.release()

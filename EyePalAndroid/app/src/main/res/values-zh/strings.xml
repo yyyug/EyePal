@@ -395,7 +395,6 @@
     <string name="btn_save_face">保存面孔</string>
     <string name="btn_reRecord">重新录音</string>
     <string name="btn_play_note">播放语音备注</string>
-    <string name="btn_enter_text_note">输入文字备注</string>
     <string name="status_new_face_ready">有新面孔可以保存。</string>
     <string name="status_new_face_save_hint">检测到新面孔。轻触以录制语音备注并保存。</string>
     <string name="status_recording_prompt">正在录制语音备注...</string>
@@ -407,7 +406,4 @@
     <string name="status_face_cancelled">面孔未保存。</string>
     <string name="status_mic_required">需要麦克风权限才能录制语音备注。</string>
     <string name="face_save_disabled_hint">出现新面孔时才能保存。</string>
-    <string name="label_text_note">备注：%1\</string>
-    <string name="text_note_prompt">备注文字</string>
-    <string name="text_note_message">识别到此面孔时会朗读这段文字。</string>
 </resources>

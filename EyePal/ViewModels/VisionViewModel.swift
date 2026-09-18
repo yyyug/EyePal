@@ -353,11 +353,6 @@ final class VisionViewModel: ObservableObject {
         if let match {
             lastSpokenFaceID = match.id
             statusText = NSLocalizedString("face.recognized", comment: "") + " \(match.name)."
-            let spokenText = match.spokenText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !spokenText.isEmpty {
-                presentResult(spokenText, statusKey: "vision.statusLiveOn", announce: true)
-                return
-            }
             if let filename = match.voiceNoteFilename {
                 Task { @MainActor in
                     let url = await self.faceStore.recordingURL(for: filename)

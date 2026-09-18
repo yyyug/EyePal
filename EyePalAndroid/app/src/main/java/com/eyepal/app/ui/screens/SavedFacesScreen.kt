@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,8 +26,6 @@ fun SavedFacesScreen(viewModel: SavedFacesViewModel = viewModel(), onBack: () ->
     val playingProfileId by viewModel.playingProfileId
     var renamingProfile by remember { mutableStateOf<SavedFacesViewModel.RenameTarget?>(null) }
     var draftName by remember { mutableStateOf("") }
-    var editingNoteProfileId by remember { mutableStateOf<String?>(null) }
-    var draftNote by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         TopAppBar(title = { Text(stringResource(R.string.tab_saved_faces)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back)) } })
@@ -42,12 +39,7 @@ fun SavedFacesScreen(viewModel: SavedFacesViewModel = viewModel(), onBack: () ->
                     ListItem(
                         headlineContent = { Text(profile.name) },
                         supportingContent = {
-                            Column {
-                                Text(stringResource(R.string.label_samples_count, "${profile.embeddings.size}"))
-                                profile.textNote?.takeIf { it.isNotBlank() }?.let {
-                                    Text(stringResource(R.string.label_text_note, it), color = MaterialTheme.colorScheme.outline)
-                                }
-                            }
+                            Text(stringResource(R.string.label_samples_count, "${profile.embeddings.size}"))
                         },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -60,12 +52,6 @@ fun SavedFacesScreen(viewModel: SavedFacesViewModel = viewModel(), onBack: () ->
                                     } else {
                                         Icon(Icons.Default.PlayArrow, stringResource(R.string.btn_play_note), tint = if (profile.soundFilename != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
                                     }
-                                }
-                                IconButton(onClick = {
-                                    draftNote = profile.textNote.orEmpty()
-                                    editingNoteProfileId = profile.id
-                                }) {
-                                    Icon(Icons.Default.TextFields, stringResource(R.string.btn_enter_text_note), tint = MaterialTheme.colorScheme.primary)
                                 }
                                 IconButton(onClick = {
                                     draftName = profile.name
@@ -112,38 +98,6 @@ fun SavedFacesScreen(viewModel: SavedFacesViewModel = viewModel(), onBack: () ->
             },
             dismissButton = {
                 TextButton(onClick = { renamingProfile = null; draftName = "" }) { Text(stringResource(R.string.btn_cancel)) }
-            }
-        )
-    }
-
-    if (editingNoteProfileId != null) {
-        AlertDialog(
-            onDismissRequest = { editingNoteProfileId = null; draftNote = "" },
-            title = { Text(stringResource(R.string.btn_enter_text_note)) },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = draftNote,
-                        onValueChange = { draftNote = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(stringResource(R.string.text_note_prompt)) },
-                        singleLine = false
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(stringResource(R.string.text_note_message), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    editingNoteProfileId?.let { id ->
-                        viewModel.updateTextNote(id, draftNote)
-                    }
-                    editingNoteProfileId = null
-                    draftNote = ""
-                }) { Text(stringResource(R.string.btn_save)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingNoteProfileId = null; draftNote = "" }) { Text(stringResource(R.string.btn_cancel)) }
             }
         )
     }
