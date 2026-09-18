@@ -28,18 +28,52 @@ class GemmaTextRecognitionService(private val context: Context) {
                 ?: GemmaModelManager(context.applicationContext)
         }
 
+    /** True when the app's UI locale is Chinese (zh-Hans, zh-Hant, zh-HK, zh-TW, ...). */
+    private val prefersChinese: Boolean
+        get() {
+            val locales = context.resources.configuration.locales
+            val language = if (locales.isEmpty) "en" else locales[0].language
+            return language.startsWith("zh", ignoreCase = true)
+        }
+
     suspend fun generateCaption(image: Bitmap, length: QuickCaptionLength, kind: GemmaModelKind? = null): String {
-        val prompt = when (length) {
-            QuickCaptionLength.SHORT -> "Describe this image in one short sentence."
-            QuickCaptionLength.NORMAL -> "Describe this image in 1 or 2 concise sentences."
-            QuickCaptionLength.DETAILED -> "Describe this image in detail, in a few sentences."
+        val prompt = if (prefersChinese) {
+            when (length) {
+                QuickCaptionLength.SHORT -> "請用一至兩句中文描述這張圖片。"
+                QuickCaptionLength.NORMAL -> "請用三至五句中文描述這張圖片。"
+                QuickCaptionLength.DETAILED -> "請用六句或以上中文詳細描述這張圖片，內容越詳細越好。"
+            }
+        } else {
+            when (length) {
+                QuickCaptionLength.SHORT -> "Describe this image in 1 to 2 sentences."
+                QuickCaptionLength.NORMAL -> "Describe this image in 3 to 5 sentences."
+                QuickCaptionLength.DETAILED -> "Describe this image in 6 or more sentences with as much detail as possible."
+            }
         }
         return run(prompt, image, kind)
     }
 
     suspend fun queryImage(image: Bitmap, question: String, enforceSingleSentenceResponse: Boolean, kind: GemmaModelKind? = null): String {
-        val prompt = if (enforceSingleSentenceResponse) "$question Respond with one sentence." else question
+        val localized = localizePrompt(question)
+        val prompt = if (enforceSingleSentenceResponse) "$localized Respond with one sentence." else localized
         return run(prompt, image, kind)
+    }
+
+    /** The built-in presets are English; on a Chinese UI send Chinese to Gemma. */
+    private fun localizePrompt(question: String): String {
+        if (!prefersChinese) return question
+        return when (question) {
+            "Describe the main product with brand, name and function",
+            "Describe the main product in this image with 1 or 2 sentences, including its brand, name and primary function" ->
+                "請用一至兩句描述圖片中的主要產品，包括品牌、名稱和主要功能。"
+            "Describe the food layout on the plate using clock positions",
+            "Describe the layout of the food on the plate or tray. Use clock positions or spatial terms" ->
+                "請描述食物在盤子或托盤上的擺放位置，使用時鐘方向或空間詞語。"
+            "Read the visible text in the image",
+            "Describe the alphanumeric text visible in the image" ->
+                "請描述圖片中可見的英數字文字。"
+            else -> question
+        }
     }
 
     private suspend fun run(prompt: String, image: Bitmap, kind: GemmaModelKind? = null): String = withContext(Dispatchers.Default) {

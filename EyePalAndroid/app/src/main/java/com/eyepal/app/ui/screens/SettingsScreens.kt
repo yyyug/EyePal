@@ -30,6 +30,7 @@ fun SettingsScreen(
     onNavigateToTextSettings: () -> Unit = {},
     onNavigateToFacesSettings: () -> Unit = {},
     onNavigateToLyricsSettings: () -> Unit = {},
+    onNavigateToSavedFaces: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -42,6 +43,10 @@ fun SettingsScreen(
         item {
             TopAppBar(title = { Text(stringResource(R.string.tab_settings)) })
         }
+        item {
+            Text(stringResource(R.string.tab_saved_faces), style = MaterialTheme.typography.titleMedium, modifier = Modifier.clickable { onNavigateToSavedFaces() }.padding(vertical = 12.dp))
+        }
+        item { HorizontalDivider() }
         item {
             Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
             Text(stringResource(R.string.settings_style_simple), modifier = Modifier.clickable { scope.launch { settings.setUiStyle("simple") } }.padding(vertical = 8.dp))

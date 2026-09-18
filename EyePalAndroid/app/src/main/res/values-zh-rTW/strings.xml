@@ -164,6 +164,18 @@
     <string name="gemma_action_download">下載</string>
     <string name="gemma_action_delete">刪除</string>
     <string name="gemma_action_cancel">取消</string>
+    <string name="gemma_action_pause">暫停</string>
+    <string name="gemma_action_resume">繼續</string>
+    <string name="quick_edit_prompt">編輯提示詞</string>
+    <string name="quick_prompt_placeholder">提示詞內容</string>
+    <string name="quick_edit_prompt_message">此提示詞會取代預設的描述提示詞，留空則使用預設值。</string>
+    <string name="quick_dictation_start">開始聽寫</string>
+    <string name="quick_dictation_stop">停止聽寫</string>
+    <string name="face_name_with_text">以文字命名</string>
+    <string name="face_name_message">輸入此面孔的名稱，留空則以「未命名」儲存。</string>
+    <string name="face_add_person">新增人物</string>
+    <string name="face_person_name">人物名稱</string>
+    <string name="face_unnamed_name">未命名的面孔</string>
     <string name="gemma_action_retry">重試</string>
     <string name="gemma_error_no_model">尚未下載模型。請在設定中下載 Gemma 模型。</string>
     <string name="gemma_error_empty_response">模型未回傳文字。</string>
@@ -186,6 +198,7 @@
     <string name="vision_disable_continuous">關閉連續模式</string>
     <string name="vision_show_feature_page">開啟功能頁面</string>
     <string name="vision_saved_faces">已儲存面孔</string>
+    <string name="vision_activate_hint">啟用一項或多項功能。</string>
 
     <string name="btn_save_face">儲存面孔</string>
     <string name="btn_reRecord">重新錄音</string>

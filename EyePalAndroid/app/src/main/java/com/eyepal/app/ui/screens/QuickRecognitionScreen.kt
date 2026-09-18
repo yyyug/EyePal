@@ -1,14 +1,22 @@
 package com.eyepal.app.ui.screens
 
+import android.Manifest
 import android.view.ViewGroup
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -22,7 +30,7 @@ import com.eyepal.app.services.GemmaModelKind
 import com.eyepal.app.viewmodels.QuickRecognitionViewModel
 import com.eyepal.app.viewmodels.RecognitionActionControlStyle
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun QuickRecognitionScreen(viewModel: QuickRecognitionViewModel = viewModel()) {
     val statusText by viewModel.statusText
@@ -39,8 +47,12 @@ fun QuickRecognitionScreen(viewModel: QuickRecognitionViewModel = viewModel()) {
 
     val actions = remember(currentPresets) { listOf(context.getString(R.string.btn_take_photo)) + currentPresets.map { it.name } }
     var selectedActionIndex by remember { mutableIntStateOf(0) }
+    var showPromptEditor by remember { mutableStateOf(false) }
+    val recordPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) viewModel.startDictation()
+    }
 
-    DisposableEffect(Unit) { onDispose { viewModel.stopContinuous(); viewModel.stopCamera() } }
+    DisposableEffect(Unit) { onDispose { viewModel.stopDictation(); viewModel.stopContinuous(); viewModel.stopCamera() } }
 
     LaunchedEffect(Unit) { viewModel.startCamera() }
 
@@ -157,11 +169,89 @@ fun QuickRecognitionScreen(viewModel: QuickRecognitionViewModel = viewModel()) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(onClick = { if (isContinuous) viewModel.stopContinuous() else viewModel.startContinuousMode() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = if (isContinuous) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary)) {
-                    Text(if (isContinuous) stringResource(R.string.btn_stop) else stringResource(R.string.btn_continuous))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ButtonDefaults.shape)
+                        .background(if (isContinuous) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary)
+                        .combinedClickable(
+                            onClick = { if (isContinuous) viewModel.stopContinuous() else viewModel.startContinuousMode() },
+                            onLongClick = {
+                                viewModel.openPromptEditor()
+                                showPromptEditor = true
+                            }
+                        )
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (isContinuous) stringResource(R.string.btn_stop) else stringResource(R.string.btn_continuous),
+                        color = if (isContinuous) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onSecondary,
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }
+    }
+
+    if (showPromptEditor) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.stopDictation()
+                showPromptEditor = false
+            },
+            title = { Text(stringResource(R.string.quick_edit_prompt)) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = viewModel.promptDraft.value,
+                        onValueChange = { viewModel.promptDraft.value = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.quick_prompt_placeholder)) },
+                        minLines = 2
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Button(onClick = {
+                            viewModel.stopDictation()
+                            viewModel.savePromptAndStartContinuous()
+                            showPromptEditor = false
+                        }) {
+                            Text(stringResource(R.string.btn_send))
+                        }
+                        OutlinedButton(onClick = {
+                            if (viewModel.isDictating.value) {
+                                viewModel.stopDictation()
+                            } else {
+                                recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }) {
+                            Text(
+                                stringResource(
+                                    if (viewModel.isDictating.value) R.string.quick_dictation_stop
+                                    else R.string.quick_dictation_start
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.quick_edit_prompt_message),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.stopDictation()
+                    showPromptEditor = false
+                }) {
+                    Text(stringResource(R.string.btn_cancel))
+                }
+            }
+        )
     }
 
     errorMessage?.let { LaunchedEffect(it) { viewModel.clearError() } }

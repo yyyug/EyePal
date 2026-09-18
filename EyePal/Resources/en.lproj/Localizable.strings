@@ -341,7 +341,7 @@
 "tab.assist" = "Assist";
 
 /* Vision page */
-"vision.statusIdle" = "Your camera is ready. Choose an action below.";
+"vision.statusIdle" = "Activate one or multiple functions.";
 "vision.statusStarting" = "Starting camera...";
 "vision.quickContinuousOn" = "Continuous quick description is running.";
 "vision.noFrame" = "No camera frame is ready yet.";

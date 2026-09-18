@@ -357,6 +357,18 @@
     <string name="gemma_action_download">Download</string>
     <string name="gemma_action_delete">Delete</string>
     <string name="gemma_action_cancel">Cancel</string>
+    <string name="gemma_action_pause">Pause</string>
+    <string name="gemma_action_resume">Resume</string>
+    <string name="quick_edit_prompt">Edit Prompt</string>
+    <string name="quick_prompt_placeholder">Prompt text</string>
+    <string name="quick_edit_prompt_message">This prompt replaces the default description prompt. Leave it empty to use the default.</string>
+    <string name="quick_dictation_start">Start Dictation</string>
+    <string name="quick_dictation_stop">Stop Dictation</string>
+    <string name="face_name_with_text">Name with Text</string>
+    <string name="face_name_message">Enter a name for this face, or leave it empty to save it as unnamed.</string>
+    <string name="face_add_person">Add Person</string>
+    <string name="face_person_name">Person\'s name</string>
+    <string name="face_unnamed_name">Unnamed face</string>
     <string name="gemma_action_retry">Retry</string>
     <string name="gemma_error_no_model">No model downloaded. Download a Gemma model in Settings.</string>
     <string name="gemma_error_empty_response">The model returned no text.</string>
@@ -379,6 +391,7 @@
     <string name="vision_disable_continuous">Disable Continuous Mode</string>
     <string name="vision_show_feature_page">Open Feature Page</string>
     <string name="vision_saved_faces">Saved Faces</string>
+    <string name="vision_activate_hint">Activate one or multiple functions.</string>
 
     <string name="btn_save_face">Save Face</string>
     <string name="btn_reRecord">Re-record</string>

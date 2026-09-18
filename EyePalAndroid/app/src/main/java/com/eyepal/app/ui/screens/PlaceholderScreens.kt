@@ -3,7 +3,10 @@ package com.eyepal.app.ui.screens
 import android.content.Context
 import android.view.ViewGroup
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -162,7 +166,7 @@ fun ReadTextScreen(viewModel: ReadTextViewModel = viewModel()) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FacesScreen(viewModel: FacesViewModel = viewModel()) {
     val statusText by viewModel.statusText
@@ -233,15 +237,67 @@ fun FacesScreen(viewModel: FacesViewModel = viewModel()) {
                         Text(disabledHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     }
                     FacesViewModel.EnrollmentState.PENDING -> {
-                        Button(
-                            onClick = { viewModel.triggerEnrollment() },
-                            modifier = Modifier.fillMaxWidth().semantics {
-                                customActions = buildList {
-                                    add(CustomAccessibilityAction(saveFaceLabel) { viewModel.triggerEnrollment(); true })
-                                }
-                            }
+                        var showNameDialog by remember { mutableStateOf(false) }
+                        var nameDraft by remember { mutableStateOf("") }
+                        val nameWithTextLabel = stringResource(R.string.face_name_with_text)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(ButtonDefaults.shape)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .combinedClickable(
+                                    onClick = { viewModel.triggerEnrollment() },
+                                    onLongClick = {
+                                        nameDraft = ""
+                                        showNameDialog = true
+                                    }
+                                )
+                                .padding(vertical = 14.dp)
+                                .semantics {
+                                    customActions = buildList {
+                                        add(CustomAccessibilityAction(saveFaceLabel) { viewModel.triggerEnrollment(); true })
+                                        add(CustomAccessibilityAction(nameWithTextLabel) { nameDraft = ""; showNameDialog = true; true })
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(stringResource(R.string.btn_save_face))
+                            Text(stringResource(R.string.btn_save_face), color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                        if (showNameDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showNameDialog = false },
+                                title = { Text(stringResource(R.string.face_add_person)) },
+                                text = {
+                                    Column {
+                                        OutlinedTextField(
+                                            value = nameDraft,
+                                            onValueChange = { nameDraft = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            placeholder = { Text(stringResource(R.string.face_person_name)) },
+                                            singleLine = true
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            stringResource(R.string.face_name_message),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        viewModel.saveWithTextName(nameDraft)
+                                        showNameDialog = false
+                                    }) {
+                                        Text(stringResource(R.string.btn_save))
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showNameDialog = false }) {
+                                        Text(stringResource(R.string.btn_cancel))
+                                    }
+                                }
+                            )
                         }
                     }
                     FacesViewModel.EnrollmentState.RECORDING -> {

@@ -373,6 +373,27 @@ class FaceRecognitionService(private val context: Context) {
         runCatching { file.delete() }
     }
 
+    /**
+     * The existing profile a pending face is already too similar to save as a new
+     * face (name + similarity), or null when saving would be allowed. Used to avoid
+     * offering a save that the duplicate check would reject.
+     */
+    fun tooSimilarProfile(embeddings: List<FloatArray>): Pair<String, Float>? {
+        val newEmb = embeddings.firstOrNull { it.isNotEmpty() } ?: return null
+        var bestName: String? = null
+        var bestSimilarity = 0f
+        for (profile in profiles) {
+            val existingEmb = profile.embeddings.firstOrNull { it.isNotEmpty() } ?: continue
+            val similarity = embeddingEngine.cosineSimilarity(newEmb, existingEmb)
+            if (similarity > bestSimilarity) {
+                bestSimilarity = similarity
+                bestName = profile.name
+            }
+        }
+        if (bestName == null || bestSimilarity < Defaults.FACE_DUPLICATE_WARNING_THRESHOLD) return null
+        return bestName to bestSimilarity
+    }
+
     private fun checkDuplicateSave(newName: String, newEmbeddings: List<FloatArray>): String? {
         if (profiles.isEmpty()) {
             Log.d("FaceRec", "Saved first profile '$newName' — no existing profiles to compare")

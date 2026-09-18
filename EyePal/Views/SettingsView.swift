@@ -11,6 +11,12 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section(NSLocalizedString("settings.savedFacesSection", comment: "")) {
+                NavigationLink(NSLocalizedString("feature.savedFaces", comment: "")) {
+                    SavedFacesView()
+                }
+            }
+
             Section(NSLocalizedString("settings.appearance", comment: "")) {
                 Picker(NSLocalizedString("settings.uiStyle", comment: ""), selection: Binding(
                     get: { settingsStore.uiStyle },
@@ -914,12 +920,6 @@ struct FaceRecognitionSettingsView: View {
                 }
 
                 Toggle(NSLocalizedString("settings.suggestUnknownFaces", comment: ""), isOn: $settingsStore.suggestUnknownFaces)
-            }
-
-            Section(NSLocalizedString("settings.savedFacesSection", comment: "")) {
-                NavigationLink(NSLocalizedString("feature.savedFaces", comment: "")) {
-                    SavedFacesView()
-                }
             }
 
             Section(NSLocalizedString("settings.recognitionLog", comment: "")) {

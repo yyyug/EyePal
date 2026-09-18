@@ -2,12 +2,17 @@ package com.eyepal.app.viewmodels
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Bundle
 import android.os.SystemClock
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
@@ -50,6 +55,11 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     val apiKey = mutableStateOf("")
     val quickModelProvider = mutableStateOf(Defaults.QUICK_MODEL_PROVIDER)
     val quickGemmaModelKind = mutableStateOf(Defaults.QUICK_GEMMA_MODEL_KIND)
+
+    val quickCustomPrompt = mutableStateOf("")
+    val promptDraft = mutableStateOf("")
+    val isDictating = mutableStateOf(false)
+    private var speechRecognizer: SpeechRecognizer? = null
 
     val presets = mutableStateOf<List<QuickPresetConfig>>(emptyList())
     val captionLength = mutableStateOf<QuickCaptionLength>(QuickCaptionLength.SHORT)
@@ -100,6 +110,8 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         captionLength.value = QuickCaptionLength.entries.find {
             it.value == settings.quickCaptionLength.first()
         } ?: QuickCaptionLength.SHORT
+
+        quickCustomPrompt.value = settings.quickCustomPrompt.first()
 
         captureInterval.value = QuickContinuousInterval.fromValue(
             settings.quickContinuousInterval.first()
@@ -187,7 +199,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                     responseText.value = result
                     announcer.announce(result)
                 }
-                statusText.value = str(R.string.status_result_ready)
+                statusText.value = ""
             } catch (e: Exception) { errorMessage.value = e.message; statusText.value = str(R.string.status_failed, e.message) }
             isProcessing.value = false
         }
@@ -273,13 +285,23 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                 capturedImage.value = bitmap
                 val selectedKind = selectedGemmaKind()
                 val useGemmaOffline = settings.quickModelProvider.first() == "gemma" && gemmaService.canRun(selectedKind)
+                // A user-supplied prompt replaces the default description prompt.
+                val customPrompt = quickCustomPrompt.value.trim()
                 val result: String
                 if (useGemmaOffline) {
-                    result = gemmaService.generateCaption(bitmap, captionLength.value, selectedKind)
+                    result = if (customPrompt.isNotEmpty()) {
+                        gemmaService.queryImage(bitmap, customPrompt, false, selectedKind)
+                    } else {
+                        gemmaService.generateCaption(bitmap, captionLength.value, selectedKind)
+                    }
                 } else {
                     val apiKey = settings.quickMoondreamAPIKey.first()
                     if (apiKey.isEmpty()) { responseText.value = str(R.string.quick_no_api_key); isProcessing.value = false; return@launch }
-                    result = moondream.describeImage(bitmap, apiKey, applyCaptionLength(lastPrompt))
+                    result = moondream.describeImage(
+                        bitmap,
+                        apiKey,
+                        if (customPrompt.isNotEmpty()) customPrompt else applyCaptionLength(lastPrompt)
+                    )
                 }
                 val translationEnabled = settings.quickTranslationEnabled.first()
                 val targetLanguage = settings.quickTranslationTarget.first()
@@ -292,7 +314,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                     responseText.value = result
                     announcer.announce(result)
                 }
-                statusText.value = str(R.string.status_result_ready)
+                statusText.value = ""
             } catch (e: Exception) { errorMessage.value = e.message; statusText.value = str(R.string.status_failed, e.message) }
             isProcessing.value = false
         }
@@ -311,8 +333,72 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         gemmaManager.download(kind)
     }
 
+    /** Opens the prompt editor pre-filled with the saved prompt. */
+    fun openPromptEditor() {
+        promptDraft.value = quickCustomPrompt.value
+    }
+
+    /** Saves the typed/dictated prompt and starts continuous capture with it. */
+    fun savePromptAndStartContinuous() {
+        val text = promptDraft.value.trim()
+        quickCustomPrompt.value = text
+        viewModelScope.launch { settings.setQuickCustomPrompt(text) }
+        if (!isContinuousCapture.value) startContinuousMode()
+    }
+
+    fun toggleDictation() {
+        if (isDictating.value) stopDictation() else startDictation()
+    }
+
+    fun startDictation() {
+        if (isDictating.value) return
+        val app = getApplication<Application>()
+        if (speechRecognizer == null) {
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(app).apply {
+                setRecognitionListener(recognitionListener)
+            }
+        }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+        isDictating.value = true
+        speechRecognizer?.startListening(intent)
+    }
+
+    fun stopDictation() {
+        speechRecognizer?.stopListening()
+        isDictating.value = false
+    }
+
+    // The platform ends recognition on silence, which stops the dictation for us.
+    private val recognitionListener = object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) {}
+        override fun onBeginningOfSpeech() {}
+        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onBufferReceived(buffer: ByteArray?) {}
+        override fun onEndOfSpeech() { isDictating.value = false }
+        override fun onError(error: Int) { isDictating.value = false }
+        override fun onResults(results: Bundle?) {
+            results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                ?.firstOrNull()
+                ?.takeIf { it.isNotBlank() }
+                ?.let { promptDraft.value = it }
+            isDictating.value = false
+        }
+        override fun onPartialResults(partialResults: Bundle?) {
+            partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                ?.firstOrNull()
+                ?.takeIf { it.isNotBlank() }
+                ?.let { promptDraft.value = it }
+        }
+        override fun onEvent(eventType: Int, params: Bundle?) {}
+    }
+
     override fun onCleared() {
         super.onCleared()
+        try { speechRecognizer?.destroy() } catch (_: Exception) {}
+        speechRecognizer = null
         translationService.close()
         gemmaService.close()
     }

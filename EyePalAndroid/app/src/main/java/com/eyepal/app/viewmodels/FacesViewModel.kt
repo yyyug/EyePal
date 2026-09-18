@@ -20,8 +20,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -157,7 +155,17 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
                     pendingSampleEmbeddings.addAll(result.pendingSamples.embeddings)
                     pendingSampleCount.value = count
                     if (result.pendingSamples.suggestNow) {
-                        beginEnrollment(pendingSampleEmbeddings.toList())
+                        val tooSimilar = faceService.tooSimilarProfile(pendingSampleEmbeddings.toList())
+                        if (tooSimilar != null) {
+                            faceService.logStore.append(
+                                "Not offering save: too similar to '${tooSimilar.first}' (${String.format(Locale.US, "%.4f", tooSimilar.second)})"
+                            )
+                            pendingSampleEmbeddings.clear()
+                            pendingSampleCount.value = 0
+                            faceService.resetSampleCollection()
+                        } else {
+                            beginEnrollment(pendingSampleEmbeddings.toList())
+                        }
                     } else {
                         if (enrollmentState.value == EnrollmentState.IDLE) {
                             statusText.value = str(R.string.label_capturing_samples, count, target)
@@ -285,9 +293,11 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
         announcer.announce(str(R.string.status_recorded_ready), minimumInterval = 0)
     }
 
-    private fun completeSave() {
-        if (enrollmentState.value != EnrollmentState.RECORDING && enrollmentState.value != EnrollmentState.RECORDED) return
-        if (enrollmentState.value == EnrollmentState.RECORDING) {
+    private fun completeSave(textName: String? = null) {
+        val state = enrollmentState.value
+        val canSaveWithText = state == EnrollmentState.PENDING && textName != null
+        if (state != EnrollmentState.RECORDING && state != EnrollmentState.RECORDED && !canSaveWithText) return
+        if (state == EnrollmentState.RECORDING) {
             autoStopJob?.cancel()
             autoStopJob = null
             pendingAudioFile = recorder.stop()
@@ -298,10 +308,10 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
             cancelEnrollment()
             return
         }
-        val autoName = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+        val resolvedName = textName?.trim()?.takeIf { it.isNotEmpty() } ?: unnamedName()
         viewModelScope.launch {
             try {
-                val reason = faceService.saveFaceMultiple(autoName, embeddings, audio)
+                val reason = faceService.saveFaceMultiple(resolvedName, embeddings, audio)
                 if (reason != null) {
                     enrollmentProgressText.value = reason
                     statusText.value = reason
@@ -309,7 +319,7 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     profiles.value = faceService.getProfiles()
                     logEntries.value = faceService.logStore.getEntries()
-                    val done = str(R.string.status_saved_with_note, autoName)
+                    val done = str(R.string.status_saved_with_note, resolvedName)
                     enrollmentProgressText.value = done
                     statusText.value = done
                     announcer.announce(done, minimumInterval = 0)
@@ -326,6 +336,21 @@ class FacesViewModel(application: Application) : AndroidViewModel(application) {
                 announcer.announce(failed, minimumInterval = 0)
             }
         }
+    }
+
+    /** Saves the pending face with a typed name and no voice note. */
+    fun saveWithTextName(name: String) {
+        completeSave(name)
+    }
+
+    /** Default name for a face saved without a typed name; kept unique so a new
+     *  face never overwrites an existing profile. */
+    private fun unnamedName(): String {
+        val base = str(R.string.face_unnamed_name)
+        if (profiles.value.none { it.name.equals(base, ignoreCase = true) }) return base
+        var index = 2
+        while (profiles.value.any { it.name.equals("$base $index", ignoreCase = true) }) index++
+        return "$base $index"
     }
 
     fun renameFace(id: String, newName: String) {

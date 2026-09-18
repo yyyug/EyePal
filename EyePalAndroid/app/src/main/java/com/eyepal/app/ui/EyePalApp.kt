@@ -240,6 +240,7 @@ fun EyePalApp() {
                     onNavigateToTextSettings = { navController.navigate(Screen.TextSettings.route) },
                     onNavigateToFacesSettings = { navController.navigate(Screen.FacesSettings.route) },
                     onNavigateToLyricsSettings = { navController.navigate(Screen.LyricsSettings.route) },
+                    onNavigateToSavedFaces = { navController.navigate(Screen.SavedFaces.route) },
                     onBack = { navController.popBackStack() }
                 )
             }

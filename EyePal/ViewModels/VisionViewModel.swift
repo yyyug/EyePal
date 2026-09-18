@@ -7,7 +7,7 @@ import Vision
 
 @MainActor
 final class VisionViewModel: ObservableObject {
-    @Published var statusText = NSLocalizedString("vision.statusIdle", comment: "")
+    @Published var statusText = ""
     @Published var lastResult: String?
     @Published var quickIsOn = false
     @Published var textIsOn = false

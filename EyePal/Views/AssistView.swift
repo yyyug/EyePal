@@ -79,7 +79,6 @@ struct AssistView: View {
             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
-        .accessibilityHint(NSLocalizedString("vision.showFeaturePage", comment: ""))
     }
 }
 

@@ -342,7 +342,7 @@
 "tab.assist" = "協助";
 
 /* Vision page */
-"vision.statusIdle" = "相機已就緒，請選擇下方動作。";
+"vision.statusIdle" = "啟用一項或多項功能。";
 "vision.statusStarting" = "正在啟動相機…";
 "vision.quickContinuousOn" = "連續快拍描述執行中。";
 "vision.noFrame" = "相機畫面尚未就緒。";

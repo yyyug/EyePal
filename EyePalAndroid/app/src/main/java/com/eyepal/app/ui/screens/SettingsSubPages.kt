@@ -613,12 +613,6 @@ fun FacesSettingsScreen(onBack: () -> Unit, onNavigateToSavedFaces: () -> Unit) 
             Spacer(modifier = Modifier.height(24.dp))
         }
         item {
-            Text(stringResource(R.string.settings_saved_faces), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = onNavigateToSavedFaces, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.tab_saved_faces)) }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-        item {
             Text(stringResource(R.string.settings_recognition_log), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Spacer(modifier = Modifier.height(8.dp))
             Row {
@@ -780,7 +774,13 @@ private fun GemmaModelRow(kind: GemmaModelKind, state: GemmaDownloadState, manag
                     TextButton(onClick = { manager.delete(kind) }) { Text(stringResource(R.string.gemma_action_delete)) }
                 }
                 is GemmaDownloadState.Downloading -> {
-                    TextButton(onClick = { manager.cancel(kind) }) { Text(stringResource(R.string.gemma_action_cancel)) }
+                    TextButton(onClick = { manager.pause(kind) }) { Text(stringResource(R.string.gemma_action_pause)) }
+                }
+                is GemmaDownloadState.Paused -> {
+                    TextButton(onClick = { manager.delete(kind) }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                        Text(stringResource(R.string.gemma_action_delete))
+                    }
+                    TextButton(onClick = { manager.download(kind) }) { Text(stringResource(R.string.gemma_action_resume)) }
                 }
                 GemmaDownloadState.NotDownloaded -> {
                     Button(onClick = { manager.download(kind) }) { Text(stringResource(R.string.gemma_action_download)) }
@@ -792,6 +792,18 @@ private fun GemmaModelRow(kind: GemmaModelKind, state: GemmaDownloadState, manag
         }
         when (state) {
             is GemmaDownloadState.Downloading -> {
+                LinearProgressIndicator(
+                    progress = { state.fraction.toFloat() },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    String.format(Locale.US, "%d%%", (state.fraction * 100).toInt()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            is GemmaDownloadState.Paused -> {
                 LinearProgressIndicator(
                     progress = { state.fraction.toFloat() },
                     modifier = Modifier.fillMaxWidth()
