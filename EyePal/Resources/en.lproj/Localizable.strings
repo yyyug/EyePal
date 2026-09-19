@@ -297,7 +297,7 @@
 "settings.modelProvider" = "Recognition Model";
 "settings.modelProvider.moondream" = "MoonDream (Online)";
 "settings.modelProvider.gemma" = "Gemma (On-device)";
-"settings.modelProvider.apple" = "Apple Foundation Model 3";
+"settings.modelProvider.apple" = "Apple Foundation Model";
 "settings.appleProvider" = "Apple Foundation Model";
 "settings.appleProvider.available" = "Available on this device. Uses the on-device Apple Intelligence model, so recognition works without a network connection or API key.";
 "settings.appleProvider.unsupported" = "Not available on this device. Requires iOS 27 or later with Apple Intelligence enabled.";

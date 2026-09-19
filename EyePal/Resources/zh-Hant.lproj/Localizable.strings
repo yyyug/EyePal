@@ -298,7 +298,7 @@
 "settings.modelProvider" = "辨識模型";
 "settings.modelProvider.moondream" = "MoonDream（線上）";
 "settings.modelProvider.gemma" = "Gemma（裝置端）";
-"settings.modelProvider.apple" = "Apple Foundation Model 3";
+"settings.modelProvider.apple" = "Apple Foundation Model";
 "settings.appleProvider" = "Apple Foundation Model";
 "settings.appleProvider.available" = "此裝置可使用。採用裝置端的 Apple Intelligence 模型，無需網路連線或 API 金鑰。";
 "settings.appleProvider.unsupported" = "此裝置無法使用。需要 iOS 27 或以上，並已開啟 Apple Intelligence。";
