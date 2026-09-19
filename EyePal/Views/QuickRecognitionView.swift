@@ -60,6 +60,10 @@ struct QuickRecognitionView: View {
 
                     Link(NSLocalizedString("quick.signupLink", comment: ""), destination: URL(string: "https://moondream.ai/")!)
                         .font(.subheadline.weight(.semibold))
+                } else if let appleMessage = viewModel.appleUnavailableMessage {
+                    Text(appleMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
                     resultPanel

@@ -75,6 +75,7 @@
 		A10000010000000000000050 /* GemmaModelKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000050 /* GemmaModelKind.swift */; };
 		A10000010000000000000051 /* GemmaModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000051 /* GemmaModelManager.swift */; };
 		A10000010000000000000052 /* GemmaTextRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000052 /* GemmaTextRecognitionService.swift */; };
+		A10000010000000000000053 /* AppleFoundationModelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000053 /* AppleFoundationModelService.swift */; };
 		A1000B000000000000000001 /* LiteRTLM in Frameworks */ = {isa = PBXBuildFile; productRef = A1000C000000000000000001 /* LiteRTLM */; };
 
 /* Begin PBXFileReference section */
@@ -156,6 +157,7 @@
 		A10001010000000000000050 /* GemmaModelKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaModelKind.swift; sourceTree = "<group>"; };
 		A10001010000000000000051 /* GemmaModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaModelManager.swift; sourceTree = "<group>"; };
 		A10001010000000000000052 /* GemmaTextRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaTextRecognitionService.swift; sourceTree = "<group>"; };
+		A10001010000000000000053 /* AppleFoundationModelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFoundationModelService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -227,6 +229,7 @@
                 A1000300000000000000000C /* Audio */,
                 A1000300000000000000000D /* Sensors */,
                 A1000300000000000000000E /* Gemma */,
+                A1000300000000000000000F /* Apple */,
             );
             path = Services;
             sourceTree = "<group>";
@@ -380,6 +383,14 @@
             path = Gemma;
             sourceTree = "<group>";
         };
+        A1000300000000000000000F /* Apple */ = {
+            isa = PBXGroup;
+            children = (
+                A10001010000000000000053 /* AppleFoundationModelService.swift */,
+            );
+            path = Apple;
+            sourceTree = "<group>";
+        };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -523,6 +534,7 @@
                 A10000010000000000000050 /* GemmaModelKind.swift in Sources */,
                 A10000010000000000000051 /* GemmaModelManager.swift in Sources */,
                 A10000010000000000000052 /* GemmaTextRecognitionService.swift in Sources */,
+                A10000010000000000000053 /* AppleFoundationModelService.swift in Sources */,
             );
             runOnlyForDeploymentPostprocessing = 0;
         };

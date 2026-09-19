@@ -8,7 +8,9 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Xcode 27 is required: the Apple Foundation Model image-input API ships in
+    # the iOS 27 SDK, which the macos-latest (macOS 26 / Xcode 26) image lacks.
+    runs-on: xcode-27
 
     steps:
       - name: Checkout

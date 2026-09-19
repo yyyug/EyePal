@@ -28,6 +28,7 @@ final class QuickRecognitionViewModel: ObservableObject {
     private let service = QuickRecognitionService()
     private let gemmaModelManager = GemmaModelManager.shared
     private lazy var gemmaService = GemmaTextRecognitionService(modelManager: gemmaModelManager)
+    private let appleService = AppleFoundationModelService.shared
     private let announcer = AccessibilityAnnouncementCenter()
     private weak var settingsStore: SettingsStore?
     private var continuousTask: Task<Void, Never>?
@@ -127,9 +128,10 @@ final class QuickRecognitionViewModel: ObservableObject {
         let provider = QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma
         let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
         let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
+        let useAppleOffline = provider == .appleFoundation && appleService.isSupported
 
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !useGemmaOffline, apiKey.isEmpty {
+        if !useGemmaOffline, !useAppleOffline, apiKey.isEmpty {
             errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
             return
         }
@@ -150,6 +152,12 @@ final class QuickRecognitionViewModel: ObservableObject {
                         question: trimmed,
                         enforceSingleSentenceResponse: false,
                         kind: selectedKind
+                    )
+                } else if useAppleOffline {
+                    response = try await appleService.queryImage(
+                        image: latestCapturedImage,
+                        question: trimmed,
+                        enforceSingleSentenceResponse: false
                     )
                 } else {
                     let imageDataURL = try service.prepareImageDataURL(
@@ -181,6 +189,13 @@ final class QuickRecognitionViewModel: ObservableObject {
         guard provider == .gemma else { return false }
         let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
         return !gemmaService.canRun(selectedKind: selectedKind)
+    }
+
+    var appleUnavailableMessage: String? {
+        guard let settingsStore else { return nil }
+        let provider = QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma
+        guard provider == .appleFoundation, !appleService.isSupported else { return nil }
+        return AppleFoundationModelError.unsupportedSystem.localizedDescription
     }
 
     func downloadSelectedGemmaModel() {
@@ -217,9 +232,10 @@ final class QuickRecognitionViewModel: ObservableObject {
         let provider = QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma
         let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
         let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
+        let useAppleOffline = provider == .appleFoundation && appleService.isSupported
 
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !useGemmaOffline, apiKey.isEmpty {
+        if !useGemmaOffline, !useAppleOffline, apiKey.isEmpty {
             errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
             return
         }
@@ -265,6 +281,25 @@ final class QuickRecognitionViewModel: ObservableObject {
                         question: preset.resolvedPrompt(onDevice: true),
                         enforceSingleSentenceResponse: false,
                         kind: selectedKind
+                    )
+                }
+            } else if useAppleOffline {
+                switch request {
+                case .caption(let length):
+                    if customPrompt.isEmpty {
+                        response = try await appleService.generateCaption(image: image, length: length)
+                    } else {
+                        response = try await appleService.queryImage(
+                            image: image,
+                            question: customPrompt,
+                            enforceSingleSentenceResponse: false
+                        )
+                    }
+                case .query(let preset):
+                    response = try await appleService.queryImage(
+                        image: image,
+                        question: preset.resolvedPrompt(onDevice: true),
+                        enforceSingleSentenceResponse: false
                     )
                 }
             } else {

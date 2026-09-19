@@ -648,6 +648,21 @@ struct QuickRecognitionSettingsView: View {
         )
     }
 
+    private var appleFoundationSection: some View {
+        Section(NSLocalizedString("settings.appleProvider", comment: "")) {
+            Text(
+                NSLocalizedString(
+                    AppleFoundationModelService.shared.isSupported
+                        ? "settings.appleProvider.available"
+                        : "settings.appleProvider.unsupported",
+                    comment: ""
+                )
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+    }
+
     var body: some View {
         Form {
             Section(NSLocalizedString("settings.modelProvider", comment: "")) {
@@ -656,7 +671,6 @@ struct QuickRecognitionSettingsView: View {
                         Text(provider.displayName).tag(provider)
                     }
                 }
-                .pickerStyle(.segmented)
             }
 
             if selectedModelProvider.wrappedValue == .moondream {
@@ -669,6 +683,10 @@ struct QuickRecognitionSettingsView: View {
 
             if selectedModelProvider.wrappedValue == .gemma {
                 gemmaOfflineSection
+            }
+
+            if selectedModelProvider.wrappedValue == .appleFoundation {
+                appleFoundationSection
             }
 
             Section(NSLocalizedString("settings.sectionTakePhoto", comment: "")) {

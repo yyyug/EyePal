@@ -23,6 +23,7 @@ final class VisionViewModel: ObservableObject {
     private let quickService = QuickRecognitionService()
     private let gemmaModelManager = GemmaModelManager.shared
     private lazy var gemmaService = GemmaTextRecognitionService(modelManager: gemmaModelManager)
+    private let appleService = AppleFoundationModelService.shared
     private let detailsDescriptionService = OpenAIDetailsDescriptionService()
     private let textRecognitionService = TextRecognitionService()
     private let paddleTextRecognitionService = PaddleTextRecognitionService()
@@ -195,8 +196,9 @@ final class VisionViewModel: ObservableObject {
         let provider = QuickModelProvider(rawValue: settingsStore.quickModelProvider) ?? .gemma
         let selectedKind = GemmaModelKind(rawValue: settingsStore.quickGemmaModelKind) ?? .e2b
         let useGemmaOffline = provider == .gemma && gemmaService.canRun(selectedKind: selectedKind)
+        let useAppleOffline = provider == .appleFoundation && appleService.isSupported
         let apiKey = settingsStore.quickMoondreamAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if provider == .moondream, apiKey.isEmpty {
+        if !useGemmaOffline, !useAppleOffline, apiKey.isEmpty {
             errorMessage = QuickRecognitionError.missingAPIKey.localizedDescription
             return
         }
@@ -217,6 +219,19 @@ final class VisionViewModel: ObservableObject {
                         image: image,
                         length: .short,
                         kind: selectedKind
+                    )
+                }
+            } else if useAppleOffline {
+                if let continuousPrompt {
+                    response = try await appleService.queryImage(
+                        image: image,
+                        question: continuousPrompt,
+                        enforceSingleSentenceResponse: false
+                    )
+                } else {
+                    response = try await appleService.generateCaption(
+                        image: image,
+                        length: .short
                     )
                 }
             } else {
