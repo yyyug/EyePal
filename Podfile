@@ -18,6 +18,9 @@ target 'EyePal' do
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        # Xcode 27 no longer supports deployment targets below iOS 15, and some
+        # pods still declare 9.0-12.0 in their podspecs.
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
       end
     end
   end
