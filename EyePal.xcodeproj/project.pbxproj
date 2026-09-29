@@ -196,8 +196,6 @@
 				A10001010000000000000019 /* EyePal-Bridging-Header.h */,
 				A10001010000000000000001 /* EyePalApp.swift */,
                 A10001010000000000000002 /* RootTabView.swift */,
-                A10001010000000000000F1 /* MetaGlassesService.swift */,
-                A10001010000000000000F2 /* MetaGlassesSettingsView.swift */,
                 A10003000000000000000004 /* Models */,
                 A10003000000000000000005 /* Services */,
                 A10003000000000000000006 /* ViewModels */,
@@ -240,6 +238,7 @@
                 A1000300000000000000000D /* Sensors */,
                 A1000300000000000000000E /* Gemma */,
                 A1000300000000000000000F /* Apple */,
+                A10003000000000000000010 /* Meta */,
             );
             path = Services;
             sourceTree = "<group>";
@@ -274,6 +273,7 @@
                 A1000101000000000000002D /* LyricPrompterView.swift */,
                 A10001010000000000000018 /* VisionView.swift */,
                 A1000101000000000000001A /* AssistView.swift */,
+                A10001010000000000000F2 /* MetaGlassesSettingsView.swift */,
             );
             path = Views;
             sourceTree = "<group>";
@@ -399,6 +399,14 @@
                 A10001010000000000000053 /* AppleFoundationModelService.swift */,
             );
             path = Apple;
+            sourceTree = "<group>";
+        };
+        A10003000000000000000010 /* Meta */ = {
+            isa = PBXGroup;
+            children = (
+                A10001010000000000000F1 /* MetaGlassesService.swift */,
+            );
+            path = Meta;
             sourceTree = "<group>";
         };
 /* End PBXGroup section */
