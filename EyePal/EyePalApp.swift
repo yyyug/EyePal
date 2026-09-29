@@ -242,6 +242,12 @@ struct EyePalApp: App {
                 .environmentObject(appActionCenter)
                 .onOpenURL { url in
                     appActionCenter.handleIncomingURL(url)
+                    // The Meta AI app finishes glasses pairing by calling back
+                    // into this URL. It is handled here, at the root, rather than
+                    // on the pairing screen: a callback that lands while that
+                    // screen is not mounted is dropped, and pairing then loops
+                    // back to Meta AI forever.
+                    MetaGlassesService.shared.handleIncomingURL(url)
                 }
                 .onContinueUserActivity(EyePalUserActivityType.myLocation) { activity in
                     appActionCenter.handleContinuationActivity(activity)

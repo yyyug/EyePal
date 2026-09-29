@@ -59,11 +59,46 @@
         <string>com.eyepal.activity.quick-description</string>
         <string>com.eyepal.activity.details-description</string>
     </array>
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>audio</string>
-        <string>location</string>
-    </array>
+<key>UIBackgroundModes</key>
+<array>
+    <string>audio</string>
+    <string>location</string>
+    <string>bluetooth-central</string>
+    <string>bluetooth-peripheral</string>
+</array>
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>EyePal uses Bluetooth to connect to your Meta AI glasses so they can be used as a camera.</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>EyePal uses Bluetooth to connect to your Meta AI glasses so they can be used as a camera.</string>
+<key>MWDAT</key>
+<dict>
+    <!-- Meta Wearables DAT.
+         MetaAppID / ClientToken / TeamID are deliberately left empty: they are
+         injected into this dictionary at runtime from the values entered under
+         Settings > Meta Glasses, immediately before Wearables.configure(). That
+         keeps developer credentials out of the build and out of the repository.
+         AppLinkURLScheme must be a build-time value because it is the scheme the
+         Meta AI app calls back on to finish pairing. -->
+    <key>AppLinkURLScheme</key>
+    <string>eyepal://</string>
+    <key>MetaAppID</key>
+    <string></string>
+    <key>ClientToken</key>
+    <string></string>
+    <key>TeamID</key>
+    <string></string>
+    <!-- Both default to opted-in when absent, so they are set explicitly. -->
+    <key>Analytics</key>
+    <dict>
+        <key>OptOut</key>
+        <true/>
+    </dict>
+    <key>CrashReporting</key>
+    <dict>
+        <key>OptOut</key>
+        <true/>
+    </dict>
+</dict>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

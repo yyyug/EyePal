@@ -64,6 +64,10 @@ struct SettingsView: View {
                         .environmentObject(settingsStore)
                         .environmentObject(openAIStore)
                 }
+
+                NavigationLink(NSLocalizedString("metaGlasses.title", comment: "")) {
+                    MetaGlassesSettingsView()
+                }
             }
         }
         .navigationTitle(NSLocalizedString("tab.settings", comment: ""))
