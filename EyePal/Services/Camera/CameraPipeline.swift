@@ -158,6 +158,26 @@ final class CameraPipeline: NSObject, ObservableObject {
         guard let sampleBuffer = latestFrameQueue.sync(execute: { latestSampleBuffer }) else {
             return nil
         }
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return nil
+        }
+
+        // The video data output delivers buffers in the sensor's native (landscape)
+        // orientation regardless of how the device is held. Physically rotate the
+        // pixels to an upright portrait image (same approach used by face detection)
+        // so OCR engines receive a truly upright image and don't depend on orientation
+        // flags that rarely reflect the actual buffer rotation.
+        let pixelW = CVPixelBufferGetWidth(pixelBuffer)
+        let pixelH = CVPixelBufferGetHeight(pixelBuffer)
+        let isPortraitBuffer = pixelH > pixelW
+        let uprightCI = CIImage(cvPixelBuffer: pixelBuffer)
+            .oriented(isPortraitBuffer ? .up : .right)
+        guard let cgImage = ciContext.createCGImage(uprightCI, from: uprightCI.extent) else {
+            return nil
+        }
+
+        return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
+    }
 
     private func resumeIfNeeded() {
         sessionQueue.async {
