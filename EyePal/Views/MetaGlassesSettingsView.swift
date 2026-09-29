@@ -73,7 +73,7 @@ struct MetaGlassesSettingsView: View {
                     .foregroundStyle(.red)
             }
 
-            if service.isLinked {
+            if MetaGlassesService.isLinked {
                 if service.registrationState == .registered {
                     Button(service.isStreaming
                            ? NSLocalizedString("metaGlasses.stopStream", comment: "")

@@ -80,8 +80,8 @@ final class MetaGlassesService: ObservableObject {
     /// is attempted at most once.
     @discardableResult
     func configureIfNeeded() -> Bool {
-        guard !didAttemptConfigure else { return isConfigured }
-        didAttemptConfigure = true
+        guard !Self.didAttemptConfigure else { return isConfigured }
+        Self.didAttemptConfigure = true
 
         applyRuntimeCredentials()
 
@@ -117,7 +117,11 @@ final class MetaGlassesService: ObservableObject {
     /// here is what lets the app ship without developer credentials compiled in.
     private func applyRuntimeCredentials() {
         let credentials = MetaGlassesCredentials.current
-        var info = Bundle.main.infoDictionary ?? [:]
+        // `infoDictionary` hands back the bundle's live mutable dictionary, so
+        // assigning through its subscript is what actually changes what the SDK
+        // reads. Copying it into a local `var` would mutate a value-type copy
+        // and have no effect at all.
+        guard let info = Bundle.main.infoDictionary else { return }
         var mwdat = (info["MWDAT"] as? [String: Any]) ?? [:]
 
         // Only overwrite a build-time provided value when the user has entered
@@ -133,7 +137,6 @@ final class MetaGlassesService: ObservableObject {
         put("TeamID", credentials.teamID)
 
         info["MWDAT"] = mwdat
-        Bundle.main.infoDictionary = info
     }
 
     /// The SDK reuses the Info.plist value for its own developer-mode override.
@@ -343,7 +346,7 @@ final class MetaGlassesService: ObservableObject {
     /// `.raw` is requested so the sample buffer already carries a pixel buffer
     /// and no codec is involved. With `hvc1` the SDK hands back compressed
     /// samples that need a VideoToolbox session to turn into an image.
-    private static func image(from sampleBuffer: CMSampleBuffer) -> UIImage? {
+    private nonisolated static func image(from sampleBuffer: CMSampleBuffer) -> UIImage? {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
         let context = CIContext()
