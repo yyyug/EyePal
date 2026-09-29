@@ -8,9 +8,11 @@ struct MetaGlassesSettingsView: View {
     @State private var clientToken = ""
     @State private var teamID = ""
     @State private var credentialsSaved = false
+    @State private var selectedSource = CameraSource.current
 
     var body: some View {
         Form {
+            cameraSourceSection
             credentialsSection
             statusSection
             devicesSection
@@ -30,6 +32,41 @@ struct MetaGlassesSettingsView: View {
     }
 
     // MARK: - Sections
+
+    /// Which camera every recognition feature reads from. Kept here rather than
+    /// in general settings because it only means anything once the glasses are
+    /// set up on the screens below.
+    private var cameraSourceSection: some View {
+        Section(NSLocalizedString("cameraSource.title", comment: "")) {
+            Picker(NSLocalizedString("cameraSource.title", comment: ""), selection: sourceBinding) {
+                ForEach(CameraSource.availableCases) { source in
+                    Text(source.displayName).tag(source)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if MetaGlassesService.isLinked {
+                Text(NSLocalizedString("cameraSource.help", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if selectedSource == .glasses && !service.isAvailable {
+                    Text(NSLocalizedString("cameraSource.glassesNotReady", comment: ""))
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    private var sourceBinding: Binding<CameraSource> {
+        Binding(
+            get: { selectedSource },
+            set: { newValue in
+                selectedSource = newValue
+                CameraSource.set(newValue)
+            }
+        )
+    }
 
     private var credentialsSection: some View {
         Section(NSLocalizedString("metaGlasses.credentials", comment: "")) {

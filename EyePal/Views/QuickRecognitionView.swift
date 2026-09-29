@@ -39,7 +39,7 @@ struct QuickRecognitionView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-                CameraPreviewView(session: viewModel.camera.session)
+                CameraSourcePreviewView(pipeline: viewModel.camera)
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 12) {

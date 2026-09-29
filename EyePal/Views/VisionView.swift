@@ -36,7 +36,7 @@ struct VisionView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            CameraPreviewView(session: viewModel.camera.session)
+            CameraSourcePreviewView(pipeline: viewModel.camera)
                 .ignoresSafeArea()
 
             VStack(spacing: 12) {

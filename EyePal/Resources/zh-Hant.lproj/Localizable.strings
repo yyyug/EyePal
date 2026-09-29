@@ -332,6 +332,12 @@
 "metaGlasses.capturedPhoto" = "拍下的照片";
 "metaGlasses.usage" = "使用方式";
 "metaGlasses.usageDetail" = "1. 開啟開發者模式：Meta AI App → 設定 → 關於，連點版本號五次。2. 儲存上方憑證並重新開啟 EyePal。3. 開啟眼鏡並點「配對」。4. 在 Meta AI App 中核准，EyePal 會自動返回。5. 啟動眼鏡相機。戴上眼鏡後即可將它們作為「視覺」與「快拍描述」的取景來源。";
+"cameraSource.title" = "鏡頭來源";
+"cameraSource.phone" = "手機";
+"cameraSource.glasses" = "眼鏡";
+"cameraSource.help" = "會套用到所有使用鏡頭的功能：視覺、快拍描述、詳細描述、文字辨識與人臉辨識。";
+"cameraSource.glassesNotReady" = "已選擇眼鏡但尚未連線。請在下方完成配對並啟動眼鏡相機。";
+"metaGlasses.previewUnavailable" = "等待眼鏡相機畫面";
 "apple.error.unsupportedOS" = "Apple Foundation Model 需要 iOS 27 或以上，並已開啟 Apple Intelligence。";
 "apple.error.imageEncoding" = "無法為 Apple Foundation Model 準備這張圖片。";
 "apple.error.emptyResponse" = "Apple Foundation Model 回傳了空白結果。";

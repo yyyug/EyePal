@@ -331,6 +331,12 @@
 "metaGlasses.capturedPhoto" = "Captured photo";
 "metaGlasses.usage" = "How to use";
 "metaGlasses.usageDetail" = "1. Enable Developer Mode: Meta AI app, Settings, About, tap the version number five times. 2. Save your credentials above and reopen EyePal. 3. Turn on your glasses and tap Pair. 4. Approve the request in the Meta AI app; EyePal returns automatically. 5. Start the glasses camera. Wear the glasses to use them as the view for Vision and Quick Recognition.";
+"cameraSource.title" = "Camera";
+"cameraSource.phone" = "Phone";
+"cameraSource.glasses" = "Glasses";
+"cameraSource.help" = "Applies to every feature that uses the camera: Vision, Quick Recognition, Details, Text Recognition and Face Recognition.";
+"cameraSource.glassesNotReady" = "Glasses are selected but not connected yet. Pair them below and start the glasses camera.";
+"metaGlasses.previewUnavailable" = "Waiting for the glasses camera";
 "apple.error.unsupportedOS" = "Apple Foundation Model requires iOS 27 or later with Apple Intelligence enabled.";
 "apple.error.imageEncoding" = "The image could not be prepared for the Apple Foundation Model.";
 "apple.error.emptyResponse" = "The Apple Foundation Model returned an empty response.";

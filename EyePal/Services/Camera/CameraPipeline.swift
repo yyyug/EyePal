@@ -73,6 +73,15 @@ final class CameraPipeline: NSObject, ObservableObject {
     }
 
     func start() {
+        // Glasses frames arrive from the Wearables SDK instead of an
+        // AVCaptureSession. Routing through the same `onSampleBuffer` and
+        // `currentFrameImage()` surface means every recognition feature works on
+        // glasses without knowing they exist.
+        if CameraSource.current == .glasses {
+            startGlasses()
+            return
+        }
+        stopGlasses()
         sessionQueue.async {
             self.shouldBeRunning = true
             self.startOnSessionQueue()
@@ -80,6 +89,7 @@ final class CameraPipeline: NSObject, ObservableObject {
     }
 
     func stop() {
+        stopGlasses()
         sessionQueue.async {
             self.shouldBeRunning = false
             self.wasInterrupted = false
@@ -90,6 +100,64 @@ final class CameraPipeline: NSObject, ObservableObject {
             }
         }
     }
+
+    private var glassesConsumerToken: UUID?
+    private var isUsingGlasses = false
+    private var glassesImage: UIImage?
+
+    private func startGlasses() {
+        DispatchQueue.main.async {
+            guard !self.isUsingGlasses else { return }
+            self.isUsingGlasses = true
+            self.glassesConsumerToken = MetaGlassesService.shared.addFrameConsumer { [weak self] sampleBuffer in
+                guard let self else { return }
+                self.latestFrameQueue.sync {
+                    self.latestSampleBuffer = sampleBuffer
+                }
+                // The still a feature would otherwise grab from the phone is
+                // rendered from the same buffer, once per frame, so preview and
+                // capture never disagree.
+                if let image = Self.image(from: sampleBuffer) {
+                    self.glassesImage = image
+                }
+                self.onSampleBuffer?(sampleBuffer)
+            }
+            MetaGlassesService.shared.startStreaming()
+        }
+    }
+
+    /// Glasses buffers are already upright, so they are not rotated the way the
+    /// phone's landscape sensor buffers are.
+    private nonisolated static func image(from sampleBuffer: CMSampleBuffer) -> UIImage? {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
+        return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
+    }
+
+    private func stopGlasses() {
+        DispatchQueue.main.async {
+            guard self.isUsingGlasses else { return }
+            self.isUsingGlasses = false
+            MetaGlassesService.shared.removeFrameConsumer(self.glassesConsumerToken)
+            self.glassesConsumerToken = nil
+            self.glassesImage = nil
+            self.latestFrameQueue.sync {
+                self.latestSampleBuffer = nil
+            }
+        }
+    }
+
+    func currentFrameImage() -> UIImage? {
+        if CameraSource.current == .glasses {
+            // Frames from the glasses are already upright, so they are used as
+            // the SDK produced them rather than being rotated again here.
+            return glassesImage
+        }
+        guard let sampleBuffer = latestFrameQueue.sync(execute: { latestSampleBuffer }) else {
+            return nil
+        }
 
     private func resumeIfNeeded() {
         sessionQueue.async {
@@ -110,10 +178,6 @@ final class CameraPipeline: NSObject, ObservableObject {
         }
     }
 
-    func currentFrameImage() -> UIImage? {
-        guard let sampleBuffer = latestFrameQueue.sync(execute: { latestSampleBuffer }) else {
-            return nil
-        }
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return nil
         }

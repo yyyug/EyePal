@@ -52,6 +52,33 @@ final class MetaGlassesService: ObservableObject {
     /// JPEG data from an explicit `capturePhoto` request.
     @Published private(set) var capturedPhoto: UIImage?
 
+    /// The raw sample behind `latestFrame`. Live features (faces, text) consume
+    /// `CMSampleBuffer` rather than `UIImage`, and the glasses hand out the same
+    /// buffer type, so this is what lets them run unchanged on glasses frames.
+    private(set) var latestSampleBuffer: CMSampleBuffer?
+
+    /// True when glasses are paired and able to produce frames. Features gate
+    /// any "glasses is selected but not actually working" messaging on this.
+    var isAvailable: Bool {
+        isConfigured && registrationState == .registered && !devices.isEmpty
+    }
+
+    /// One glasses session serves the whole app, so frames fan out to whichever
+    /// features are currently on screen instead of each opening its own.
+    private var consumers: [UUID: (CMSampleBuffer) -> Void] = [:]
+
+    @discardableResult
+    func addFrameConsumer(_ handler: @escaping (CMSampleBuffer) -> Void) -> UUID {
+        let token = UUID()
+        consumers[token] = handler
+        return token
+    }
+
+    func removeFrameConsumer(_ token: UUID?) {
+        guard let token else { return }
+        consumers.removeValue(forKey: token)
+    }
+
     private var wearables: WearablesInterface?
     private var deviceSelector: AutoDeviceSelector?
     private var deviceSession: DeviceSession?
@@ -332,9 +359,13 @@ final class MetaGlassesService: ObservableObject {
         }
 
         videoFrameToken = stream.videoFramePublisher.listen { [weak self] videoFrame in
-            guard let image = Self.image(from: videoFrame.sampleBuffer) else { return }
+            let sampleBuffer = videoFrame.sampleBuffer
+            let image = Self.image(from: sampleBuffer)
             Task { @MainActor in
-                self?.latestFrame = image
+                guard let self else { return }
+                self.latestSampleBuffer = sampleBuffer
+                if let image { self.latestFrame = image }
+                self.consumers.values.forEach { $0(sampleBuffer) }
             }
         }
 
@@ -374,6 +405,7 @@ final class MetaGlassesService: ObservableObject {
         deviceSession = nil
         isStreaming = false
         latestFrame = nil
+        latestSampleBuffer = nil
     }
 
     func clearError() {
@@ -399,6 +431,21 @@ final class MetaGlassesService: ObservableObject {
     private(set) var hasCredentials = false
     @Published private(set) var latestFrame: UIImage?
     @Published private(set) var capturedPhoto: UIImage?
+    private(set) var latestSampleBuffer: CMSampleBuffer?
+    private var consumers: [UUID: (CMSampleBuffer) -> Void] = [:]
+    var isAvailable: Bool { false }
+
+    @discardableResult
+    func addFrameConsumer(_ handler: @escaping (CMSampleBuffer) -> Void) -> UUID {
+        let token = UUID()
+        consumers[token] = handler
+        return token
+    }
+
+    func removeFrameConsumer(_ token: UUID?) {
+        guard let token else { return }
+        consumers.removeValue(forKey: token)
+    }
 
     private init() {}
     @discardableResult func configureIfNeeded() -> Bool { false }
