@@ -94,6 +94,7 @@ final class AppleFoundationModelService {
     private static let requestsPerSession = 4
 
     #if canImport(FoundationModels)
+    @available(iOS 26.0, *)
     private var session: LanguageModelSession?
     private var requestsInSession = 0
     private var hasPrewarmed = false
@@ -148,24 +149,27 @@ final class AppleFoundationModelService {
                         to: imagePrompt,
                         generating: AppleSceneSummary.self
                     )
-                    return try requireText(compose([result.summary]))
+                    return try requireText(compose([result.content.summary]))
                 case .normal:
                     let result = try await session.respond(
                         to: imagePrompt,
                         generating: AppleSceneOverview.self
                     )
-                    return try requireText(compose([result.overview] + result.notableElements))
+                    return try requireText(
+                        compose([result.content.overview] + result.content.notableElements)
+                    )
                 case .long:
                     let result = try await session.respond(
                         to: imagePrompt,
                         generating: AppleSceneDescription.self
                     )
+                    let description = result.content
                     return try requireText(compose(
-                        [result.overview]
-                            + result.notableElements
-                            + result.spatialLayout
-                            + result.visibleText
-                            + result.cautions
+                        [description.overview]
+                            + description.notableElements
+                            + description.spatialLayout
+                            + description.visibleText
+                            + description.cautions
                     ))
                 }
             } catch let error as AppleFoundationModelError {
@@ -278,7 +282,10 @@ final class AppleFoundationModelService {
     /// Flattens generated fields into one paragraph, because the result is read
     /// aloud by VoiceOver and a labeled list would be stilted to listen to.
     private func compose(_ parts: [String]) -> String {
-        let terminators = CharacterSet(charactersIn: ".,!?;:，、。！？；：")
+        let terminators: Set<Character> = [
+            ".", ",", "!", "?", ";", ":",
+            "，", "、", "。", "！", "？", "；", "："
+        ]
         let cleaned = parts.compactMap { part -> String? in
             var text = part.trimmingCharacters(in: .whitespacesAndNewlines)
             while let last = text.last, terminators.contains(last) {
