@@ -77,6 +77,8 @@
 		A10000010000000000000052 /* GemmaTextRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000052 /* GemmaTextRecognitionService.swift */; };
 		A10000010000000000000053 /* AppleFoundationModelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001010000000000000053 /* AppleFoundationModelService.swift */; };
 		A1000B000000000000000001 /* LiteRTLM in Frameworks */ = {isa = PBXBuildFile; productRef = A1000C000000000000000001 /* LiteRTLM */; };
+		A1000B000000000000000002 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1000C000000000000000002 /* MWDATCore */; };
+		A1000B000000000000000003 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = A1000C000000000000000003 /* MWDATCamera */; };
 
 /* Begin PBXFileReference section */
         A10001000000000000000001 /* EyePal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EyePal.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -166,6 +168,8 @@
             buildActionMask = 2147483647;
             files = (
                 A1000B000000000000000001 /* LiteRTLM in Frameworks */,
+                A1000B000000000000000002 /* MWDATCore in Frameworks */,
+                A1000B000000000000000003 /* MWDATCamera in Frameworks */,
             );
             runOnlyForDeploymentPostprocessing = 0;
         };
@@ -409,6 +413,8 @@
             name = EyePal;
             packageProductDependencies = (
                 A1000C000000000000000001 /* LiteRTLM */,
+                A1000C000000000000000002 /* MWDATCore */,
+                A1000C000000000000000003 /* MWDATCamera */,
             );
             productName = EyePal;
             productReference = A10001000000000000000001 /* EyePal.app */;
@@ -441,6 +447,7 @@
             mainGroup = A10003000000000000000001;
             packageReferences = (
                 A1000A000000000000000001 /* XCRemoteSwiftPackageReference "swift-litert-lm" */,
+                A1000A000000000000000002 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
             );
             productRefGroup = A10003000000000000000003 /* Products */;
             projectDirPath = "";
@@ -555,7 +562,7 @@
                 ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = EyePal/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
                 LD_RUNPATH_SEARCH_PATHS = (
                     "$(inherited)",
                     "@executable_path/Frameworks",
@@ -585,7 +592,7 @@
                 ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = EyePal/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
                 LD_RUNPATH_SEARCH_PATHS = (
                     "$(inherited)",
                     "@executable_path/Frameworks",
@@ -606,7 +613,7 @@
             isa = XCBuildConfiguration;
             buildSettings = {
                 CLANG_ENABLE_MODULES = YES;
-                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                IPHONEOS_DEPLOYMENT_TARGET = 17.2;
                 SDKROOT = iphoneos;
                 SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
             };
@@ -616,7 +623,7 @@
             isa = XCBuildConfiguration;
             buildSettings = {
                 CLANG_ENABLE_MODULES = YES;
-                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                IPHONEOS_DEPLOYMENT_TARGET = 17.2;
                 SDKROOT = iphoneos;
                 SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
             };
@@ -654,6 +661,14 @@
 				minimumVersion = 0.2.0;
 			};
 		};
+		A1000A000000000000000002 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
+			requirement = {
+				kind = exactVersion;
+				version = 0.9.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -661,6 +676,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1000A000000000000000001 /* XCRemoteSwiftPackageReference "swift-litert-lm" */;
 			productName = LiteRTLM;
+		};
+		A1000C000000000000000002 /* MWDATCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000A000000000000000002 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCore;
+		};
+		A1000C000000000000000003 /* MWDATCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000A000000000000000002 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCamera;
 		};
 /* End XCSwiftPackageProductDependency section */
     };
