@@ -660,6 +660,12 @@ struct QuickRecognitionSettingsView: View {
             )
             .font(.footnote)
             .foregroundStyle(.secondary)
+
+            if let diagnostics = AppleFoundationModelService.shared.diagnosticsDescription {
+                Text(diagnostics)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

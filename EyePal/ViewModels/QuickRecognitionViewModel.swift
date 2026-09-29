@@ -47,6 +47,7 @@ final class QuickRecognitionViewModel: ObservableObject {
     func start() {
         statusText = "Take a photo to quickly describe things"
         camera.start()
+        appleService.prewarmIfNeeded()
     }
 
     func stop() {

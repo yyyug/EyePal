@@ -94,6 +94,7 @@ final class VisionViewModel: ObservableObject {
         // Vision tab without frames.
         statusText = NSLocalizedString("vision.statusStarting", comment: "")
         camera.start()
+        appleService.prewarmIfNeeded()
         Task {
             do {
                 _ = try await faceRecognitionService.loadProfiles()

@@ -91,6 +91,78 @@ enum QuickCaptionLength: String, CaseIterable, Identifiable {
     }
 }
 
+extension QuickCaptionLength {
+    /// Version of the Apple Foundation Models prompts below.
+    ///
+    /// Apple's on-device model is swapped by ordinary OS updates (26.0-26.3,
+    /// 26.4, 27.0), and Apple asks apps to re-test prompts whenever that happens
+    /// rather than editing a single prompt in place. Each generation therefore
+    /// keeps its own wording so a later model can be compared against what the
+    /// previous one produced.
+    static let appleFoundationPromptVersion = 2
+
+    var appleFoundationPrompt: String {
+        if #available(iOS 27.0, *) {
+            return appleFoundationPromptV2
+        }
+        return appleFoundationPromptV1
+    }
+
+    /// V1 was tuned for the 26.x model. It leaned on open-ended qualifiers such
+    /// as "as much detail as possible", which AFM 3 (iOS 27) follows literally:
+    /// the model under-delivers instead of padding the answer.
+    private var appleFoundationPromptV1: String {
+        if QuickPromptLanguage.isChinese {
+            switch self {
+            case .short:
+                return "請用一至兩句中文描述這張圖片。"
+            case .normal:
+                return "請用三至五句中文描述這張圖片。"
+            case .long:
+                return "請用六句或以上中文詳細描述這張圖片，內容越詳細越好。"
+            }
+        } else {
+            switch self {
+            case .short:
+                return "Describe this image in 1 to 2 sentences."
+            case .normal:
+                return "Describe this image in 3 to 5 sentences."
+            case .long:
+                return "Describe this image in 6 or more sentences with as much detail as possible."
+            }
+        }
+    }
+
+    /// V2 targets the AFM 3 generation that ships with iOS 27.
+    ///
+    /// Apple's guidance for on-device models is to give one short, direct,
+    /// imperative instruction and to spell out the content each sentence must
+    /// carry, rather than asking for a general amount of detail. That is also
+    /// why the sentence count matches the caption-length setting exactly: it is
+    /// the whole point of the setting, so it should not be approximate.
+    private var appleFoundationPromptV2: String {
+        if QuickPromptLanguage.isChinese {
+            switch self {
+            case .short:
+                return "請用一句話描述這張圖片，說明場景與其中最重要的元素。"
+            case .normal:
+                return "請用三句話描述這張圖片，依序說明整體場景、主要的元素，以及它們所在的位置。"
+            case .long:
+                return "請用六句話描述這張圖片，依序說明整體場景、每個主要元素與它的顏色、各元素以時鐘方位標示的位置、可見的文字，以及需要注意的事項。不要重複同一件事。"
+            }
+        } else {
+            switch self {
+            case .short:
+                return "Describe this image in one sentence. Name the scene and its single most important element."
+            case .normal:
+                return "Describe this image in three sentences. Cover the overall scene, the notable elements, and where each one is."
+            case .long:
+                return "Describe this image in six sentences. Cover the overall scene, each notable element with its color, the position of each element using clock positions, any text that is visible, and anything the viewer should watch out for. Do not repeat a fact twice."
+            }
+        }
+    }
+}
+
 enum QuickModelProvider: String, CaseIterable, Identifiable {
     case gemma
     case moondream
