@@ -145,7 +145,7 @@ struct MetaGlassesSettingsView: View {
     // MARK: - Helpers
 
     private var statusText: String {
-        if !service.isLinked {
+        if !MetaGlassesService.isLinked {
             return NSLocalizedString("metaGlasses.notLinked", comment: "")
         }
         if service.isConfigured {

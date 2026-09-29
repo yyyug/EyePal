@@ -28,6 +28,9 @@ struct MetaGlassesDevice: Identifiable, Equatable {
 final class MetaGlassesService: ObservableObject {
     static let shared = MetaGlassesService()
 
+    /// The SDK is linked into this build.
+    static var isLinked: Bool { true }
+
     /// Set once `Wearables.configure()` has succeeded. Everything else in this
     /// type is gated on it, because touching `Wearables.shared` before
     /// `configure()` is a `fatalError` in the SDK rather than a thrown error,
@@ -121,7 +124,7 @@ final class MetaGlassesService: ObservableObject {
         // assigning through its subscript is what actually changes what the SDK
         // reads. Copying it into a local `var` would mutate a value-type copy
         // and have no effect at all.
-        guard let info = Bundle.main.infoDictionary else { return }
+        guard var info = Bundle.main.infoDictionary else { return }
         var mwdat = (info["MWDAT"] as? [String: Any]) ?? [:]
 
         // Only overwrite a build-time provided value when the user has entered
