@@ -28,8 +28,9 @@ struct MetaGlassesDevice: Identifiable, Equatable {
 final class MetaGlassesService: ObservableObject {
     static let shared = MetaGlassesService()
 
-    /// The SDK is linked into this build.
-    static var isLinked: Bool { true }
+    /// The SDK is linked into this build. `nonisolated` because it is a
+    /// compile-time constant that `CameraSource` reads off the main thread.
+    nonisolated static var isLinked: Bool { true }
 
     /// Set once `Wearables.configure()` has succeeded. Everything else in this
     /// type is gated on it, because touching `Wearables.shared` before
@@ -418,7 +419,7 @@ final class MetaGlassesService: ObservableObject {
 @MainActor
 final class MetaGlassesService: ObservableObject {
     static let shared = MetaGlassesService()
-    static var isLinked: Bool { false }
+    nonisolated static var isLinked: Bool { false }
 
     private(set) var isConfigured = false
     private(set) var configurationError: String? = NSLocalizedString("metaGlasses.notLinked", comment: "")
