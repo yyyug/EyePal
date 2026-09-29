@@ -70,6 +70,24 @@ struct AppleSceneDescription {
 }
 #endif
 
+#if canImport(FoundationModels)
+/// Owns the long-lived session and its bookkeeping.
+///
+/// This lives in its own availability-annotated type because the app still
+/// deploys back to iOS 17 while `LanguageModelSession` needs iOS 26, and a
+/// stored property cannot itself be marked potentially unavailable.
+@available(iOS 27.0, *)
+private final class AppleSessionHolder {
+    let session: LanguageModelSession
+    var requests = 0
+    var hasPrewarmed = false
+
+    init(instructions: String) {
+        session = LanguageModelSession(instructions: instructions)
+    }
+}
+#endif
+
 /// Recognition backed by Apple's on-device Foundation Model (Apple Intelligence).
 /// Requires iOS 27 or later, which is where `Attachment` and image understanding
 /// entered the framework.
@@ -94,10 +112,7 @@ final class AppleFoundationModelService {
     private static let requestsPerSession = 4
 
     #if canImport(FoundationModels)
-    @available(iOS 26.0, *)
-    private var session: LanguageModelSession?
-    private var requestsInSession = 0
-    private var hasPrewarmed = false
+    private var sessionHolder: AnyObject?
     #endif
 
     private init() {}
@@ -121,10 +136,10 @@ final class AppleFoundationModelService {
     func prewarmIfNeeded() {
         #if canImport(FoundationModels)
         if #available(iOS 27.0, *) {
-            let session = preparedSession()
-            guard !hasPrewarmed else { return }
-            hasPrewarmed = true
-            session.prewarm()
+            let holder = currentHolder()
+            guard !holder.hasPrewarmed else { return }
+            holder.hasPrewarmed = true
+            holder.session.prewarm()
         }
         #endif
     }
@@ -136,7 +151,7 @@ final class AppleFoundationModelService {
             guard let cgImage = preparedCGImage(from: image) else {
                 throw AppleFoundationModelError.imageEncodingFailed
             }
-            let session = preparedSession()
+            let session = currentHolder().session
             let imagePrompt = Prompt {
                 prompt
                 Attachment(cgImage)
@@ -205,7 +220,7 @@ final class AppleFoundationModelService {
             guard let cgImage = preparedCGImage(from: image) else {
                 throw AppleFoundationModelError.imageEncodingFailed
             }
-            let session = preparedSession()
+            let session = currentHolder().session
             do {
                 // A free-form question has no shape to guide, so it is answered
                 // as plain text rather than forced into the description schemas.
@@ -246,16 +261,16 @@ final class AppleFoundationModelService {
 
     #if canImport(FoundationModels)
     @available(iOS 27.0, *)
-    private func preparedSession() -> LanguageModelSession {
-        if let session, requestsInSession < Self.requestsPerSession {
-            requestsInSession += 1
-            return session
+    private func currentHolder() -> AppleSessionHolder {
+        if let holder = sessionHolder as? AppleSessionHolder,
+           holder.requests < Self.requestsPerSession {
+            holder.requests += 1
+            return holder
         }
-        let session = LanguageModelSession(instructions: Self.sessionInstructions)
-        self.session = session
-        requestsInSession = 1
-        hasPrewarmed = false
-        return session
+        let holder = AppleSessionHolder(instructions: Self.sessionInstructions)
+        holder.requests = 1
+        sessionHolder = holder
+        return holder
     }
 
     /// Apple recommends giving the model a role, and this one has a fixed job:
