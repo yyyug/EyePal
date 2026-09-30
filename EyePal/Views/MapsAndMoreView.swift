@@ -1182,6 +1182,7 @@ struct FloorDetectionListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedRecord) { record in
             FloorMonitorView(record: record)
+                .environmentObject(floorStore)
         }
         .sheet(item: $editingRecord) { record in
             FloorRecordNameEditorView(record: record)
@@ -1261,10 +1262,9 @@ private struct FloorRecordEditorView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var name = ""
     @State private var floorLabel = ""
-    @State private var addSecondFloor = false
-    @State private var secondFloorLabel = ""
-    @State private var firstAltitudeSnapshot: Double?
     @FocusState private var focusedField: EditorField?
+
+    private var store: FloorRecordStore { floorStore }
 
     private enum EditorField {
         case name
@@ -1273,81 +1273,43 @@ private struct FloorRecordEditorView: View {
 
     var body: some View {
         Form {
-            Section("Add Floor Record") {
-                TextField("Name", text: $name)
-                    .focused($focusedField, equals: .name)
-                    .submitLabel(.next)
-                    .onSubmit {
-                        focusedField = .floor
-                    }
-
+            Section {
                 LabeledContent("Altitude") {
                     Text(altitudeMonitor.altitudeDisplayText)
                 }
-
-                Text(altitudeMonitor.isUsingBarometer
-                     ? "Measured by the barometer, relative to where you started. Works indoors where GPS altitude does not."
-                     : "No barometer on this device, so this is GPS altitude, which needs a clear view of the sky.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
+                TextField(store.hasBaseline ? "Destination floor name" : "Starting floor name", text: $name)
+                    .focused($focusedField, equals: .name)
+                    .submitLabel(.done)
+                    .onSubmit { submit() }
                 TextField("Floor", text: $floorLabel)
                     .keyboardType(.numberPad)
                     .focused($focusedField, equals: .floor)
-            }
-
-            if addSecondFloor {
-                Section("Add Another Floor") {
-                    TextField("Another Floor", text: $secondFloorLabel)
-                        .keyboardType(.numberPad)
-
-                    LabeledContent("Latest Altitude") {
-                        Text(altitudeMonitor.altitudeDisplayText)
-                    }
-                }
+            } header: {
+                Text(store.hasBaseline ? "Destination Floor" : "Starting Floor")
+            } footer: {
+                // The starting floor becomes the reference every later height is
+                // measured from, which is what makes floors recorded on separate
+                // trips still recognisable.
+                Text(store.hasBaseline
+                     ? "Name the floor you reached. Its height is measured from the floor you started on."
+                     : "Stand on the floor you are starting from and name it. This becomes the reference for every floor you record afterwards.")
             }
 
             Section {
-                Button("加入樓層") {
-                    firstAltitudeSnapshot = altitudeMonitor.currentAltitudeMeters
-                    addSecondFloor = true
-                }
-                .disabled(
-                    addSecondFloor ||
-                    name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                    floorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                    altitudeMonitor.currentAltitudeMeters == nil
-                )
-
-                Button("Finish") {
-                    if addSecondFloor {
-                        floorStore.addRecords(
-                            name: name,
-                            firstFloorLabel: floorLabel,
-                            firstAltitudeMeters: firstAltitudeSnapshot,
-                            secondFloorLabel: secondFloorLabel,
-                            secondAltitudeMeters: altitudeMonitor.currentAltitudeMeters
-                        )
-                    } else {
-                        floorStore.addRecord(
-                            name: name,
-                            floorLabel: floorLabel,
-                            altitudeMeters: altitudeMonitor.currentAltitudeMeters
-                        )
-                    }
-                    dismiss()
+                Button(store.hasBaseline ? "Finish" : "加入樓層") {
+                    submit()
                 }
                 .disabled(
                     name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                     floorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                    altitudeMonitor.currentAltitudeMeters == nil ||
-                    (addSecondFloor && secondFloorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    altitudeMonitor.currentPressureKPa == nil
                 )
             }
         }
         .navigationTitle("Floor Detection")
         .onAppear {
             altitudeMonitor.start()
+            altitudeMonitor.updateHeight(baselineKPa: store.baselinePressureKPa)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 focusedField = .name
             }
@@ -1356,13 +1318,40 @@ private struct FloorRecordEditorView: View {
             altitudeMonitor.stop()
         }
     }
+
+    /// Records the named floor. The first floor of a session also sets the
+    /// baseline, and is stored at height zero because it *is* the reference.
+    private func submit() {
+        guard let pressure = altitudeMonitor.currentPressureKPa else { return }
+        if !store.hasBaseline {
+            store.setBaseline(pressureKPa: pressure)
+            store.addRecord(
+                name: name,
+                floorLabel: floorLabel,
+                altitudeMeters: 0,
+                pressureKPa: pressure
+            )
+        } else {
+            let height = store.heightAboveBaseline(pressureKPa: pressure) ?? 0
+            store.addRecord(
+                name: name,
+                floorLabel: floorLabel,
+                altitudeMeters: height,
+                pressureKPa: pressure
+            )
+        }
+        dismiss()
+    }
 }
 
 private struct FloorMonitorView: View {
     let record: FloorRecord
+    @EnvironmentObject private var floorStore: FloorRecordStore
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     private let announcer = AccessibilityAnnouncementCenter()
     @State private var hasAnnouncedArrival = false
+
+    private var store: FloorRecordStore { floorStore }
 
     var body: some View {
         Form {
@@ -1380,9 +1369,21 @@ private struct FloorMonitorView: View {
         .onDisappear {
             altitudeMonitor.stop()
         }
-        .onChange(of: altitudeMonitor.currentAltitudeMeters) { altitude in
-            guard let altitude else { return }
-            let withinRange = abs(altitude - record.altitudeMeters) <= 0.3
+        .onChange(of: altitudeMonitor.currentPressureKPa) { pressure in
+            guard let pressure else { return }
+            // Compared against the record's own pressure rather than its stored
+            // height, so a floor recorded on an earlier trip still matches.
+            // Falls back to the stored height for records saved before pressures
+            // were kept, or on hardware without a barometer.
+            let withinRange: Bool
+            if let recordPressure = record.pressureKPa {
+                withinRange = abs(pressure - recordPressure) <= FloorRecordStore.pressureToleranceKPa
+            } else if let height = store.heightAboveBaseline(pressureKPa: pressure) {
+                withinRange = abs(height - record.altitudeMeters) <= FloorRecordStore.heightToleranceMeters
+            } else {
+                withinRange = false
+            }
+
             if withinRange && !hasAnnouncedArrival {
                 announcer.announce("Arrived at floor \(record.floorLabel)", minimumInterval: 0)
                 hasAnnouncedArrival = true
@@ -1528,6 +1529,10 @@ struct FloorRecord: Identifiable, Codable, Equatable, Hashable {
     let name: String
     let floorLabel: String
     let altitudeMeters: Double
+    /// Barometric pressure when this floor was recorded. Optional so records
+    /// saved before this existed still decode; those keep matching on the
+    /// height captured alongside them.
+    let pressureKPa: Double?
 }
 
 private struct SavedMarker: Identifiable, Codable, Equatable, Hashable {
@@ -1694,14 +1699,50 @@ private final class GuidedRouteStore: ObservableObject {
 @MainActor
 final class FloorRecordStore: ObservableObject {
     @Published private(set) var records: [FloorRecord] = []
+    /// The pressure reading at the floor the user started from. Every stored
+    /// height is measured against this, which is what lets a floor recorded
+    /// yesterday still be recognised today.
+    @Published private(set) var baselinePressureKPa: Double?
     private let defaults = UserDefaults.standard
     private let key = "floorDetection.records.v1"
+    private let baselineKey = "floorDetection.baselinePressure.v1"
 
     init() {
         load()
     }
 
-    func addRecord(name: String, floorLabel: String, altitudeMeters: Double?) {
+    /// How close a pressure reading must be to a record's to count as the same
+    /// floor, in kPa. About a quarter of a metre of height, the same tolerance
+    /// the height-based comparison used before.
+    static let pressureToleranceKPa = 0.025
+    static let heightToleranceMeters = 0.3
+
+    var hasBaseline: Bool { baselinePressureKPa != nil }
+
+    /// Records the floor the user is standing on as the reference. The height it
+    /// is stored at is zero by definition.
+    func setBaseline(pressureKPa: Double?) {
+        guard let pressureKPa else { return }
+        baselinePressureKPa = pressureKPa
+        defaults.set(pressureKPa, forKey: baselineKey)
+    }
+
+    /// Height of a pressure reading above the baseline, or nil when there is no
+    /// baseline to compare against yet.
+    func heightAboveBaseline(pressureKPa: Double?) -> Double? {
+        guard let pressureKPa, let baselinePressureKPa else { return nil }
+        return AltitudeMonitor.heightAboveBaseline(
+            pressureKPa: pressureKPa,
+            baselineKPa: baselinePressureKPa
+        )
+    }
+
+    func addRecord(
+        name: String,
+        floorLabel: String,
+        altitudeMeters: Double?,
+        pressureKPa: Double? = nil
+    ) {
         guard let altitudeMeters else { return }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedFloor = floorLabel.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1711,21 +1752,11 @@ final class FloorRecordStore: ObservableObject {
                 id: UUID(),
                 name: trimmedName,
                 floorLabel: trimmedFloor,
-                altitudeMeters: altitudeMeters
+                altitudeMeters: altitudeMeters,
+                pressureKPa: pressureKPa
             )
         )
         save()
-    }
-
-    func addRecords(
-        name: String,
-        firstFloorLabel: String,
-        firstAltitudeMeters: Double?,
-        secondFloorLabel: String,
-        secondAltitudeMeters: Double?,
-    ) {
-        addRecord(name: name, floorLabel: firstFloorLabel, altitudeMeters: firstAltitudeMeters)
-        addRecord(name: name, floorLabel: secondFloorLabel, altitudeMeters: secondAltitudeMeters)
     }
 
     func delete(_ record: FloorRecord) {
@@ -1741,7 +1772,8 @@ final class FloorRecordStore: ObservableObject {
             id: record.id,
             name: trimmedName,
             floorLabel: record.floorLabel,
-            altitudeMeters: record.altitudeMeters
+            altitudeMeters: record.altitudeMeters,
+            pressureKPa: record.pressureKPa
         )
         save()
     }
@@ -1752,6 +1784,7 @@ final class FloorRecordStore: ObservableObject {
     }
 
     private func load() {
+        baselinePressureKPa = defaults.object(forKey: baselineKey) as? Double
         guard let data = defaults.data(forKey: key), let decoded = try? JSONDecoder().decode([FloorRecord].self, from: data) else {
             records = []
             return
@@ -3301,21 +3334,23 @@ private final class CurrentLocationProvider: NSObject, CLLocationManagerDelegate
 ///
 /// Reads the barometer rather than GPS. GPS altitude is unusable indoors — no
 /// fix, or a wildly wrong one — and floor detection is precisely an indoor task.
-/// `CMAltimeter` gives a *relative* altitude, so the first reading of a session
-/// is captured as a baseline and everything reported is measured from it. The
-/// comparison threshold in the views is unchanged (0.3 m), which is a typical
-/// storey height in both cases.
+///
+/// The barometer is used through its **pressure**, not `relativeAltitude`.
+/// Relative altitude is measured from wherever the process happened to start, so
+/// it is worthless once the app restarts. Absolute pressure is a physical
+/// quantity that is the same every time you walk back into the same building,
+/// which is what makes recorded floors comparable across sessions. Heights are
+/// then derived from the pressure difference against the user's baseline.
 ///
 /// GPS is kept only as a fallback for hardware without a barometer (iPad,
 /// simulator), so the screen degrades instead of going blank.
 private final class AltitudeMonitor: NSObject, ObservableObject {
+    @Published private(set) var currentPressureKPa: Double?
     @Published private(set) var currentAltitudeMeters: Double?
     @Published private(set) var altitudeDisplayText = "Unavailable"
-    @Published private(set) var isUsingBarometer = true
 
     private let altimeter = CMAltimeter()
     private let locationManager = CLLocationManager()
-    private var baselineMeters: Double?
     private var usesBarometer = false
 
     override init() {
@@ -3327,13 +3362,14 @@ private final class AltitudeMonitor: NSObject, ObservableObject {
     func start() {
         if CMAltimeter.isRelativeAltitudeAvailable() {
             usesBarometer = true
-            isUsingBarometer = true
             altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, _ in
-                self?.apply(relativeAltitude: data?.relativeAltitude.doubleValue)
+                guard let self, let data else { return }
+                let pressure = data.pressure.doubleValue
+                guard pressure.isFinite else { return }
+                self.currentPressureKPa = pressure
             }
         } else {
             usesBarometer = false
-            isUsingBarometer = false
             if locationManager.authorizationStatus == .notDetermined {
                 locationManager.requestWhenInUseAuthorization()
             }
@@ -3348,15 +3384,23 @@ private final class AltitudeMonitor: NSObject, ObservableObject {
         locationManager.stopUpdatingLocation()
     }
 
-    private func apply(relativeAltitude meters: Double?) {
-        guard let meters, meters.isFinite else { return }
-        // Relative altitude is measured from wherever the session started, so the
-        // first sample becomes zero and the rest are offsets from it.
-        let baseline = baselineMeters ?? meters
-        baselineMeters = baseline
-        let offset = meters - baseline
-        currentAltitudeMeters = offset
-        altitudeDisplayText = String(format: "%+.2f m", offset)
+    /// Height above a reference pressure, in metres, via the standard barometric
+    /// formula. Returns nil when either pressure is missing.
+    nonisolated static func heightAboveBaseline(pressureKPa pressure: Double, baselineKPa baseline: Double) -> Double? {
+        guard pressure > 0, baseline > 0, pressure.isFinite, baseline.isFinite else { return nil }
+        return 44330.0 * (1.0 - pow(pressure / baseline, 1.0 / 5.255))
+    }
+
+    nonisolated func updateHeight(baselineKPa: Double?) {
+        let height = baselineKPa.flatMap {
+            Self.heightAboveBaseline(pressureKPa: currentPressureKPa ?? 0, baselineKPa: $0)
+        }
+        currentAltitudeMeters = height
+        if let height {
+            altitudeDisplayText = String(format: "%+.2f m", height)
+        } else if let pressure = currentPressureKPa {
+            altitudeDisplayText = String(format: "%.2f kPa", pressure)
+        }
     }
 }
 
