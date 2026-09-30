@@ -264,11 +264,10 @@ final class AppleFoundationModelService {
     }
 
     /// Referenced in the prompt as well as on the attachment, so the model has
-    /// one unambiguous handle on the image.
-    @available(iOS 27.0, *)
+    /// one unambiguous handle on the image. Plain string building, so it carries
+    /// no availability requirement of its own.
     private static let attachmentLabel = "image-0"
 
-    @available(iOS 27.0, *)
     private static func labelledPrompt(_ base: String) -> String {
         QuickPromptLanguage.isChinese
             ? "\(base)（影像標記為 image-0，請描述 image-0。）"
