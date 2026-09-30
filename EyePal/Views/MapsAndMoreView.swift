@@ -3352,6 +3352,7 @@ private final class AltitudeMonitor: NSObject, ObservableObject {
     private let altimeter = CMAltimeter()
     private let locationManager = CLLocationManager()
     private var usesBarometer = false
+    private var baselinePressureKPa: Double?
 
     override init() {
         super.init()
@@ -3367,6 +3368,7 @@ private final class AltitudeMonitor: NSObject, ObservableObject {
                 let pressure = data.pressure.doubleValue
                 guard pressure.isFinite else { return }
                 self.currentPressureKPa = pressure
+                self.recomputeHeight()
             }
         } else {
             usesBarometer = false
@@ -3391,8 +3393,15 @@ private final class AltitudeMonitor: NSObject, ObservableObject {
         return 44330.0 * (1.0 - pow(pressure / baseline, 1.0 / 5.255))
     }
 
-    nonisolated func updateHeight(baselineKPa: Double?) {
-        let height = baselineKPa.flatMap {
+    /// Recomputes the displayed height whenever either the baseline or a new
+    /// pressure sample changes.
+    func updateHeight(baselineKPa: Double?) {
+        baselinePressureKPa = baselineKPa
+        recomputeHeight()
+    }
+
+    private func recomputeHeight() {
+        let height = baselinePressureKPa.flatMap {
             Self.heightAboveBaseline(pressureKPa: currentPressureKPa ?? 0, baselineKPa: $0)
         }
         currentAltitudeMeters = height
