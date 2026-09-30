@@ -11,12 +11,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section(NSLocalizedString("settings.savedFacesSection", comment: "")) {
-                NavigationLink(NSLocalizedString("feature.savedFaces", comment: "")) {
-                    SavedFacesView()
-                }
-            }
-
             Section(NSLocalizedString("settings.appearance", comment: "")) {
                 Picker(NSLocalizedString("settings.uiStyle", comment: ""), selection: Binding(
                     get: { settingsStore.uiStyle },
@@ -924,6 +918,15 @@ struct FaceRecognitionSettingsView: View {
 
     var body: some View {
         Form {
+            // Face management lives with face recognition rather than as its own
+            // top-level row in Settings: the saved profiles are what every other
+            // option on this page configures.
+            Section(NSLocalizedString("settings.savedFacesSection", comment: "")) {
+                NavigationLink(NSLocalizedString("feature.savedFaces", comment: "")) {
+                    SavedFacesView()
+                }
+            }
+
             Section(NSLocalizedString("settings.speech", comment: "")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(NSLocalizedString("settings.speechDelay", comment: ""))

@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import CoreMotion
 import AVFoundation
 import MapKit
 import Combine
@@ -1178,6 +1179,7 @@ struct FloorDetectionListView: View {
             }
         }
         .navigationTitle("Floor Detection")
+        .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedRecord) { record in
             FloorMonitorView(record: record)
         }
@@ -1282,6 +1284,12 @@ private struct FloorRecordEditorView: View {
                 LabeledContent("Altitude") {
                     Text(altitudeMonitor.altitudeDisplayText)
                 }
+
+                Text(altitudeMonitor.isUsingBarometer
+                     ? "Measured by the barometer, relative to where you started. Works indoors where GPS altitude does not."
+                     : "No barometer on this device, so this is GPS altitude, which needs a clear view of the sky.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 TextField("Floor", text: $floorLabel)
                     .keyboardType(.numberPad)
@@ -3289,29 +3297,70 @@ private final class CurrentLocationProvider: NSObject, CLLocationManagerDelegate
 }
 
 @MainActor
-private final class AltitudeMonitor: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
+/// Floor detection's height source.
+///
+/// Reads the barometer rather than GPS. GPS altitude is unusable indoors — no
+/// fix, or a wildly wrong one — and floor detection is precisely an indoor task.
+/// `CMAltimeter` gives a *relative* altitude, so the first reading of a session
+/// is captured as a baseline and everything reported is measured from it. The
+/// comparison threshold in the views is unchanged (0.3 m), which is a typical
+/// storey height in both cases.
+///
+/// GPS is kept only as a fallback for hardware without a barometer (iPad,
+/// simulator), so the screen degrades instead of going blank.
+private final class AltitudeMonitor: NSObject, ObservableObject {
     @Published private(set) var currentAltitudeMeters: Double?
     @Published private(set) var altitudeDisplayText = "Unavailable"
+    @Published private(set) var isUsingBarometer = true
 
-    private let manager = CLLocationManager()
+    private let altimeter = CMAltimeter()
+    private let locationManager = CLLocationManager()
+    private var baselineMeters: Double?
+    private var usesBarometer = false
 
     override init() {
         super.init()
-        manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
     }
 
     func start() {
-        if manager.authorizationStatus == .notDetermined {
-            manager.requestWhenInUseAuthorization()
+        if CMAltimeter.isRelativeAltitudeAvailable() {
+            usesBarometer = true
+            isUsingBarometer = true
+            altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, _ in
+                self?.apply(relativeAltitude: data?.relativeAltitude.doubleValue)
+            }
+        } else {
+            usesBarometer = false
+            isUsingBarometer = false
+            if locationManager.authorizationStatus == .notDetermined {
+                locationManager.requestWhenInUseAuthorization()
+            }
+            locationManager.startUpdatingLocation()
         }
-        manager.startUpdatingLocation()
     }
 
     func stop() {
-        manager.stopUpdatingLocation()
+        if usesBarometer {
+            altimeter.stopRelativeAltitudeUpdates()
+        }
+        locationManager.stopUpdatingLocation()
     }
 
+    private func apply(relativeAltitude meters: Double?) {
+        guard let meters, meters.isFinite else { return }
+        // Relative altitude is measured from wherever the session started, so the
+        // first sample becomes zero and the rest are offsets from it.
+        let baseline = baselineMeters ?? meters
+        baselineMeters = baseline
+        let offset = meters - baseline
+        currentAltitudeMeters = offset
+        altitudeDisplayText = String(format: "%+.2f m", offset)
+    }
+}
+
+extension AltitudeMonitor: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let altitude = locations.last?.altitude, altitude.isFinite else { return }
         Task { @MainActor in

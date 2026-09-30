@@ -1,6 +1,6 @@
 /* Tab names */
-"tab.quick" = "快速";
-"tab.details" = "詳細";
+"tab.quick" = "快捷描述";
+"tab.details" = "詳細描述";
 "tab.readText" = "文字";
 "tab.faces" = "人臉";
 "tab.floor" = "樓層";
@@ -399,8 +399,8 @@
 "vision.detailsFailed" = "詳細描述失敗。";
 "vision.detailsSignInRequired" = "需先登入 ChatGPT 才能使用詳細描述。";
 "vision.statusLiveOn" = "持續偵測執行中。";
-"vision.quick" = "快拍";
-"vision.details" = "細節";
+"vision.quick" = "快捷描述";
+"vision.details" = "詳細描述";
 "vision.text" = "文字";
 "vision.faces" = "面孔";
 "vision.enableContinuous" = "開啟連續模式";

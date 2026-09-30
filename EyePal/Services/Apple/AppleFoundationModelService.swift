@@ -34,23 +34,6 @@ enum AppleFoundationModelError: LocalizedError {
 /// `GenerationOptions.maximumResponseTokens` is an upper bound only and Apple
 /// warns that enforcing a tight limit yields malformed or truncated text.
 @available(iOS 27.0, *)
-@Generable(description: "A one-sentence spoken description of a photograph for a blind person")
-struct AppleSceneSummary {
-    @Guide(description: "The scene and its single most important element")
-    var summary: String
-}
-
-@available(iOS 27.0, *)
-@Generable(description: "A three-sentence spoken description of a photograph for a blind person")
-struct AppleSceneOverview {
-    @Guide(description: "The overall scene")
-    var overview: String
-
-    @Guide(description: "One notable element, person or surface per sentence, and where it is", .minimumCount(2))
-    var notableElements: [String]
-}
-
-@available(iOS 27.0, *)
 @Generable(description: "A detailed spoken description of a photograph for a blind person")
 struct AppleSceneDescription {
     @Guide(description: "The overall scene")
@@ -62,25 +45,36 @@ struct AppleSceneDescription {
     @Guide(description: "One positional fact per sentence, using clock positions or left and right", .minimumCount(1))
     var spatialLayout: [String]
 
-    @Guide(description: "Text visible in the image, or a note that there is none", .minimumCount(1))
+    /// An enum rather than free text: this is the one decision in the schema
+    /// that is genuinely bounded, which is what constrained sampling is good at.
+    var textPresence: AppleTextPresence
+
+    @Guide(description: "The text itself, or a note that there is none", .minimumCount(1))
     var visibleText: [String]
 
     @Guide(description: "Something the viewer should watch out for, or a note that there is none", .minimumCount(1))
     var cautions: [String]
 }
+
+@available(iOS 27.0, *)
+@Generable(description: "Whether the photograph contains readable text")
+enum AppleTextPresence: String, Equatable {
+    case none
+    case present
+}
 #endif
 
 #if canImport(FoundationModels)
-/// Owns the long-lived session and its bookkeeping.
+/// Holds the session `prewarm` loads model assets into.
 ///
-/// This lives in its own availability-annotated type because the app still
-/// deploys back to iOS 17 while `LanguageModelSession` needs iOS 26, and a
-/// stored property cannot itself be marked potentially unavailable.
+/// It lives in its own availability-annotated type because the app still deploys
+/// back to iOS 17 while `LanguageModelSession` needs iOS 26, and a stored property
+/// cannot itself be marked potentially unavailable. Nothing is ever generated
+/// with this session: it exists only so the assets are already resident when the
+/// first real request opens its own session.
 @available(iOS 27.0, *)
-private final class AppleSessionHolder {
+private final class WarmSessionHolder {
     let session: LanguageModelSession
-    var requests = 0
-    var hasPrewarmed = false
 
     init(instructions: String) {
         session = LanguageModelSession(instructions: instructions)
@@ -101,18 +95,10 @@ final class AppleFoundationModelService {
     /// window and latency stays low.
     private static let maximumImageDimension: CGFloat = 1600
 
-    /// How many requests share one session.
-    ///
-    /// A session is reused so the loaded model assets and the prompt-prefix cache
-    /// survive between captures, but its transcript has to be dropped regularly:
-    /// every request adds an image to the context and `respond` throws
-    /// `contextSizeExceeded` once the window fills up. Images are far too large
-    /// to keep many of them around, so the session is rotated on this counter
-    /// rather than growing until it fails.
-    private static let requestsPerSession = 4
-
     #if canImport(FoundationModels)
-    private var sessionHolder: AnyObject?
+    /// Held only so `prewarm` has something to load into. It is never used for
+    /// a request, because requests each get their own session.
+    private var warmHolder: AnyObject?
     #endif
 
     private init() {}
@@ -136,48 +122,50 @@ final class AppleFoundationModelService {
     func prewarmIfNeeded() {
         #if canImport(FoundationModels)
         if #available(iOS 27.0, *) {
-            let holder = currentHolder()
-            guard !holder.hasPrewarmed else { return }
-            holder.hasPrewarmed = true
+            guard warmHolder == nil else { return }
+            let holder = WarmSessionHolder(instructions: Self.sessionInstructions)
+            warmHolder = holder
             holder.session.prewarm()
         }
         #endif
     }
 
     func generateCaption(image: UIImage, length: QuickCaptionLength) async throws -> String {
-        let prompt = length.appleFoundationPrompt
+        let prompt = Self.labelledPrompt(length.appleFoundationPrompt)
         #if canImport(FoundationModels)
         if #available(iOS 27.0, *) {
             guard let cgImage = preparedCGImage(from: image) else {
                 throw AppleFoundationModelError.imageEncodingFailed
             }
-            let session = currentHolder().session
-            let imagePrompt = Prompt {
-                prompt
-                Attachment(cgImage)
-            }
+            let session = freshSession()
+            let options = GenerationOptions(samplingMode: .greedy)
 
             do {
                 switch length {
-                case .short:
-                    let result = try await session.respond(
-                        to: imagePrompt,
-                        generating: AppleSceneSummary.self
-                    )
-                    return try requireText(compose([result.content.summary]))
-                case .normal:
-                    let result = try await session.respond(
-                        to: imagePrompt,
-                        generating: AppleSceneOverview.self
-                    )
+                case .short, .normal:
+                    // Constrained sampling is for bounded output such as an enum
+                    // of labels. Wrapping a single free-form sentence in a schema
+                    // bounds nothing: it only adds a schema preamble and lets the
+                    // model drift onto its "I am a describer" prior instead of
+                    // the pixels. Length for these tiers is the prompt's job, and
+                    // this is the plain multimodal request Apple documents.
+                    let response = try await session.respond {
+                        prompt
+                        Attachment(cgImage).label(Self.attachmentLabel)
+                    }
                     return try requireText(
-                        compose([result.content.overview] + result.content.notableElements)
+                        response.content.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
                 case .long:
+                    // Kept for the detailed tier, where the schema really does
+                    // constrain: an enum for text presence plus minimum counts.
                     let result = try await session.respond(
-                        to: imagePrompt,
-                        generating: AppleSceneDescription.self
-                    )
+                        generating: AppleSceneDescription.self,
+                        options: options
+                    ) {
+                        prompt
+                        Attachment(cgImage).label(Self.attachmentLabel)
+                    }
                     let description = result.content
                     return try requireText(compose(
                         [description.overview]
@@ -195,7 +183,7 @@ final class AppleFoundationModelService {
                 // far better one than none, so fall back to it.
                 let response = try await session.respond {
                     prompt
-                    Attachment(cgImage)
+                    Attachment(cgImage).label(Self.attachmentLabel)
                 }
                 return try requireText(
                     response.content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -220,13 +208,14 @@ final class AppleFoundationModelService {
             guard let cgImage = preparedCGImage(from: image) else {
                 throw AppleFoundationModelError.imageEncodingFailed
             }
-            let session = currentHolder().session
+            let labelled = Self.labelledPrompt(prompt)
+            let session = freshSession()
             do {
                 // A free-form question has no shape to guide, so it is answered
-                // as plain text rather than forced into the description schemas.
+                // as plain text rather than forced into the description schema.
                 let response = try await session.respond {
-                    prompt
-                    Attachment(cgImage)
+                    labelled
+                    Attachment(cgImage).label(Self.attachmentLabel)
                 }
                 return try requireText(
                     response.content.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -260,17 +249,30 @@ final class AppleFoundationModelService {
     }
 
     #if canImport(FoundationModels)
+    /// A new session per capture, on purpose.
+    ///
+    /// Every request adds an image to the session's transcript. Sharing one
+    /// session across captures therefore left the model looking at several
+    /// unlabelled photos at once, and it would answer about whichever one it
+    /// latched onto — or confabulate, since the prompt's "this image" was
+    /// ambiguous. One session, one image, no ambiguity. The cost is the prompt
+    /// prefix cache, which `prewarmIfNeeded` more than makes up for: the model
+    /// assets stay resident in the process either way.
     @available(iOS 27.0, *)
-    private func currentHolder() -> AppleSessionHolder {
-        if let holder = sessionHolder as? AppleSessionHolder,
-           holder.requests < Self.requestsPerSession {
-            holder.requests += 1
-            return holder
-        }
-        let holder = AppleSessionHolder(instructions: Self.sessionInstructions)
-        holder.requests = 1
-        sessionHolder = holder
-        return holder
+    private func freshSession() -> LanguageModelSession {
+        LanguageModelSession(instructions: Self.sessionInstructions)
+    }
+
+    /// Referenced in the prompt as well as on the attachment, so the model has
+    /// one unambiguous handle on the image.
+    @available(iOS 27.0, *)
+    private static let attachmentLabel = "image-0"
+
+    @available(iOS 27.0, *)
+    private static func labelledPrompt(_ base: String) -> String {
+        QuickPromptLanguage.isChinese
+            ? "\(base)（影像標記為 image-0，請描述 image-0。）"
+            : "\(base) The image is labelled image-0; describe image-0."
     }
 
     /// Apple recommends giving the model a role, and this one has a fixed job:
