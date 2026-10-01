@@ -9,7 +9,13 @@ final class DetailsDescriptionViewModel: ObservableObject {
     @Published var statusText = helperInstruction
     @Published var descriptionText = ""
     @Published var followUpQuestion = ""
-    @Published var isProcessing = false
+    @Published var isProcessing = false {
+        didSet {
+            isProcessing
+                ? SoundCuePlayer.shared.play(SoundCuePlayer.recognitionPending)
+                : SoundCuePlayer.shared.stop(SoundCuePlayer.recognitionPending)
+        }
+    }
     @Published var errorMessage: String?
     @Published var capturedPreview: UIImage?
 

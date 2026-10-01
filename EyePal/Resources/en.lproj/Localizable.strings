@@ -337,6 +337,8 @@
 "cameraSource.help" = "Applies to every feature that uses the camera: Vision, Quick Recognition, Details, Text Recognition and Face Recognition.";
 "cameraSource.glassesNotReady" = "Glasses are selected but not connected yet. Pair them below and start the glasses camera.";
 "metaGlasses.previewUnavailable" = "Waiting for the glasses camera";
+"floorDetection.wrongFloorTitle" = "Not on the starting floor";
+"floorDetection.wrongFloorMessage" = "Open a floor record only when you are on the floor you started from. Your starting floor is used to work out which floor you are on, so it can only be refreshed from there.";
 "apple.error.unsupportedOS" = "Apple Foundation Model requires iOS 27 or later with Apple Intelligence enabled.";
 "apple.error.imageEncoding" = "The image could not be prepared for the Apple Foundation Model.";
 "apple.error.emptyResponse" = "The Apple Foundation Model returned an empty response.";

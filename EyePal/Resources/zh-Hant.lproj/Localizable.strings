@@ -338,6 +338,8 @@
 "cameraSource.help" = "會套用到所有使用鏡頭的功能：視覺、快拍描述、詳細描述、文字辨識與人臉辨識。";
 "cameraSource.glassesNotReady" = "已選擇眼鏡但尚未連線。請在下方完成配對並啟動眼鏡相機。";
 "metaGlasses.previewUnavailable" = "等待眼鏡相機畫面";
+"floorDetection.wrongFloorTitle" = "不在起始樓層";
+"floorDetection.wrongFloorMessage" = "請只在身處起始樓層時才開啟樓層紀錄。起始樓層是用來判斷你目前在哪一樓的參考點，只有在該樓層才能重新校正。";
 "apple.error.unsupportedOS" = "Apple Foundation Model 需要 iOS 27 或以上，並已開啟 Apple Intelligence。";
 "apple.error.imageEncoding" = "無法為 Apple Foundation Model 準備這張圖片。";
 "apple.error.emptyResponse" = "Apple Foundation Model 回傳了空白結果。";

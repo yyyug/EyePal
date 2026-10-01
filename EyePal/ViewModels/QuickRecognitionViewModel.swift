@@ -14,7 +14,16 @@ final class QuickRecognitionViewModel: ObservableObject {
 
     @Published var statusText = "Take a photo to quickly describe things"
     @Published var responseText = ""
-    @Published var isProcessing = false
+    @Published var isProcessing = false {
+        didSet {
+            // Audible feedback while the model works, so a tap that starts a slow
+            // run does not look like nothing happened. Driven by the state itself
+            // so no exit path can leave the cue playing.
+            isProcessing
+                ? SoundCuePlayer.shared.play(SoundCuePlayer.recognitionPending)
+                : SoundCuePlayer.shared.stop(SoundCuePlayer.recognitionPending)
+        }
+    }
     @Published var isContinuousCapture = false
     @Published var errorMessage: String?
     @Published var capturedPreview: UIImage?

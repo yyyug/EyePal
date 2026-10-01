@@ -1350,6 +1350,8 @@ private struct FloorMonitorView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     private let announcer = AccessibilityAnnouncementCenter()
     @State private var hasAnnouncedArrival = false
+    @State private var didEvaluateBaseline = false
+    @State private var showWrongFloorAlert = false
 
     private var store: FloorRecordStore { floorStore }
 
@@ -1371,6 +1373,8 @@ private struct FloorMonitorView: View {
         }
         .onChange(of: altitudeMonitor.currentPressureKPa) { pressure in
             guard let pressure else { return }
+            evaluateBaselineOnce(pressure: pressure)
+
             // Compared against the record's own pressure rather than its stored
             // height, so a floor recorded on an earlier trip still matches.
             // Falls back to the stored height for records saved before pressures
@@ -1385,11 +1389,44 @@ private struct FloorMonitorView: View {
             }
 
             if withinRange && !hasAnnouncedArrival {
+                SoundCuePlayer.shared.play(SoundCuePlayer.floorArrival)
                 announcer.announce("Arrived at floor \(record.floorLabel)", minimumInterval: 0)
                 hasAnnouncedArrival = true
             } else if !withinRange {
                 hasAnnouncedArrival = false
             }
+        }
+        .alert(
+            NSLocalizedString("floorDetection.wrongFloorTitle", comment: ""),
+            isPresented: $showWrongFloorAlert
+        ) {
+            Button(NSLocalizedString("common.ok", comment: "")) {
+                showWrongFloorAlert = false
+            }
+        } message: {
+            Text(NSLocalizedString("floorDetection.wrongFloorMessage", comment: ""))
+        }
+    }
+
+    /// Barometric pressure drifts with the weather, so a baseline set days ago
+    /// no longer matches the building's real pressure. Opening a record while
+    /// standing on the floor that baseline was taken on is therefore read as a
+    /// calibration opportunity: a small discrepancy refreshes the baseline
+    /// silently, and a large one means the user is somewhere else entirely and
+    /// is told rather than silently re-based to the wrong place.
+    private func evaluateBaselineOnce(pressure: Double) {
+        guard !didEvaluateBaseline else { return }
+        didEvaluateBaseline = true
+        guard let baseline = store.baselinePressureKPa else { return }
+        guard let height = AltitudeMonitor.heightAboveBaseline(
+            pressureKPa: pressure,
+            baselineKPa: baseline
+        ) else { return }
+
+        if abs(height) <= FloorRecordStore.baselineRecalibrationToleranceMeters {
+            store.setBaseline(pressureKPa: pressure)
+        } else {
+            showWrongFloorAlert = true
         }
     }
 }
@@ -1716,6 +1753,10 @@ final class FloorRecordStore: ObservableObject {
     /// the height-based comparison used before.
     static let pressureToleranceKPa = 0.025
     static let heightToleranceMeters = 0.3
+
+    /// How far the baseline may have drifted before the user is asked to go
+    /// back to the floor it was set on, rather than being silently re-based.
+    static let baselineRecalibrationToleranceMeters = 2.0
 
     var hasBaseline: Bool { baselinePressureKPa != nil }
 
