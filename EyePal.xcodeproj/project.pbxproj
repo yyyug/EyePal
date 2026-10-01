@@ -208,6 +208,7 @@
                 A10003000000000000000005 /* Services */,
                 A10003000000000000000006 /* ViewModels */,
                 A10003000000000000000007 /* Views */,
+                A10003000000000000000011 /* Resources */,
             );
             path = EyePal;
             sourceTree = "<group>";
