@@ -77,7 +77,7 @@ private final class WarmSessionHolder {
     let session: LanguageModelSession
 
     init(instructions: String) {
-        session = LanguageModelSession(instructions: instructions)
+        session = LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: instructions)
     }
 }
 #endif
@@ -260,7 +260,7 @@ final class AppleFoundationModelService {
     /// assets stay resident in the process either way.
     @available(iOS 27.0, *)
     private func freshSession() -> LanguageModelSession {
-        LanguageModelSession(instructions: Self.sessionInstructions)
+        LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: Self.sessionInstructions)
     }
 
     /// Referenced in the prompt as well as on the attachment, so the model has
