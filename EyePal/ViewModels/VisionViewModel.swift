@@ -12,8 +12,20 @@ final class VisionViewModel: ObservableObject {
     @Published var quickIsOn = false
     @Published var textIsOn = false
     @Published var facesIsOn = false
-    @Published var isQuickProcessing = false
-    @Published var isDetailsProcessing = false
+    @Published var isQuickProcessing = false {
+        didSet {
+            isQuickProcessing
+                ? SoundCuePlayer.shared.play(SoundCuePlayer.recognitionPending)
+                : SoundCuePlayer.shared.stop(SoundCuePlayer.recognitionPending)
+        }
+    }
+    @Published var isDetailsProcessing = false {
+        didSet {
+            isDetailsProcessing
+                ? SoundCuePlayer.shared.play(SoundCuePlayer.recognitionPending)
+                : SoundCuePlayer.shared.stop(SoundCuePlayer.recognitionPending)
+        }
+    }
     @Published var cameraState: CameraPipeline.State = .idle
     @Published var errorMessage: String?
 
