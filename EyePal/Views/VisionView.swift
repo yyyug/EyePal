@@ -25,6 +25,7 @@ private enum VisionSettingsDestination: String, Identifiable {
 struct VisionView: View {
     @EnvironmentObject private var settingsStore: SettingsStore
     @EnvironmentObject private var openAIStore: OpenAISubscriptionStore
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel = VisionViewModel()
     @State private var pushedFeature: AppFeature?
     @State private var pushedSettings: VisionSettingsDestination?
@@ -99,6 +100,11 @@ struct VisionView: View {
         }
         .onDisappear {
             viewModel.stop()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                viewModel.resume()
+            }
         }
         .accessibilityAction(.magicTap) {
             viewModel.enrollment.trigger()

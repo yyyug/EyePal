@@ -20,7 +20,17 @@ struct MetaGlassesSettingsView: View {
             usageSection
         }
         .navigationTitle(NSLocalizedString("metaGlasses.title", comment: ""))
-        .onAppear(perform: loadCredentials)
+        .onAppear {
+            loadCredentials()
+            // The SDK must be configured before any pairing/streaming action can
+            // work, but configure() reads the credentials the user just entered,
+            // so only bring it up once credentials are actually present. Doing it
+            // here (rather than lazily) is what lets the status row stop saying
+            // "SDK unavailable" and unlocks the Pair button.
+            if MetaGlassesCredentials.current.isComplete {
+                service.configureIfNeeded()
+            }
+        }
         .alert(
             NSLocalizedString("common.error", comment: ""),
             isPresented: Binding(get: { service.lastError != nil }, set: { if !$0 { service.clearError() } })
@@ -125,7 +135,7 @@ struct MetaGlassesSettingsView: View {
                     Button(NSLocalizedString("metaGlasses.pair", comment: "")) {
                         service.startRegistration()
                     }
-                    .disabled(!service.isConfigured)
+                    .disabled(!service.hasCredentials)
                 }
             }
         }
@@ -216,6 +226,9 @@ struct MetaGlassesSettingsView: View {
             teamID: teamID.trimmingCharacters(in: .whitespacesAndNewlines)
         ).save()
         credentialsSaved = true
+        // Fresh credentials: bring the SDK up immediately so the status row and
+        // Pair button reflect the new values instead of waiting for a restart.
+        service.configureIfNeeded()
     }
 }
 

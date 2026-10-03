@@ -182,6 +182,37 @@ enum QuickModelProvider: String, CaseIterable, Identifiable {
     }
 }
 
+/// The concrete model a quick-recognition request resolves to, after checking
+/// the selected provider against what is actually available on this device.
+/// `.moondream` is the fallback when neither on-device provider can run and
+/// carries the API key so callers do not re-read it from settings.
+enum QuickRecognitionRoute {
+    case gemma(kind: GemmaModelKind)
+    case appleFoundation
+    case moondream(apiKey: String)
+
+    /// Resolves the configured provider into a usable route. Returns nil when
+    /// the only usable provider is Moondream and no API key is set, which is the
+    /// one "cannot proceed" outcome callers turn into a user-facing error.
+    static func resolve(
+        provider: QuickModelProvider,
+        gemmaKind: GemmaModelKind,
+        apiKey: String,
+        gemmaCanRun: Bool,
+        appleSupported: Bool
+    ) -> QuickRecognitionRoute? {
+        if provider == .gemma, gemmaCanRun {
+            return .gemma(kind: gemmaKind)
+        }
+        if provider == .appleFoundation, appleSupported {
+            return .appleFoundation
+        }
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else { return nil }
+        return .moondream(apiKey: trimmedKey)
+    }
+}
+
 enum QuickContinuousCaptureInterval: Double, CaseIterable, Identifiable {
     case oneSecond = 1
     case twoSeconds = 2

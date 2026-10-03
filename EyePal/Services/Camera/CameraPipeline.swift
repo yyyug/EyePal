@@ -117,7 +117,7 @@ final class CameraPipeline: NSObject, ObservableObject {
                 // The still a feature would otherwise grab from the phone is
                 // rendered from the same buffer, once per frame, so preview and
                 // capture never disagree.
-                if let image = Self.image(from: sampleBuffer) {
+                if let image = self.image(from: sampleBuffer, orientation: .up) {
                     self.glassesImage = image
                 }
                 self.onSampleBuffer?(sampleBuffer)
@@ -126,13 +126,13 @@ final class CameraPipeline: NSObject, ObservableObject {
         }
     }
 
-    /// Glasses buffers are already upright, so they are not rotated the way the
-    /// phone's landscape sensor buffers are.
-    private nonisolated static func image(from sampleBuffer: CMSampleBuffer) -> UIImage? {
+    /// Converts a sample buffer's pixel buffer into a `UIImage` through the
+    /// shared `CIContext`, applying the given orientation. Glasses buffers are
+    /// already upright; phone sensor buffers need rotation to portrait.
+    private func image(from sampleBuffer: CMSampleBuffer, orientation: CGImagePropertyOrientation) -> UIImage? {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(orientation)
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return nil }
         return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
     }
 
@@ -170,13 +170,7 @@ final class CameraPipeline: NSObject, ObservableObject {
         let pixelW = CVPixelBufferGetWidth(pixelBuffer)
         let pixelH = CVPixelBufferGetHeight(pixelBuffer)
         let isPortraitBuffer = pixelH > pixelW
-        let uprightCI = CIImage(cvPixelBuffer: pixelBuffer)
-            .oriented(isPortraitBuffer ? .up : .right)
-        guard let cgImage = ciContext.createCGImage(uprightCI, from: uprightCI.extent) else {
-            return nil
-        }
-
-        return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
+        return image(from: sampleBuffer, orientation: isPortraitBuffer ? .up : .right)
     }
 
     private func resumeIfNeeded() {
@@ -187,45 +181,38 @@ final class CameraPipeline: NSObject, ObservableObject {
     }
 
     private func startOnSessionQueue() {
-        configureIfNeeded()
-        guard state != .unauthorized else { return }
-        guard isConfigured else { return }
-        if session.isRunning, !wasInterrupted { return }
-        wasInterrupted = false
-        session.startRunning()
-        DispatchQueue.main.async {
-            self.state = .running
-        }
-    }
-
-    private func configureIfNeeded() {
-        guard !isConfigured else { return }
-
-        DispatchQueue.main.async {
-            self.state = .configuring
-        }
-
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            break
+            buildSessionIfNeeded()
+            runIfNeeded()
         case .notDetermined:
-            let semaphore = DispatchSemaphore(value: 0)
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                if !granted {
-                    DispatchQueue.main.async {
-                        self.state = .unauthorized
-                    }
-                }
-                semaphore.signal()
+            DispatchQueue.main.async {
+                self.state = .configuring
             }
-            semaphore.wait()
-            guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { return }
+            // The permission prompt is asynchronous; do not block the session
+            // queue (or any queue) waiting on the user. Configure and start once
+            // the decision lands, but only if this pipeline still wants to run.
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                guard let self else { return }
+                self.sessionQueue.async {
+                    guard self.shouldBeRunning else { return }
+                    guard granted else {
+                        DispatchQueue.main.async { self.state = .unauthorized }
+                        return
+                    }
+                    self.buildSessionIfNeeded()
+                    self.runIfNeeded()
+                }
+            }
         default:
             DispatchQueue.main.async {
                 self.state = .unauthorized
             }
-            return
         }
+    }
+
+    private func buildSessionIfNeeded() {
+        guard !isConfigured else { return }
 
         session.beginConfiguration()
         session.sessionPreset = .high
@@ -259,6 +246,16 @@ final class CameraPipeline: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.state = .failed(error.localizedDescription)
             }
+        }
+    }
+
+    private func runIfNeeded() {
+        guard isConfigured else { return }
+        if session.isRunning, !wasInterrupted { return }
+        wasInterrupted = false
+        session.startRunning()
+        DispatchQueue.main.async {
+            self.state = .running
         }
     }
 }
