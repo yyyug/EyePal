@@ -230,8 +230,9 @@ final class AppleFoundationModelService {
         throw AppleFoundationModelError.unsupportedSystem
     }
 
-    /// Model generation, context window and prompt version, for the settings
-    /// screen. Reports the Private Cloud Compute model in use.
+    /// Model generation and prompt version, for the settings screen. Reports the
+    /// Private Cloud Compute model in use. The model's context size is async and
+    /// throwing, so it is left out of this synchronous, non-throwing property.
     var diagnosticsDescription: String? {
         #if canImport(FoundationModels)
         if #available(iOS 27.0, *) {
@@ -239,7 +240,6 @@ final class AppleFoundationModelService {
             return String(
                 format: NSLocalizedString("settings.appleProvider.diagnostics", comment: ""),
                 String(describing: model),
-                model.contextSize,
                 QuickCaptionLength.appleFoundationPromptVersion
             )
         }
