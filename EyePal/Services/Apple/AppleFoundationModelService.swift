@@ -65,6 +65,17 @@ enum AppleTextPresence: String, Equatable {
 #endif
 
 #if canImport(FoundationModels)
+/// Builds a session for one request. Prefers Private Cloud Compute when it is
+/// available, and falls back to the on-device System model otherwise (offline,
+/// quota exhausted, or a device without Apple Intelligence eligibility).
+@available(iOS 27.0, *)
+private func makeAppleSession(instructions: String) -> LanguageModelSession {
+    if PrivateCloudComputeLanguageModel().isAvailable {
+        return LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: instructions)
+    }
+    return LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+}
+
 /// Holds the session `prewarm` loads model assets into.
 ///
 /// It lives in its own availability-annotated type because the app still deploys
@@ -77,14 +88,15 @@ private final class WarmSessionHolder {
     let session: LanguageModelSession
 
     init(instructions: String) {
-        session = LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: instructions)
+        session = makeAppleSession(instructions: instructions)
     }
 }
 #endif
 
-/// Recognition backed by Apple's on-device Foundation Model (Apple Intelligence).
-/// Requires iOS 27 or later, which is where `Attachment` and image understanding
-/// entered the framework.
+/// Recognition backed by Apple Foundation Models: Private Cloud Compute when
+/// available, falling back to the on-device System model. Requires iOS 27 or
+/// later, which is where `Attachment` and image understanding entered the
+/// framework.
 @MainActor
 final class AppleFoundationModelService {
 
@@ -259,7 +271,7 @@ final class AppleFoundationModelService {
     /// assets stay resident in the process either way.
     @available(iOS 27.0, *)
     private func freshSession() -> LanguageModelSession {
-        LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: Self.sessionInstructions)
+        makeAppleSession(instructions: Self.sessionInstructions)
     }
 
     /// Referenced in the prompt as well as on the attachment, so the model has

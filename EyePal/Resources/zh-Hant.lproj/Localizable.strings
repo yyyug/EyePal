@@ -300,8 +300,6 @@
 "settings.modelProvider.gemma" = "Gemma（裝置端）";
 "settings.modelProvider.apple" = "Apple Foundation Model";
 "settings.appleProvider" = "Apple Intelligence";
-"settings.appleProvider.available" = "此裝置可使用。採用裝置端的 Apple Intelligence 模型，無需網路連線或 API 金鑰。";
-"settings.appleProvider.unsupported" = "此裝置無法使用。需要 iOS 27 或以上，並已開啟 Apple Intelligence。";
 "settings.appleProvider.diagnostics" = "模型 %@ · prompt v%d";
 "metaGlasses.title" = "Meta 眼鏡";
 "metaGlasses.credentials" = "開發者憑證";

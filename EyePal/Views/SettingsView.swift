@@ -648,17 +648,6 @@ struct QuickRecognitionSettingsView: View {
 
     private var appleFoundationSection: some View {
         Section(NSLocalizedString("settings.appleProvider", comment: "")) {
-            Text(
-                NSLocalizedString(
-                    AppleFoundationModelService.shared.isSupported
-                        ? "settings.appleProvider.available"
-                        : "settings.appleProvider.unsupported",
-                    comment: ""
-                )
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-
             if let diagnostics = AppleFoundationModelService.shared.diagnosticsDescription {
                 Text(diagnostics)
                     .font(.footnote)

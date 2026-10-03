@@ -299,8 +299,6 @@
 "settings.modelProvider.gemma" = "Gemma (On-device)";
 "settings.modelProvider.apple" = "Apple Foundation Model";
 "settings.appleProvider" = "Apple Intelligence";
-"settings.appleProvider.available" = "Available on this device. Uses the on-device Apple Intelligence model, so recognition works without a network connection or API key.";
-"settings.appleProvider.unsupported" = "Not available on this device. Requires iOS 27 or later with Apple Intelligence enabled.";
 "settings.appleProvider.diagnostics" = "Model %@ · prompt v%d";
 "metaGlasses.title" = "Meta Glasses";
 "metaGlasses.credentials" = "Developer credentials";
