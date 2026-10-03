@@ -231,15 +231,14 @@ final class AppleFoundationModelService {
     }
 
     /// Model generation, context window and prompt version, for the settings
-    /// screen. The on-device model changes with the OS, so this is the quickest
-    /// way to confirm which one a build is actually running against.
+    /// screen. Reports the Private Cloud Compute model in use.
     var diagnosticsDescription: String? {
         #if canImport(FoundationModels)
         if #available(iOS 27.0, *) {
-            let model = SystemLanguageModel.default
+            let model = PrivateCloudComputeLanguageModel()
             return String(
                 format: NSLocalizedString("settings.appleProvider.diagnostics", comment: ""),
-                String(describing: model.variant),
+                String(describing: model),
                 model.contextSize,
                 QuickCaptionLength.appleFoundationPromptVersion
             )
