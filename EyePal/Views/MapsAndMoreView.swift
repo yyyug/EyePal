@@ -1189,10 +1189,8 @@ struct FloorDetectionListView: View {
         .navigationTitle(NSLocalizedString("floorDetection.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isAddingPlace) {
-            NavigationStack {
-                FloorPlaceEditorView()
-                    .environmentObject(floorStore)
-            }
+            FloorPlaceEditorView()
+                .environmentObject(floorStore)
         }
         .sheet(item: $renamingPlace) { place in
             FloorPlaceRenameView(place: place)
@@ -1250,6 +1248,10 @@ private struct FloorPlaceEditorView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var name = ""
     @State private var startFloorLabel = ""
+    /// Pushing the new place's id here moves straight on to recording its first
+    /// floor, so establishing the reference and using it happen in one go
+    /// instead of the user having to reopen the place afterwards.
+    @State private var path: [UUID] = []
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -1258,61 +1260,72 @@ private struct FloorPlaceEditorView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
-                    Text(altitudeMonitor.altitudeDisplayText)
+        NavigationStack(path: $path) {
+            Form {
+                Section {
+                    LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
+                        Text(altitudeMonitor.altitudeDisplayText)
+                    }
+                    TextField(NSLocalizedString("floorDetection.placeName", comment: ""), text: $name)
+                        .focused($focusedField, equals: .name)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .floor }
+                    TextField(NSLocalizedString("floorDetection.startFloor", comment: ""), text: $startFloorLabel)
+                        .keyboardType(.numbersAndPunctuation)
+                        .focused($focusedField, equals: .floor)
+                        .submitLabel(.done)
+                        .onSubmit { submit() }
+                } header: {
+                    Text(NSLocalizedString("floorDetection.startingFloorHeader", comment: ""))
+                } footer: {
+                    Text(NSLocalizedString("floorDetection.startingFloorFooter", comment: ""))
                 }
-                TextField(NSLocalizedString("floorDetection.placeName", comment: ""), text: $name)
-                    .focused($focusedField, equals: .name)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .floor }
-                TextField(NSLocalizedString("floorDetection.startFloor", comment: ""), text: $startFloorLabel)
-                    .keyboardType(.numbersAndPunctuation)
-                    .focused($focusedField, equals: .floor)
-                    .submitLabel(.done)
-                    .onSubmit { submit() }
-            } header: {
-                Text(NSLocalizedString("floorDetection.startingFloorHeader", comment: ""))
-            } footer: {
-                Text(NSLocalizedString("floorDetection.startingFloorFooter", comment: ""))
-            }
 
-            Section {
-                Button(NSLocalizedString("floorDetection.setAsStart", comment: "")) {
-                    submit()
+                Section {
+                    Button(NSLocalizedString("floorDetection.setAsStart", comment: "")) {
+                        submit()
+                    }
+                    .disabled(
+                        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        startFloorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        altitudeMonitor.currentPressureKPa == nil
+                    )
                 }
-                .disabled(
-                    name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                    startFloorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                    altitudeMonitor.currentPressureKPa == nil
-                )
             }
-        }
-        .navigationTitle(NSLocalizedString("floorDetection.newPlace", comment: ""))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+            .navigationTitle(NSLocalizedString("floorDetection.newPlace", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                }
             }
-        }
-        .onAppear {
-            altitudeMonitor.start()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { focusedField = .name }
-        }
-        .onDisappear {
-            altitudeMonitor.stop()
+            .navigationDestination(for: UUID.self) { placeID in
+                FloorEditorView(placeID: placeID) {
+                    // First floor recorded: close the whole flow rather than
+                    // dropping the user back on a place they have not seen yet.
+                    dismiss()
+                }
+                .environmentObject(floorStore)
+            }
+            .onAppear {
+                altitudeMonitor.start()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { focusedField = .name }
+            }
+            .onDisappear {
+                altitudeMonitor.stop()
+            }
         }
     }
 
     private func submit() {
-        guard let pressure = altitudeMonitor.currentPressureKPa else { return }
-        floorStore.addPlace(
-            name: name,
-            startFloorLabel: startFloorLabel,
-            pressureKPa: pressure
-        )
-        dismiss()
+        guard let pressure = altitudeMonitor.currentPressureKPa,
+              let placeID = floorStore.addPlace(
+                  name: name,
+                  startFloorLabel: startFloorLabel,
+                  pressureKPa: pressure
+              )
+        else { return }
+        path = [placeID]
     }
 }
 
@@ -1373,6 +1386,8 @@ private struct FloorPlaceDetailView: View {
             } label: {
                 Label(NSLocalizedString("common.add", comment: ""), systemImage: "plus")
             }
+            // "Add" alone is ambiguous here: the list adds a floor, not a place.
+            .accessibilityLabel(NSLocalizedString("floorDetection.addFloorAction", comment: ""))
         }
         .onAppear {
             altitudeMonitor.start()
@@ -1405,7 +1420,7 @@ private struct FloorPlaceDetailView: View {
     private func driftSection(_ place: FloorPlace) -> some View {
         if let pressure = altitudeMonitor.currentPressureKPa,
            let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
-           abs(drift) > FloorRecordStore.pressureToleranceKPa * 200 {
+           abs(drift) > FloorRecordStore.baselineDriftNoticeMeters {
             Section {
                 Text(
                     String(
@@ -1493,10 +1508,15 @@ private struct FloorPlaceDetailView: View {
 /// has to confirm it.
 private struct FloorEditorView: View {
     let placeID: UUID
+    /// Called after a floor is stored. Only the step-one flow passes this, to
+    /// close the whole sheet; adding a later floor just dismisses the sheet.
+    var onFinished: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var floorStore: FloorRecordStore
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var label = ""
+    /// The label is only filled in once, from the first usable reading. Filling
+    /// it continuously would overwrite a correction the user has typed.
     @State private var didPrefill = false
 
     private var place: FloorPlace? {
@@ -1507,11 +1527,11 @@ private struct FloorEditorView: View {
         Form {
             Section {
                 LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
-                    Text(altitudeMonitor.altitudeDisplayText)
+                    Text(pressureText)
                 }
                 if let place {
                     LabeledContent(NSLocalizedString("floorDetection.aboveStartFloor", comment: "")) {
-                        Text(altitudeMonitor.altitudeDisplayText)
+                        Text(heightText ?? NSLocalizedString("floorDetection.unavailable", comment: ""))
                     }
                     TextField(
                         String(
@@ -1552,12 +1572,40 @@ private struct FloorEditorView: View {
         .onDisappear {
             altitudeMonitor.stop()
         }
+        .onChange(of: altitudeMonitor.currentPressureKPa) { pressure in
+            guard let pressure, !didPrefill else { return }
+            didPrefill = true
+            if label.isEmpty, let place,
+               let suggestion = floorStore.suggestedFloorLabel(pressureKPa: pressure, in: place) {
+                label = suggestion
+            }
+        }
+    }
+
+    /// Raw pressure, kept separate from the height so the two rows do not show
+    /// the same number.
+    private var pressureText: String {
+        guard let pressure = altitudeMonitor.currentPressureKPa else {
+            return NSLocalizedString("floorDetection.unavailable", comment: "")
+        }
+        return String(format: "%.2f kPa", pressure)
+    }
+
+    private var heightText: String? {
+        guard let place, let pressure = altitudeMonitor.currentPressureKPa,
+              let height = floorStore.heightAboveBaseline(pressureKPa: pressure, in: place)
+        else { return nil }
+        return String(format: "%+.2f m", height)
     }
 
     private func submit() {
         guard let pressure = altitudeMonitor.currentPressureKPa else { return }
         floorStore.addFloor(label: label, pressureKPa: pressure, to: placeID)
-        dismiss()
+        if let onFinished {
+            onFinished()
+        } else {
+            dismiss()
+        }
     }
 }
 
@@ -2004,6 +2052,10 @@ final class FloorRecordStore: ObservableObject {
     /// taken from, so the baseline must not be refreshed here.
     static let baselineRecalibrationToleranceMeters = 2.0
 
+    /// Drift worth mentioning at all. Below this the reference is good enough
+    /// and mentioning it would just be noise.
+    static let baselineDriftNoticeMeters = 0.3
+
     @Published private(set) var places: [FloorPlace] = []
 
     private let defaults = UserDefaults.standard
@@ -2016,13 +2068,14 @@ final class FloorRecordStore: ObservableObject {
 
     // MARK: - Places
 
-    func addPlace(name: String, startFloorLabel: String, pressureKPa: Double) {
+    func addPlace(name: String, startFloorLabel: String, pressureKPa: Double) -> UUID? {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedFloor = startFloorLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty, !trimmedFloor.isEmpty, pressureKPa.isFinite else { return }
+        guard !trimmedName.isEmpty, !trimmedFloor.isEmpty, pressureKPa.isFinite else { return nil }
+        let id = UUID()
         places.append(
             FloorPlace(
-                id: UUID(),
+                id: id,
                 name: trimmedName,
                 startFloorLabel: trimmedFloor,
                 baselinePressureKPa: pressureKPa,
@@ -2030,6 +2083,7 @@ final class FloorRecordStore: ObservableObject {
             )
         )
         save()
+        return id
     }
 
     func rename(_ place: FloorPlace, to name: String) {

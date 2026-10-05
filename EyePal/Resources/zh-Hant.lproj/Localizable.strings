@@ -345,7 +345,7 @@
 "floorDetection.placeName" = "場所名稱";
 "floorDetection.placeSubtitle" = "起始於 %@ · %d 個樓層";
 "floorDetection.startingFloorHeader" = "起始樓層";
-"floorDetection.startingFloorFooter" = "請站在你出發時所在的樓層並輸入樓層號。其他樓層的高度都以這個樓層為基準，這也是 App 唯一無法自行判斷的資訊。";
+"floorDetection.startingFloorFooter" = "請站在你出發時所在的樓層並輸入樓層號。其他樓層的高度都以這個樓層為基準。";
 "floorDetection.setAsStart" = "設為起始樓層";
 "floorDetection.startFloor" = "起始樓層";
 "floorDetection.pressure" = "氣壓";
@@ -365,6 +365,8 @@
 "floorDetection.addFloor" = "新增樓層";
 "floorDetection.watchingFloor" = "正在等待 %@";
 "floorDetection.arrived" = "已到達 %@";
+"floorDetection.addFloorAction" = "新增樓層";
+"floorDetection.unavailable" = "無法取得";
 "apple.error.unsupportedOS" = "Apple Foundation Model 需要 iOS 27 或以上，並已開啟 Apple Intelligence。";
 "apple.error.imageEncoding" = "無法為 Apple Foundation Model 準備這張圖片。";
 "apple.error.emptyResponse" = "Apple Foundation Model 回傳了空白結果。";

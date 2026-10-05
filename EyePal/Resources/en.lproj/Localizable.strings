@@ -344,7 +344,7 @@
 "floorDetection.placeName" = "Place name";
 "floorDetection.placeSubtitle" = "Starts at %@ · %d floors";
 "floorDetection.startingFloorHeader" = "Starting Floor";
-"floorDetection.startingFloorFooter" = "Stand on the floor you are starting from and enter its number. This floor is the reference every other floor is measured from, and it is the only thing the app cannot work out for itself.";
+"floorDetection.startingFloorFooter" = "Stand on the floor you are starting from and enter its number. This floor is the reference every other floor is measured from.";
 "floorDetection.setAsStart" = "Set as starting floor";
 "floorDetection.startFloor" = "Starting floor";
 "floorDetection.pressure" = "Pressure";
@@ -364,6 +364,8 @@
 "floorDetection.addFloor" = "Add floor";
 "floorDetection.watchingFloor" = "Watching for %@";
 "floorDetection.arrived" = "Arrived at %@";
+"floorDetection.addFloorAction" = "Add floor";
+"floorDetection.unavailable" = "Unavailable";
 "apple.error.unsupportedOS" = "Apple Foundation Model requires iOS 27 or later with Apple Intelligence enabled.";
 "apple.error.imageEncoding" = "The image could not be prepared for the Apple Foundation Model.";
 "apple.error.emptyResponse" = "The Apple Foundation Model returned an empty response.";

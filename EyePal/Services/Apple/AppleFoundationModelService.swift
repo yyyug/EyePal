@@ -149,31 +149,17 @@ final class AppleFoundationModelService {
             guard let cgImage = preparedCGImage(from: image) else {
                 throw AppleFoundationModelError.imageEncodingFailed
             }
-            let session = freshSession()
-            let options = GenerationOptions(samplingMode: .greedy)
 
-            do {
-                switch length {
-                case .short, .normal:
-                    // Constrained sampling is for bounded output such as an enum
-                    // of labels. Wrapping a single free-form sentence in a schema
-                    // bounds nothing: it only adds a schema preamble and lets the
-                    // model drift onto its "I am a describer" prior instead of
-                    // the pixels. Length for these tiers is the prompt's job, and
-                    // this is the plain multimodal request Apple documents.
-                    let response = try await session.respond {
-                        prompt
-                        Attachment(cgImage).label(Self.attachmentLabel)
-                    }
-                    return try requireText(
-                        response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                    )
-                case .long:
-                    // Kept for the detailed tier, where the schema really does
-                    // constrain: an enum for text presence plus minimum counts.
-                    let result = try await session.respond(
+            switch length {
+            case .short, .normal:
+                return try requireText(try await respond(prompt: prompt, image: cgImage))
+            case .long:
+                // Kept for the detailed tier, where the schema really does
+                // constrain: an enum for text presence plus minimum counts.
+                do {
+                    let result = try await freshSession().respond(
                         generating: AppleSceneDescription.self,
-                        options: options
+                        options: GenerationOptions(samplingMode: .greedy)
                     ) {
                         prompt
                         Attachment(cgImage).label(Self.attachmentLabel)
@@ -186,24 +172,38 @@ final class AppleFoundationModelService {
                             + description.visibleText
                             + description.cautions
                     ))
+                } catch {
+                    // Two rules, both learned from a crash report: never ask a
+                    // session that has already thrown for anything, and never
+                    // re-enter the framework after this task was cancelled.
+                    // `respond` failing tears the session down, and a second call
+                    // on it walks FoundationModels into an internal assertion
+                    // failure (EXC_BREAKPOINT, six frames inside the framework,
+                    // entered via completeTaskWithClosure delivering a
+                    // CancellationError). So the retry gets a brand new session,
+                    // and a cancelled task just reports the failure.
+                    guard !Task.isCancelled else {
+                        throw AppleFoundationModelError.engineFailure(
+                            error.localizedDescription
+                        )
+                    }
+                    return try requireText(try await respond(prompt: prompt, image: cgImage))
                 }
-            } catch let error as AppleFoundationModelError {
-                throw error
-            } catch {
-                // Guided generation fails when the context window is too full to
-                // satisfy the schema. A plain description is a poor answer but a
-                // far better one than none, so fall back to it.
-                let response = try await session.respond {
-                    prompt
-                    Attachment(cgImage).label(Self.attachmentLabel)
-                }
-                return try requireText(
-                    response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
             }
         }
         #endif
         throw AppleFoundationModelError.unsupportedSystem
+    }
+
+    /// One plain multimodal request on its own session. Every text request goes
+    /// through here so no path can ever reuse a session that has thrown.
+    @available(iOS 27.0, *)
+    private func respond(prompt: String, image cgImage: CGImage) async throws -> String {
+        let response = try await freshSession().respond {
+            prompt
+            Attachment(cgImage).label(Self.attachmentLabel)
+        }
+        return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func queryImage(
@@ -221,17 +221,10 @@ final class AppleFoundationModelService {
                 throw AppleFoundationModelError.imageEncodingFailed
             }
             let labelled = Self.labelledPrompt(prompt)
-            let session = freshSession()
             do {
                 // A free-form question has no shape to guide, so it is answered
                 // as plain text rather than forced into the description schema.
-                let response = try await session.respond {
-                    labelled
-                    Attachment(cgImage).label(Self.attachmentLabel)
-                }
-                return try requireText(
-                    response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
+                return try requireText(try await respond(prompt: labelled, image: cgImage))
             } catch let error as AppleFoundationModelError {
                 throw error
             } catch {
