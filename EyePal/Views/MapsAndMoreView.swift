@@ -1954,7 +1954,6 @@ private final class GuidedRouteStore: ObservableObject {
     }
 }
 
-@MainActor
 /// A building the user visits, and the reference its floors are measured from.
 ///
 /// The reference is expressed as a floor the user recognises ("1") rather than as
