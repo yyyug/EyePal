@@ -1139,59 +1139,68 @@ private struct AutomationAndLinksView: View {
 
 struct FloorDetectionListView: View {
     @EnvironmentObject private var floorStore: FloorRecordStore
-    @State private var selectedRecord: FloorRecord?
-    @State private var editingRecord: FloorRecord?
+    @State private var isAddingPlace = false
+    @State private var renamingPlace: FloorPlace?
 
     var body: some View {
         List {
-            ForEach(floorStore.records) { record in
-                Button {
-                    selectedRecord = record
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(record.name), \(record.floorLabel)")
-                        Text(String(format: "Altitude %.2f m", record.altitudeMeters))
+            if floorStore.places.isEmpty {
+                Text(NSLocalizedString("floorDetection.empty", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(floorStore.places) { place in
+                    NavigationLink {
+                        FloorPlaceDetailView(placeID: place.id)
+                            .environmentObject(floorStore)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(place.name)
+                            Text(
+                                String(
+                                    format: NSLocalizedString("floorDetection.placeSubtitle", comment: ""),
+                                    place.startFloorLabel,
+                                    place.floors.count
+                                )
+                            )
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                        }
                     }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(record.name), \(record.floorLabel)")
-                .accessibilityAction(named: Text("Delete")) {
-                    floorStore.delete(record)
-                }
-                .swipeActions {
-                    Button {
-                        editingRecord = record
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                    }
+                    .swipeActions {
+                        Button {
+                            renamingPlace = place
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
 
-                    Button(role: .destructive) {
-                        floorStore.delete(record)
-                    } label: {
-                        Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
+                        Button(role: .destructive) {
+                            floorStore.delete(place)
+                        } label: {
+                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
+                        }
                     }
                 }
-            }
-            .onDelete { offsets in
-                floorStore.delete(at: offsets)
+                .onDelete { offsets in
+                    floorStore.delete(at: offsets)
+                }
             }
         }
-        .navigationTitle("Floor Detection")
+        .navigationTitle(NSLocalizedString("floorDetection.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $selectedRecord) { record in
-            FloorMonitorView(record: record)
-                .environmentObject(floorStore)
+        .sheet(isPresented: $isAddingPlace) {
+            NavigationStack {
+                FloorPlaceEditorView()
+                    .environmentObject(floorStore)
+            }
         }
-        .sheet(item: $editingRecord) { record in
-            FloorRecordNameEditorView(record: record)
+        .sheet(item: $renamingPlace) { place in
+            FloorPlaceRenameView(place: place)
                 .environmentObject(floorStore)
         }
         .toolbar {
-            NavigationLink {
-                FloorRecordEditorView()
-                    .environmentObject(floorStore)
+            Button {
+                isAddingPlace = true
             } label: {
                 Label(NSLocalizedString("common.add", comment: ""), systemImage: "plus")
             }
@@ -1199,74 +1208,51 @@ struct FloorDetectionListView: View {
     }
 }
 
-private struct FloorRecordNameEditorView: View {
-    let record: FloorRecord
-
+private struct FloorPlaceRenameView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var floorStore: FloorRecordStore
+    let place: FloorPlace
     @State private var name: String
-    @FocusState private var isNameFocused: Bool
 
-    init(record: FloorRecord) {
-        self.record = record
-        _name = State(initialValue: record.name)
+    init(place: FloorPlace) {
+        self.place = place
+        _name = State(initialValue: place.name)
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Edit Name") {
-                    TextField("Name", text: $name)
-                        .focused($isNameFocused)
-                        .submitLabel(.done)
-                        .onSubmit(save)
-                }
+                TextField(NSLocalizedString("floorDetection.placeName", comment: ""), text: $name)
             }
-            .navigationTitle("Edit Record")
+            .navigationTitle(place.name)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-
                 ToolbarItem(placement: .confirmationAction) {
                     Button(NSLocalizedString("common.save", comment: "")) {
-                        save()
+                        floorStore.rename(place, to: name)
+                        dismiss()
                     }
-                    .disabled(trimmedName.isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
                 }
             }
         }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                isNameFocused = true
-            }
-        }
-    }
-
-    private var trimmedName: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func save() {
-        guard !trimmedName.isEmpty else { return }
-        floorStore.updateName(for: record, name: trimmedName)
-        dismiss()
     }
 }
 
-private struct FloorRecordEditorView: View {
+/// Step one of the flow: name the building and capture the floor the user is
+/// standing on as the reference. The floor number is the only thing in the
+/// whole feature the app cannot work out for itself.
+private struct FloorPlaceEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var floorStore: FloorRecordStore
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var name = ""
-    @State private var floorLabel = ""
-    @FocusState private var focusedField: EditorField?
+    @State private var startFloorLabel = ""
+    @FocusState private var focusedField: Field?
 
-    private var store: FloorRecordStore { floorStore }
-
-    private enum EditorField {
+    private enum Field {
         case name
         case floor
     }
@@ -1274,127 +1260,95 @@ private struct FloorRecordEditorView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Altitude") {
+                LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
                     Text(altitudeMonitor.altitudeDisplayText)
                 }
-                TextField(store.hasBaseline ? "Destination floor name" : "Starting floor name", text: $name)
+                TextField(NSLocalizedString("floorDetection.placeName", comment: ""), text: $name)
                     .focused($focusedField, equals: .name)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .floor }
+                TextField(NSLocalizedString("floorDetection.startFloor", comment: ""), text: $startFloorLabel)
+                    .keyboardType(.numbersAndPunctuation)
+                    .focused($focusedField, equals: .floor)
                     .submitLabel(.done)
                     .onSubmit { submit() }
-                TextField("Floor", text: $floorLabel)
-                    .keyboardType(.numberPad)
-                    .focused($focusedField, equals: .floor)
             } header: {
-                Text(store.hasBaseline ? "Destination Floor" : "Starting Floor")
+                Text(NSLocalizedString("floorDetection.startingFloorHeader", comment: ""))
             } footer: {
-                // The starting floor becomes the reference every later height is
-                // measured from, which is what makes floors recorded on separate
-                // trips still recognisable.
-                Text(store.hasBaseline
-                     ? "Name the floor you reached. Its height is measured from the floor you started on."
-                     : "Stand on the floor you are starting from and name it. This becomes the reference for every floor you record afterwards.")
+                Text(NSLocalizedString("floorDetection.startingFloorFooter", comment: ""))
             }
 
             Section {
-                Button(store.hasBaseline ? "Finish" : "加入樓層") {
+                Button(NSLocalizedString("floorDetection.setAsStart", comment: "")) {
                     submit()
                 }
                 .disabled(
                     name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                    floorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    startFloorLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                     altitudeMonitor.currentPressureKPa == nil
                 )
             }
         }
-        .navigationTitle("Floor Detection")
+        .navigationTitle(NSLocalizedString("floorDetection.newPlace", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+            }
+        }
         .onAppear {
             altitudeMonitor.start()
-            altitudeMonitor.updateHeight(baselineKPa: store.baselinePressureKPa)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                focusedField = .name
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { focusedField = .name }
         }
         .onDisappear {
             altitudeMonitor.stop()
         }
     }
 
-    /// Records the named floor. The first floor of a session also sets the
-    /// baseline, and is stored at height zero because it *is* the reference.
     private func submit() {
         guard let pressure = altitudeMonitor.currentPressureKPa else { return }
-        if !store.hasBaseline {
-            store.setBaseline(pressureKPa: pressure)
-            store.addRecord(
-                name: name,
-                floorLabel: floorLabel,
-                altitudeMeters: 0,
-                pressureKPa: pressure
-            )
-        } else {
-            let height = store.heightAboveBaseline(pressureKPa: pressure) ?? 0
-            store.addRecord(
-                name: name,
-                floorLabel: floorLabel,
-                altitudeMeters: height,
-                pressureKPa: pressure
-            )
-        }
+        floorStore.addPlace(
+            name: name,
+            startFloorLabel: startFloorLabel,
+            pressureKPa: pressure
+        )
         dismiss()
     }
 }
 
-private struct FloorMonitorView: View {
-    let record: FloorRecord
+/// One building: its reference point, every floor recorded inside it, and the
+/// controls for refreshing that reference.
+private struct FloorPlaceDetailView: View {
+    let placeID: UUID
     @EnvironmentObject private var floorStore: FloorRecordStore
     @StateObject private var altitudeMonitor = AltitudeMonitor()
-    private let announcer = AccessibilityAnnouncementCenter()
-    @State private var hasAnnouncedArrival = false
-    @State private var didEvaluateBaseline = false
+    @State private var isAddingFloor = false
+    @State private var editingFloor: Floor?
     @State private var showWrongFloorAlert = false
 
-    private var store: FloorRecordStore { floorStore }
+    private var place: FloorPlace? {
+        floorStore.places.first { $0.id == placeID }
+    }
 
     var body: some View {
         Form {
-            Section {
-                Text("\(record.name), \(record.floorLabel)")
-                LabeledContent("Current Altitude") {
-                    Text(altitudeMonitor.altitudeDisplayText)
-                }
+            if let place {
+                referenceSection(place)
+                driftSection(place)
+                floorsSection(place)
             }
         }
-        .navigationTitle(record.name)
-        .onAppear {
-            altitudeMonitor.start()
-        }
-        .onDisappear {
-            altitudeMonitor.stop()
-        }
-        .onChange(of: altitudeMonitor.currentPressureKPa) { pressure in
-            guard let pressure else { return }
-            evaluateBaselineOnce(pressure: pressure)
-
-            // Compared against the record's own pressure rather than its stored
-            // height, so a floor recorded on an earlier trip still matches.
-            // Falls back to the stored height for records saved before pressures
-            // were kept, or on hardware without a barometer.
-            let withinRange: Bool
-            if let recordPressure = record.pressureKPa {
-                withinRange = abs(pressure - recordPressure) <= FloorRecordStore.pressureToleranceKPa
-            } else if let height = store.heightAboveBaseline(pressureKPa: pressure) {
-                withinRange = abs(height - record.altitudeMeters) <= FloorRecordStore.heightToleranceMeters
-            } else {
-                withinRange = false
+        .navigationTitle(place?.name ?? NSLocalizedString("floorDetection.title", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isAddingFloor) {
+            NavigationStack {
+                FloorEditorView(placeID: placeID)
+                    .environmentObject(floorStore)
             }
-
-            if withinRange && !hasAnnouncedArrival {
-                SoundCuePlayer.shared.play(SoundCuePlayer.floorArrival)
-                announcer.announce("Arrived at floor \(record.floorLabel)", minimumInterval: 0)
-                hasAnnouncedArrival = true
-            } else if !withinRange {
-                hasAnnouncedArrival = false
-            }
+        }
+        .sheet(item: $editingFloor) { floor in
+            FloorRenameView(floor: floor, placeID: placeID)
+                .environmentObject(floorStore)
         }
         .alert(
             NSLocalizedString("floorDetection.wrongFloorTitle", comment: ""),
@@ -1404,33 +1358,311 @@ private struct FloorMonitorView: View {
                 showWrongFloorAlert = false
             }
         } message: {
-            Text(NSLocalizedString("floorDetection.wrongFloorMessage", comment: ""))
+            Text(
+                place.map {
+                    String(
+                        format: NSLocalizedString("floorDetection.wrongFloorMessage", comment: ""),
+                        $0.startFloorLabel
+                    )
+                } ?? ""
+            )
+        }
+        .toolbar {
+            Button {
+                isAddingFloor = true
+            } label: {
+                Label(NSLocalizedString("common.add", comment: ""), systemImage: "plus")
+            }
+        }
+        .onAppear {
+            altitudeMonitor.start()
+            altitudeMonitor.updateHeight(baselineKPa: place?.baselinePressureKPa)
+        }
+        .onDisappear {
+            altitudeMonitor.stop()
         }
     }
 
-    /// Barometric pressure drifts with the weather, so a baseline set days ago
-    /// no longer matches the building's real pressure. Opening a record while
-    /// standing on the floor that baseline was taken on is therefore read as a
-    /// calibration opportunity: a small discrepancy refreshes the baseline
-    /// silently, and a large one means the user is somewhere else entirely and
-    /// is told rather than silently re-based to the wrong place.
-    private func evaluateBaselineOnce(pressure: Double) {
-        guard !didEvaluateBaseline else { return }
-        didEvaluateBaseline = true
-        guard let baseline = store.baselinePressureKPa else { return }
-        guard let height = AltitudeMonitor.heightAboveBaseline(
-            pressureKPa: pressure,
-            baselineKPa: baseline
-        ) else { return }
+    private func referenceSection(_ place: FloorPlace) -> some View {
+        Section(NSLocalizedString("floorDetection.reference", comment: "")) {
+            LabeledContent(NSLocalizedString("floorDetection.startFloor", comment: "")) {
+                Text(place.startFloorLabel)
+            }
+            LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
+                Text(String(format: "%.2f kPa", place.baselinePressureKPa))
+            }
+            Button(NSLocalizedString("floorDetection.recalibrate", comment: "")) {
+                recalibrate(place)
+            }
+            .disabled(altitudeMonitor.currentPressureKPa == nil)
+        }
+    }
 
-        if abs(height) <= FloorRecordStore.baselineRecalibrationToleranceMeters {
-            store.setBaseline(pressureKPa: pressure)
-        } else {
+    /// Surfaces baseline drift without ever acting on it. Barometric pressure
+    /// moves with the weather, so the reference set days ago no longer matches
+    /// the building's real pressure and every height shifts with it.
+    @ViewBuilder
+    private func driftSection(_ place: FloorPlace) -> some View {
+        if let pressure = altitudeMonitor.currentPressureKPa,
+           let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
+           abs(drift) > FloorRecordStore.pressureToleranceKPa * 200 {
+            Section {
+                Text(
+                    String(
+                        format: NSLocalizedString("floorDetection.drift", comment: ""),
+                        drift
+                    )
+                )
+                .font(.footnote)
+                if abs(drift) > FloorRecordStore.baselineRecalibrationToleranceMeters {
+                    Button(NSLocalizedString("floorDetection.wrongFloorAction", comment: "")) {
+                        showWrongFloorAlert = true
+                    }
+                }
+            } header: {
+                Text(NSLocalizedString("floorDetection.driftHeader", comment: ""))
+            } footer: {
+                Text(
+                    place.startFloorLabel.isEmpty
+                        ? NSLocalizedString("floorDetection.driftFooterPlain", comment: "")
+                        : String(
+                            format: NSLocalizedString("floorDetection.driftFooter", comment: ""),
+                            place.startFloorLabel
+                        )
+                )
+            }
+        }
+    }
+
+    private func floorsSection(_ place: FloorPlace) -> some View {
+        Section(NSLocalizedString("floorDetection.floors", comment: "")) {
+            if place.floors.isEmpty {
+                Text(NSLocalizedString("floorDetection.noFloors", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(place.floors) { floor in
+                    NavigationLink {
+                        FloorMonitorView(floor: floor, placeID: place.id)
+                            .environmentObject(floorStore)
+                    } label: {
+                        HStack {
+                            Text(floor.label)
+                            Spacer()
+                            if let height = floorStore.height(of: floor, in: place) {
+                                Text(String(format: "%+.2f m", height))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .swipeActions {
+                        Button {
+                            editingFloor = floor
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+
+                        Button(role: .destructive) {
+                            floorStore.delete(floor, in: place)
+                        } label: {
+                            Label(
+                                NSLocalizedString("common.delete", comment: ""),
+                                systemImage: "trash"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func recalibrate(_ place: FloorPlace) {
+        guard let pressure = altitudeMonitor.currentPressureKPa else { return }
+        guard let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
+              abs(drift) <= FloorRecordStore.baselineRecalibrationToleranceMeters
+        else {
             showWrongFloorAlert = true
+            return
+        }
+        floorStore.recalibrateBaseline(for: place.id, pressureKPa: pressure)
+    }
+}
+
+/// Step two of the flow: standing on another floor of a known building, name it.
+/// The label is pre-filled from the height difference so the user usually only
+/// has to confirm it.
+private struct FloorEditorView: View {
+    let placeID: UUID
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var floorStore: FloorRecordStore
+    @StateObject private var altitudeMonitor = AltitudeMonitor()
+    @State private var label = ""
+    @State private var didPrefill = false
+
+    private var place: FloorPlace? {
+        floorStore.places.first { $0.id == placeID }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
+                    Text(altitudeMonitor.altitudeDisplayText)
+                }
+                if let place {
+                    LabeledContent(NSLocalizedString("floorDetection.aboveStartFloor", comment: "")) {
+                        Text(altitudeMonitor.altitudeDisplayText)
+                    }
+                    TextField(
+                        String(
+                            format: NSLocalizedString("floorDetection.floorLabelPrompt", comment: ""),
+                            place.startFloorLabel
+                        ),
+                        text: $label
+                    )
+                    .keyboardType(.numbersAndPunctuation)
+                }
+            } header: {
+                Text(NSLocalizedString("floorDetection.destinationFloorHeader", comment: ""))
+            } footer: {
+                Text(NSLocalizedString("floorDetection.destinationFloorFooter", comment: ""))
+            }
+
+            Section {
+                Button(NSLocalizedString("floorDetection.addFloor", comment: "")) {
+                    submit()
+                }
+                .disabled(
+                    label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    altitudeMonitor.currentPressureKPa == nil
+                )
+            }
+        }
+        .navigationTitle(NSLocalizedString("floorDetection.newFloor", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+            }
+        }
+        .onAppear {
+            altitudeMonitor.start()
+            altitudeMonitor.updateHeight(baselineKPa: place?.baselinePressureKPa)
+        }
+        .onDisappear {
+            altitudeMonitor.stop()
+        }
+    }
+
+    private func submit() {
+        guard let pressure = altitudeMonitor.currentPressureKPa else { return }
+        floorStore.addFloor(label: label, pressureKPa: pressure, to: placeID)
+        dismiss()
+    }
+}
+
+private struct FloorRenameView: View {
+    let floor: Floor
+    let placeID: UUID
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var floorStore: FloorRecordStore
+    @State private var label: String
+
+    init(floor: Floor, placeID: UUID) {
+        self.floor = floor
+        self.placeID = placeID
+        _label = State(initialValue: floor.label)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField(NSLocalizedString("floorDetection.floorLabelPrompt", comment: ""), text: $label)
+                    .keyboardType(.numbersAndPunctuation)
+            }
+            .navigationTitle(floor.label)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(NSLocalizedString("common.save", comment: "")) {
+                        var updated = floor
+                        updated.label = label.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !updated.label.isEmpty else { return }
+                        floorStore.updateFloor(updated, in: placeID)
+                        dismiss()
+                    }
+                    .disabled(label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                }
+            }
         }
     }
 }
 
+private struct FloorMonitorView: View {
+    let floor: Floor
+    let placeID: UUID
+    @EnvironmentObject private var floorStore: FloorRecordStore
+    @StateObject private var altitudeMonitor = AltitudeMonitor()
+    private let announcer = AccessibilityAnnouncementCenter()
+    @State private var hasAnnouncedArrival = false
+
+    private var place: FloorPlace? {
+        floorStore.places.first { $0.id == placeID }
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
+                Text(altitudeMonitor.altitudeDisplayText)
+            }
+            Text(
+                String(
+                    format: NSLocalizedString("floorDetection.watchingFloor", comment: ""),
+                    place.map { "\($0.name) \(floor.label)" } ?? floor.label
+                )
+            )
+            .font(.headline)
+            .multilineTextAlignment(.center)
+
+            if let place, let height = floorStore.height(of: floor, in: place) {
+                Text(String(format: "%+.2f m", height))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle(floor.label)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            altitudeMonitor.start()
+            altitudeMonitor.updateHeight(baselineKPa: place?.baselinePressureKPa)
+        }
+        .onDisappear {
+            altitudeMonitor.stop()
+        }
+        .onChange(of: altitudeMonitor.currentPressureKPa) { pressure in
+            guard let pressure, floorStore.matches(floor, pressureKPa: pressure) else {
+                hasAnnouncedArrival = false
+                return
+            }
+            guard !hasAnnouncedArrival else { return }
+            SoundCuePlayer.shared.play(SoundCuePlayer.floorArrival)
+            announcer.announce(
+                String(
+                    format: NSLocalizedString("floorDetection.arrived", comment: ""),
+                    place?.name ?? floor.label
+                ),
+                minimumInterval: 0
+            )
+            hasAnnouncedArrival = true
+        }
+    }
+}
 private struct MapIntersection: Identifiable {
     let id: String
     let currentRoad: String
@@ -1559,17 +1791,6 @@ private enum RouteSide {
             return "right"
         }
     }
-}
-
-struct FloorRecord: Identifiable, Codable, Equatable, Hashable {
-    let id: UUID
-    let name: String
-    let floorLabel: String
-    let altitudeMeters: Double
-    /// Barometric pressure when this floor was recorded. Optional so records
-    /// saved before this existed still decode; those keep matching on the
-    /// height captured alongside them.
-    let pressureKPa: Double?
 }
 
 private struct SavedMarker: Identifiable, Codable, Equatable, Hashable {
@@ -1734,110 +1955,229 @@ private final class GuidedRouteStore: ObservableObject {
 }
 
 @MainActor
+/// A building the user visits, and the reference its floors are measured from.
+///
+/// The reference is expressed as a floor the user recognises ("1") rather than as
+/// an abstract calibration: asking which floor you are standing on is a question
+/// anyone can answer, whereas "set a baseline" is not.
+struct FloorPlace: Identifiable, Codable, Equatable, Hashable {
+    let id: UUID
+    var name: String
+    /// The floor the user started from, e.g. "1".
+    var startFloorLabel: String
+    /// Pressure captured while standing on the starting floor.
+    var baselinePressureKPa: Double
+    var floors: [Floor]
+
+    var startFloorNumber: Int? {
+        Int(startFloorLabel.trimmingCharacters(in: .whitespaces))
+    }
+}
+
+/// One floor inside a place.
+///
+/// Only the pressure is stored. The height is always recomputed from the place's
+/// baseline, so recalibrating the baseline corrects every floor's displayed height
+/// at once instead of leaving heights captured under a stale reference.
+struct Floor: Identifiable, Codable, Equatable, Hashable {
+    let id: UUID
+    var label: String
+    var pressureKPa: Double
+
+    init(id: UUID = UUID(), label: String, pressureKPa: Double) {
+        self.id = id
+        self.label = label
+        self.pressureKPa = pressureKPa
+    }
+}
+
 final class FloorRecordStore: ObservableObject {
-    @Published private(set) var records: [FloorRecord] = []
-    /// The pressure reading at the floor the user started from. Every stored
-    /// height is measured against this, which is what lets a floor recorded
-    /// yesterday still be recognised today.
-    @Published private(set) var baselinePressureKPa: Double?
+    /// Floor-to-floor height used to turn a height difference into a floor
+    /// number. Fixed rather than configurable: it only feeds a suggestion, and
+    /// the user confirms or overwrites the label before anything is stored.
+    static let storeyHeightMeters = 3.0
+
+    /// How close a reading must be to a floor's pressure to count as arrival,
+    /// in kPa. About a quarter of a metre.
+    static let pressureToleranceKPa = 0.025
+
+    /// Drift beyond this suggests the user is not on the floor the baseline was
+    /// taken from, so the baseline must not be refreshed here.
+    static let baselineRecalibrationToleranceMeters = 2.0
+
+    @Published private(set) var places: [FloorPlace] = []
+
     private let defaults = UserDefaults.standard
-    private let key = "floorDetection.records.v1"
-    private let baselineKey = "floorDetection.baselinePressure.v1"
+    private let placesKey = "floorDetection.places.v2"
+    private let legacyKey = "floorDetection.records.v1"
 
     init() {
         load()
     }
 
-    /// How close a pressure reading must be to a record's to count as the same
-    /// floor, in kPa. About a quarter of a metre of height, the same tolerance
-    /// the height-based comparison used before.
-    static let pressureToleranceKPa = 0.025
-    static let heightToleranceMeters = 0.3
+    // MARK: - Places
 
-    /// How far the baseline may have drifted before the user is asked to go
-    /// back to the floor it was set on, rather than being silently re-based.
-    static let baselineRecalibrationToleranceMeters = 2.0
-
-    var hasBaseline: Bool { baselinePressureKPa != nil }
-
-    /// Records the floor the user is standing on as the reference. The height it
-    /// is stored at is zero by definition.
-    func setBaseline(pressureKPa: Double?) {
-        guard let pressureKPa else { return }
-        baselinePressureKPa = pressureKPa
-        defaults.set(pressureKPa, forKey: baselineKey)
-    }
-
-    /// Height of a pressure reading above the baseline, or nil when there is no
-    /// baseline to compare against yet.
-    func heightAboveBaseline(pressureKPa: Double?) -> Double? {
-        guard let pressureKPa, let baselinePressureKPa else { return nil }
-        return AltitudeMonitor.heightAboveBaseline(
-            pressureKPa: pressureKPa,
-            baselineKPa: baselinePressureKPa
-        )
-    }
-
-    func addRecord(
-        name: String,
-        floorLabel: String,
-        altitudeMeters: Double?,
-        pressureKPa: Double? = nil
-    ) {
-        guard let altitudeMeters else { return }
+    func addPlace(name: String, startFloorLabel: String, pressureKPa: Double) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedFloor = floorLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty, !trimmedFloor.isEmpty else { return }
-        records.append(
-            FloorRecord(
+        let trimmedFloor = startFloorLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedFloor.isEmpty, pressureKPa.isFinite else { return }
+        places.append(
+            FloorPlace(
                 id: UUID(),
                 name: trimmedName,
-                floorLabel: trimmedFloor,
-                altitudeMeters: altitudeMeters,
-                pressureKPa: pressureKPa
+                startFloorLabel: trimmedFloor,
+                baselinePressureKPa: pressureKPa,
+                floors: []
             )
         )
         save()
     }
 
-    func delete(_ record: FloorRecord) {
-        records.removeAll { $0.id == record.id }
+    func rename(_ place: FloorPlace, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let index = places.firstIndex(where: { $0.id == place.id }) else { return }
+        places[index].name = trimmed
         save()
     }
 
-    func updateName(for record: FloorRecord, name: String) {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty, let index = records.firstIndex(where: { $0.id == record.id }) else { return }
-
-        records[index] = FloorRecord(
-            id: record.id,
-            name: trimmedName,
-            floorLabel: record.floorLabel,
-            altitudeMeters: record.altitudeMeters,
-            pressureKPa: record.pressureKPa
-        )
+    func delete(_ place: FloorPlace) {
+        places.removeAll { $0.id == place.id }
         save()
     }
 
     func delete(at offsets: IndexSet) {
-        records.remove(atOffsets: offsets)
+        places.remove(atOffsets: offsets)
         save()
     }
 
+    /// Re-captures the reference while the user stands on the starting floor.
+    ///
+    /// Always user-triggered. A quiet automatic re-anchor is unsafe: a building
+    /// with low ceilings or a mezzanine would trigger it from the wrong floor and
+    /// then every stored height would be wrong.
+    func recalibrateBaseline(for placeID: UUID, pressureKPa: Double) {
+        guard let index = places.firstIndex(where: { $0.id == placeID }), pressureKPa.isFinite else { return }
+        places[index].baselinePressureKPa = pressureKPa
+        save()
+    }
+
+    // MARK: - Floors
+
+    func addFloor(label: String, pressureKPa: Double, to placeID: UUID) {
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, pressureKPa.isFinite,
+              let index = places.firstIndex(where: { $0.id == placeID }) else { return }
+        places[index].floors.append(Floor(label: trimmed, pressureKPa: pressureKPa))
+        save()
+    }
+
+    func updateFloor(_ floor: Floor, in placeID: UUID) {
+        guard let placeIndex = places.firstIndex(where: { $0.id == placeID }),
+              let floorIndex = places[placeIndex].floors.firstIndex(where: { $0.id == floor.id })
+        else { return }
+        places[placeIndex].floors[floorIndex] = floor
+        save()
+    }
+
+    func delete(_ floor: Floor, in place: FloorPlace) {
+        guard let index = places.firstIndex(where: { $0.id == place.id }) else { return }
+        places[index].floors.removeAll { $0.id == floor.id }
+        save()
+    }
+
+    // MARK: - Derived values
+
+    func heightAboveBaseline(pressureKPa: Double, in place: FloorPlace) -> Double? {
+        AltitudeMonitor.heightAboveBaseline(
+            pressureKPa: pressureKPa,
+            baselineKPa: place.baselinePressureKPa
+        )
+    }
+
+    func height(of floor: Floor, in place: FloorPlace) -> Double? {
+        heightAboveBaseline(pressureKPa: floor.pressureKPa, in: place)
+    }
+
+    /// Floor number implied by a reading, or nil when the starting floor was not
+    /// entered as a number or the reading cannot be used.
+    func suggestedFloorLabel(pressureKPa: Double, in place: FloorPlace) -> String? {
+        guard let start = place.startFloorNumber,
+              let height = heightAboveBaseline(pressureKPa: pressureKPa, in: place)
+        else { return nil }
+        return String(start + Int((height / Self.storeyHeightMeters).rounded()))
+    }
+
+    /// Drift of the baseline from where the user is now standing, which is what
+    /// tells them whether standing here is a chance to recalibrate.
+    func baselineDrift(pressureKPa: Double, in place: FloorPlace) -> Double? {
+        heightAboveBaseline(pressureKPa: pressureKPa, in: place)
+    }
+
+    func matches(_ floor: Floor, pressureKPa: Double) -> Bool {
+        abs(pressureKPa - floor.pressureKPa) <= Self.pressureToleranceKPa
+    }
+
+    // MARK: - Persistence
+
     private func load() {
-        baselinePressureKPa = defaults.object(forKey: baselineKey) as? Double
-        guard let data = defaults.data(forKey: key), let decoded = try? JSONDecoder().decode([FloorRecord].self, from: data) else {
-            records = []
+        if let data = defaults.data(forKey: placesKey),
+           let decoded = try? JSONDecoder().decode([FloorPlace].self, from: data) {
+            places = decoded
             return
         }
-        records = decoded
+        places = migrateLegacyRecords()
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(records) {
-            defaults.set(data, forKey: key)
+        guard let data = try? JSONEncoder().encode(places) else { return }
+        defaults.set(data, forKey: placesKey)
+        defaults.removeObject(forKey: legacyKey)
+    }
+
+    /// Earlier builds kept a flat list of name + floor + height, and only the
+    /// ones recorded after the barometer existed carry a pressure. Group those
+    /// by name and keep the rest only if they can still be matched by pressure.
+    private func migrateLegacyRecords() -> [FloorPlace] {
+        guard let data = defaults.data(forKey: legacyKey),
+              let legacy = try? JSONDecoder().decode([LegacyFloorRecord].self, from: data)
+        else { return [] }
+
+        var order: [String] = []
+        var grouped: [String: [LegacyFloorRecord]] = [:]
+        for record in legacy where record.pressureKPa != nil {
+            if grouped[record.name] == nil {
+                grouped[record.name] = []
+                order.append(record.name)
+            }
+            grouped[record.name]?.append(record)
+        }
+
+        return order.compactMap { name in
+            guard let records = grouped[name], !records.isEmpty else { return nil }
+            // The lowest recorded height was where the user started.
+            let start = records.min(by: { $0.altitudeMeters < $1.altitudeMeters })
+            guard let start, let startPressure = start.pressureKPa else { return nil }
+            let floors = records
+                .filter { $0.id != start.id }
+                .map { Floor(label: $0.floorLabel, pressureKPa: $0.pressureKPa ?? startPressure) }
+            return FloorPlace(
+                id: UUID(),
+                name: name,
+                startFloorLabel: start.floorLabel,
+                baselinePressureKPa: startPressure,
+                floors: floors
+            )
         }
     }
+}
+
+/// Shape of the pre-hierarchy records, kept only so old data can be read once.
+private struct LegacyFloorRecord: Codable {
+    let id: UUID
+    let name: String
+    let floorLabel: String
+    let altitudeMeters: Double
+    let pressureKPa: Double?
 }
 
 @MainActor

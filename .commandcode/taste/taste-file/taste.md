@@ -11,6 +11,7 @@
 - Prefers platform-native, well-tested APIs over bundling third-party ML models when reliability matters (e.g., Apple Vision's VNGenerateImageFeaturePrintRequest over ArcFace/ONNX for iOS face recognition). Confidence: 0.7
 - When a dependency or model becomes unused, expects it fully removed from the project and excluded from build artifacts (e.g., an unused model must not ship in the IPA). Confidence: 0.8
 - Builds iOS unsigned IPAs via GitHub Actions and downloads the artifact; builds Android debug APKs locally. Confidence: 0.8
+- Cares about GitHub Actions storage hygiene — expects CI artifacts to be erased after download to save storage (e.g., "erase the artifacts on github produced by github action to save storage"). Confidence: 0.7
 - Distinguishes investigation-only tasks ("research, don't modify") from implementation — expects no code changes during research unless asked. Confidence: 0.8
 - Sometimes wants edits applied but without building/committing ("fix these, but not build it for this round"), separating code changes from build and verification steps. Confidence: 0.7
 - For questions — status checks (e.g., "is everything fixed?") or explanations (e.g., "just tell me") — prefers a concise, direct reply with no file changes. Confidence: 0.7
@@ -20,7 +21,7 @@
 - Approves technical/packaging optimizations only on the condition that app functionality is unaffected — explicitly gates permission with "do it if it doesn't affect app functionality". Confidence: 0.8
 - Delegates technical judgment to the agent — asks "do you recommend X? if so, do it" instead of deciding himself, then expects the work to be carried out. Confidence: 0.7
 - Wants resource/download size surfaced in the UI so end users know the storage cost before downloading (e.g., appending file capacity to model options like "2B ~2.6GB"). Confidence: 0.6
-- Keeps on-screen text minimal and meaningful — removes verbose metadata such as date/time stamps from logs and event lists, and drops redundant status lines (e.g., "result is ready") when the actual result already conveys the state. Confidence: 0.8
+- Keeps on-screen text minimal and meaningful — removes verbose metadata such as date/time stamps from logs and event lists, drops redundant status lines (e.g., "result is ready") when the actual result already conveys the state, and deletes an outdated/verbose explanatory string outright rather than rewriting it with more detail ("直接刪除說明，不用這麼多說明"). Confidence: 0.85
 - Audits for duplicated/overlapping actions by reviewing each button's long-press and VoiceOver action list one by one, requesting unwanted actions be dropped and missing ones added. Confidence: 0.7
 - Expects the same affordances to be available on every surface where a feature appears (e.g., the "Name with Text" save-face action on both the Faces feature page and the Vision tab Faces button). Confidence: 0.7
 - Expects new entry points to reuse existing functionality rather than duplicating it (e.g., the Vision Text button's Take Photo action should invoke the existing photo/OCR flow). Confidence: 0.65
@@ -45,3 +46,10 @@ with automatic fallback (e.g., hf-mirror.com before huggingface.co for Asia), pa
 - Expects distinct user-facing strings on the same screen — objects to a section header and an option row reading identically and wants one relabeled to disambiguate. Confidence: 0.6
 - When comparing tools/models, expects a researched, opinionated answer with a single explicit "best" recommendation for his use case (and honest caveats where benchmarks are inconclusive), rather than a neutral survey of options. Confidence: 0.6
 - Cares about screen-reader focus/reading order, not just that elements are exposed — expects VoiceOver/TalkBack to announce the page title before trailing toolbar controls, matching the logical top-to-bottom, left-to-right order. Confidence: 0.7
+- When approving a targeted change (e.g., switching a model), expects the scope to stay minimal and surgical — explicitly asks not to touch the UI or alerts unless requested ("ui alert不用改"). Confidence: 0.7
+- Proactively requests best-practices and refactoring reviews of the existing codebase ("檢查現時程式有否需要改善，BEST PRACTICES，REFACTOR的地方") and expects concrete, prioritized recommendations rather than a simple yes/no. Confidence: 0.65
+- Cares about correct resource/OS lifecycle management — expects the camera to be properly released to other apps on background, re-acquired on foreground, and used correctly when switching between features. Confidence: 0.65
+- Cares whether an integration is genuinely complete and usable end-to-end, not just present in code — asks whether a feature (e.g., Meta Glasses) is "完整，可用". Confidence: 0.6
+- Expects every item the agent lists under best-practices/refactor recommendations to be implemented (not just the reported bugs), treating the whole set as one batch to finish together. Confidence: 0.7
+- Prefers existing uncommitted changes to be committed and pushed as a checkpoint before starting new work, keeping logically distinct batches in separate commits. Confidence: 0.6
+- Prefers graceful degradation over hard failure when a preferred/cloud service is unavailable — expects an automatic fallback to a local/on-device alternative (e.g., SystemLanguageModel.default when Private Cloud Compute is unavailable) rather than erroring out. Confidence: 0.6
