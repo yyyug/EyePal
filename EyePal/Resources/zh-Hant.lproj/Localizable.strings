@@ -350,7 +350,12 @@
 "floorDetection.reference" = "參考點";
 "floorDetection.driftHeader" = "參考點檢查";
 "floorDetection.drift" = "目前所在位置與記錄的起始樓層相差 %+.2f 公尺。";
-"floorDetection.driftFooterNote" = "氣壓會隨天氣變化，因此先前記錄的高度可能會有這個程度的誤差。";
+"floorDetection.driftFooter" = "若你位於這個場所的 %@ 樓，請重新校正參考點以修正高度；若不在，則無需動作。";
+"floorDetection.driftFooterPlain" = "若你位於這個場所的起始樓層，請重新校正參考點以修正高度。";
+"floorDetection.wrongFloorTitle" = "不在起始樓層";
+"floorDetection.wrongFloorMessage" = "這個場所的參考點是你起始所在的樓層（%@）。只有站在那一樓時才能重新校正。";
+"floorDetection.recalibrate" = "我在起始樓層，重新校正參考點";
+"floorDetection.wrongFloorAction" = "為什麼不能重新校正？";
 "floorDetection.suggestedFloor" = "預估樓層";
 "floorDetection.floorNumber" = "樓層號";
 "floorDetection.floors" = "樓層";

@@ -1337,6 +1337,7 @@ private struct FloorPlaceDetailView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var isAddingFloor = false
     @State private var editingFloor: Floor?
+    @State private var showWrongFloorAlert = false
 
     private var place: FloorPlace? {
         floorStore.places.first { $0.id == placeID }
@@ -1361,6 +1362,23 @@ private struct FloorPlaceDetailView: View {
         .sheet(item: $editingFloor) { floor in
             FloorRenameView(floor: floor, placeID: placeID)
                 .environmentObject(floorStore)
+        }
+        .alert(
+            NSLocalizedString("floorDetection.wrongFloorTitle", comment: ""),
+            isPresented: $showWrongFloorAlert
+        ) {
+            Button(NSLocalizedString("common.ok", comment: "")) {
+                showWrongFloorAlert = false
+            }
+        } message: {
+            Text(
+                place.map {
+                    String(
+                        format: NSLocalizedString("floorDetection.wrongFloorMessage", comment: ""),
+                        $0.startFloorLabel
+                    )
+                } ?? ""
+            )
         }
         .toolbar {
             Button {
@@ -1388,6 +1406,10 @@ private struct FloorPlaceDetailView: View {
             LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
                 Text(String(format: "%.2f kPa", place.baselinePressureKPa))
             }
+            Button(NSLocalizedString("floorDetection.recalibrate", comment: "")) {
+                recalibrate(place)
+            }
+            .disabled(altitudeMonitor.currentPressureKPa == nil)
         }
     }
 
@@ -1407,10 +1429,22 @@ private struct FloorPlaceDetailView: View {
                     )
                 )
                 .font(.footnote)
-                } header: {
+                if abs(drift) > FloorRecordStore.baselineRecalibrationToleranceMeters {
+                    Button(NSLocalizedString("floorDetection.wrongFloorAction", comment: "")) {
+                        showWrongFloorAlert = true
+                    }
+                }
+            } header: {
                 Text(NSLocalizedString("floorDetection.driftHeader", comment: ""))
             } footer: {
-                Text(NSLocalizedString("floorDetection.driftFooterNote", comment: ""))
+                Text(
+                    place.startFloorLabel.isEmpty
+                        ? NSLocalizedString("floorDetection.driftFooterPlain", comment: "")
+                        : String(
+                            format: NSLocalizedString("floorDetection.driftFooter", comment: ""),
+                            place.startFloorLabel
+                        )
+                )
             }
         }
     }
@@ -1455,6 +1489,20 @@ private struct FloorPlaceDetailView: View {
                 }
             }
         }
+    }
+
+    /// The baseline is only ever moved by the user, and only from the floor it
+    /// was taken on. Recalibrating anywhere else would silently redefine every
+    /// stored height against the wrong place.
+    private func recalibrate(_ place: FloorPlace) {
+        guard let pressure = altitudeMonitor.currentPressureKPa else { return }
+        guard let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
+              abs(drift) <= FloorRecordStore.baselineRecalibrationToleranceMeters
+        else {
+            showWrongFloorAlert = true
+            return
+        }
+        floorStore.recalibrateBaseline(for: place.id, pressureKPa: pressure)
     }
 }
 
@@ -2033,6 +2081,10 @@ final class FloorRecordStore: ObservableObject {
     /// in kPa. About a quarter of a metre.
     static let pressureToleranceKPa = 0.025
 
+    /// Drift beyond this and the user is probably not standing on the floor the
+    /// baseline was taken on, so the baseline must not be moved from here.
+    static let baselineRecalibrationToleranceMeters = 2.0
+
     /// Drift worth mentioning at all. Below this the reference is good enough
     /// and mentioning it would just be noise.
     static let baselineDriftNoticeMeters = 0.3
@@ -2086,6 +2138,16 @@ final class FloorRecordStore: ObservableObject {
 
     func delete(at offsets: IndexSet) {
         places.remove(atOffsets: offsets)
+        save()
+    }
+
+    /// Re-captures the reference while the user stands on the starting floor.
+    /// Deliberately never automatic: a building with low ceilings or a mezzanine
+    /// would re-anchor from the wrong floor and every stored height would go with
+    /// it. Only an explicit tap, and only from the floor in question.
+    func recalibrateBaseline(for placeID: UUID, pressureKPa: Double) {
+        guard let index = places.firstIndex(where: { $0.id == placeID }), pressureKPa.isFinite else { return }
+        places[index].baselinePressureKPa = pressureKPa
         save()
     }
 
