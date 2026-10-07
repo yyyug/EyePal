@@ -355,7 +355,7 @@
 "floorDetection.wrongFloorTitle" = "不在起始樓層";
 "floorDetection.wrongFloorMessage" = "這個場所的參考點是你起始所在的樓層（%@）。只有站在那一樓時才能重新校正。";
 "floorDetection.recalibrate" = "我在起始樓層，重新校正參考點";
-"floorDetection.wrongFloorAction" = "為什麼不能重新校正？";
+"floorDetection.renamePlace" = "重新命名場所";
 "floorDetection.suggestedFloor" = "預估樓層";
 "floorDetection.floorNumber" = "樓層號";
 "floorDetection.floors" = "樓層";

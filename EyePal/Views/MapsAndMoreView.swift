@@ -1180,6 +1180,33 @@ struct FloorDetectionListView: View {
                             Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                         }
                     }
+                    // Rename is also reachable by long press and, for VoiceOver,
+                    // as a named custom action. Swipe actions alone are easy to
+                    // miss and awkward to perform without sight.
+                    .contextMenu {
+                        Button {
+                            renamingPlace = place
+                        } label: {
+                            Label(
+                                NSLocalizedString("floorDetection.renamePlace", comment: ""),
+                                systemImage: "pencil"
+                            )
+                        }
+
+                        Button(role: .destructive) {
+                            floorStore.delete(place)
+                        } label: {
+                            Label(
+                                NSLocalizedString("common.delete", comment: ""),
+                                systemImage: "trash"
+                            )
+                        }
+                    }
+                    .accessibilityAction(
+                        named: Text(NSLocalizedString("floorDetection.renamePlace", comment: ""))
+                    ) {
+                        renamingPlace = place
+                    }
                 }
                 .onDelete { offsets in
                     floorStore.delete(at: offsets)
@@ -1429,11 +1456,6 @@ private struct FloorPlaceDetailView: View {
                     )
                 )
                 .font(.footnote)
-                if abs(drift) > FloorRecordStore.baselineRecalibrationToleranceMeters {
-                    Button(NSLocalizedString("floorDetection.wrongFloorAction", comment: "")) {
-                        showWrongFloorAlert = true
-                    }
-                }
             } header: {
                 Text(NSLocalizedString("floorDetection.driftHeader", comment: ""))
             } footer: {

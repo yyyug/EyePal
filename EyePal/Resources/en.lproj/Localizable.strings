@@ -354,7 +354,7 @@
 "floorDetection.wrongFloorTitle" = "Not on the starting floor";
 "floorDetection.wrongFloorMessage" = "The reference for this place is the floor you started on, marked %@. Only refresh it while standing on that floor.";
 "floorDetection.recalibrate" = "I am on the starting floor, refresh reference";
-"floorDetection.wrongFloorAction" = "Why can I not refresh?";
+"floorDetection.renamePlace" = "Rename place";
 "floorDetection.floors" = "Floors";
 "floorDetection.noFloors" = "No floors recorded yet.";
 "floorDetection.aboveStartFloor" = "Above starting floor";
