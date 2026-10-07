@@ -336,8 +336,6 @@
 "cameraSource.help" = "會套用到所有使用鏡頭的功能：視覺、快拍描述、詳細描述、文字辨識與人臉辨識。";
 "cameraSource.glassesNotReady" = "已選擇眼鏡但尚未連線。請在下方完成配對並啟動眼鏡相機。";
 "metaGlasses.previewUnavailable" = "等待眼鏡相機畫面";
-"floorDetection.wrongFloorTitle" = "不在起始樓層";
-"floorDetection.wrongFloorMessage" = "這個場所的參考點是你起始所在的樓層（%@）。只有站在那一樓時才能重新校正。";
 "floorDetection.title" = "樓層辨識";
 "floorDetection.newPlace" = "新增場所";
 "floorDetection.newFloor" = "新增樓層";
@@ -350,12 +348,11 @@
 "floorDetection.startFloor" = "起始樓層";
 "floorDetection.pressure" = "氣壓";
 "floorDetection.reference" = "參考點";
-"floorDetection.recalibrate" = "我在起始樓層，重新校正參考點";
 "floorDetection.driftHeader" = "參考點檢查";
 "floorDetection.drift" = "目前所在位置與記錄的起始樓層相差 %+.2f 公尺。";
-"floorDetection.driftFooter" = "若你位於這個場所的 %@ 樓，請重新校正參考點以修正高度；若不在，則無需動作。";
-"floorDetection.driftFooterPlain" = "若你位於這個場所的起始樓層，請重新校正參考點以修正高度。";
-"floorDetection.wrongFloorAction" = "為什麼不能重新校正？";
+"floorDetection.driftFooterNote" = "氣壓會隨天氣變化，因此先前記錄的高度可能會有這個程度的誤差。";
+"floorDetection.suggestedFloor" = "預估樓層";
+"floorDetection.floorNumber" = "樓層號";
 "floorDetection.floors" = "樓層";
 "floorDetection.noFloors" = "尚未記錄任何樓層。";
 "floorDetection.aboveStartFloor" = "高於起始樓層";

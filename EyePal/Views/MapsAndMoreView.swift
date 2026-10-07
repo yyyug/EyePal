@@ -1337,7 +1337,6 @@ private struct FloorPlaceDetailView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var isAddingFloor = false
     @State private var editingFloor: Floor?
-    @State private var showWrongFloorAlert = false
 
     private var place: FloorPlace? {
         floorStore.places.first { $0.id == placeID }
@@ -1362,23 +1361,6 @@ private struct FloorPlaceDetailView: View {
         .sheet(item: $editingFloor) { floor in
             FloorRenameView(floor: floor, placeID: placeID)
                 .environmentObject(floorStore)
-        }
-        .alert(
-            NSLocalizedString("floorDetection.wrongFloorTitle", comment: ""),
-            isPresented: $showWrongFloorAlert
-        ) {
-            Button(NSLocalizedString("common.ok", comment: "")) {
-                showWrongFloorAlert = false
-            }
-        } message: {
-            Text(
-                place.map {
-                    String(
-                        format: NSLocalizedString("floorDetection.wrongFloorMessage", comment: ""),
-                        $0.startFloorLabel
-                    )
-                } ?? ""
-            )
         }
         .toolbar {
             Button {
@@ -1406,10 +1388,6 @@ private struct FloorPlaceDetailView: View {
             LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
                 Text(String(format: "%.2f kPa", place.baselinePressureKPa))
             }
-            Button(NSLocalizedString("floorDetection.recalibrate", comment: "")) {
-                recalibrate(place)
-            }
-            .disabled(altitudeMonitor.currentPressureKPa == nil)
         }
     }
 
@@ -1429,22 +1407,10 @@ private struct FloorPlaceDetailView: View {
                     )
                 )
                 .font(.footnote)
-                if abs(drift) > FloorRecordStore.baselineRecalibrationToleranceMeters {
-                    Button(NSLocalizedString("floorDetection.wrongFloorAction", comment: "")) {
-                        showWrongFloorAlert = true
-                    }
-                }
-            } header: {
+                } header: {
                 Text(NSLocalizedString("floorDetection.driftHeader", comment: ""))
             } footer: {
-                Text(
-                    place.startFloorLabel.isEmpty
-                        ? NSLocalizedString("floorDetection.driftFooterPlain", comment: "")
-                        : String(
-                            format: NSLocalizedString("floorDetection.driftFooter", comment: ""),
-                            place.startFloorLabel
-                        )
-                )
+                Text(NSLocalizedString("floorDetection.driftFooterNote", comment: ""))
             }
         }
     }
@@ -1490,17 +1456,6 @@ private struct FloorPlaceDetailView: View {
             }
         }
     }
-
-    private func recalibrate(_ place: FloorPlace) {
-        guard let pressure = altitudeMonitor.currentPressureKPa else { return }
-        guard let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
-              abs(drift) <= FloorRecordStore.baselineRecalibrationToleranceMeters
-        else {
-            showWrongFloorAlert = true
-            return
-        }
-        floorStore.recalibrateBaseline(for: place.id, pressureKPa: pressure)
-    }
 }
 
 /// Step two of the flow: standing on another floor of a known building, name it.
@@ -1529,15 +1484,19 @@ private struct FloorEditorView: View {
                 LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
                     Text(pressureText)
                 }
-                if let place {
+                if place != nil {
                     LabeledContent(NSLocalizedString("floorDetection.aboveStartFloor", comment: "")) {
                         Text(heightText ?? NSLocalizedString("floorDetection.unavailable", comment: ""))
                     }
+                    LabeledContent(NSLocalizedString("floorDetection.suggestedFloor", comment: "")) {
+                        Text(suggestedLabel ?? NSLocalizedString("floorDetection.unavailable", comment: ""))
+                    }
+                    // Plain prompt on purpose. Putting the starting floor in the
+                    // placeholder left a bare number sitting in an empty field,
+                    // which read as if it had been filled in and left it at the
+                    // starting floor.
                     TextField(
-                        String(
-                            format: NSLocalizedString("floorDetection.floorLabelPrompt", comment: ""),
-                            place.startFloorLabel
-                        ),
+                        NSLocalizedString("floorDetection.floorNumber", comment: ""),
                         text: $label
                     )
                     .keyboardType(.numbersAndPunctuation)
@@ -1573,13 +1532,21 @@ private struct FloorEditorView: View {
             altitudeMonitor.stop()
         }
         .onChange(of: altitudeMonitor.currentPressureKPa) { pressure in
-            guard let pressure, !didPrefill else { return }
+            guard let pressure, !didPrefill, label.isEmpty,
+                  let place,
+                  let suggestion = floorStore.suggestedFloorLabel(pressureKPa: pressure, in: place)
+            else { return }
+            label = suggestion
             didPrefill = true
-            if label.isEmpty, let place,
-               let suggestion = floorStore.suggestedFloorLabel(pressureKPa: pressure, in: place) {
-                label = suggestion
-            }
         }
+    }
+
+    /// The floor the current reading implies. Shown on its own row as well as
+    /// written into the field, so the number is visible either way and the
+    /// placeholder can never be mistaken for it.
+    private var suggestedLabel: String? {
+        guard let place, let pressure = altitudeMonitor.currentPressureKPa else { return nil }
+        return floorStore.suggestedFloorLabel(pressureKPa: pressure, in: place)
     }
 
     /// Raw pressure, kept separate from the height so the two rows do not show
@@ -1625,7 +1592,7 @@ private struct FloorRenameView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField(NSLocalizedString("floorDetection.floorLabelPrompt", comment: ""), text: $label)
+                TextField(NSLocalizedString("floorDetection.floorNumber", comment: ""), text: $label)
                     .keyboardType(.numbersAndPunctuation)
             }
             .navigationTitle(floor.label)
@@ -1694,7 +1661,7 @@ private struct FloorMonitorView: View {
             altitudeMonitor.stop()
         }
         .onChange(of: altitudeMonitor.currentPressureKPa) { pressure in
-            guard let pressure, floorStore.matches(floor, pressureKPa: pressure) else {
+            guard let pressure, hasArrived(pressureKPa: pressure) else {
                 hasAnnouncedArrival = false
                 return
             }
@@ -1709,6 +1676,24 @@ private struct FloorMonitorView: View {
             )
             hasAnnouncedArrival = true
         }
+    }
+
+    /// True once the reading is within `arrivalLeadMeters` of the target floor.
+    ///
+    /// Announcing on approach rather than on arrival means the user hears it
+    /// before they have stopped. A single symmetric window covers both
+    /// directions: travelling up the reading passes `target - 0.2` first, and
+    /// travelling down it passes `target + 0.2` first. Heights are used rather
+    /// than raw pressure so the lead is a real distance; where no baseline
+    /// exists (no barometer yet) it falls back to comparing pressures.
+    private func hasArrived(pressureKPa pressure: Double) -> Bool {
+        guard let place,
+              let target = floorStore.height(of: floor, in: place),
+              let current = floorStore.heightAboveBaseline(pressureKPa: pressure, in: place)
+        else {
+            return floorStore.matches(floor, pressureKPa: pressure)
+        }
+        return abs(current - target) <= FloorRecordStore.arrivalLeadMeters
     }
 }
 private struct MapIntersection: Identifiable {
@@ -2048,13 +2033,14 @@ final class FloorRecordStore: ObservableObject {
     /// in kPa. About a quarter of a metre.
     static let pressureToleranceKPa = 0.025
 
-    /// Drift beyond this suggests the user is not on the floor the baseline was
-    /// taken from, so the baseline must not be refreshed here.
-    static let baselineRecalibrationToleranceMeters = 2.0
-
     /// Drift worth mentioning at all. Below this the reference is good enough
     /// and mentioning it would just be noise.
     static let baselineDriftNoticeMeters = 0.3
+
+    /// How close to the target floor counts as arrived. Announcing slightly
+    /// before the user stops is the point: they hear the floor while they are
+    /// still walking up to it or already walking away from it.
+    static let arrivalLeadMeters = 0.2
 
     @Published private(set) var places: [FloorPlace] = []
 
@@ -2100,17 +2086,6 @@ final class FloorRecordStore: ObservableObject {
 
     func delete(at offsets: IndexSet) {
         places.remove(atOffsets: offsets)
-        save()
-    }
-
-    /// Re-captures the reference while the user stands on the starting floor.
-    ///
-    /// Always user-triggered. A quiet automatic re-anchor is unsafe: a building
-    /// with low ceilings or a mezzanine would trigger it from the wrong floor and
-    /// then every stored height would be wrong.
-    func recalibrateBaseline(for placeID: UUID, pressureKPa: Double) {
-        guard let index = places.firstIndex(where: { $0.id == placeID }), pressureKPa.isFinite else { return }
-        places[index].baselinePressureKPa = pressureKPa
         save()
     }
 
@@ -2160,8 +2135,9 @@ final class FloorRecordStore: ObservableObject {
         return String(start + Int((height / Self.storeyHeightMeters).rounded()))
     }
 
-    /// Drift of the baseline from where the user is now standing, which is what
-    /// tells them whether standing here is a chance to recalibrate.
+    /// Drift of the baseline from where the user is now standing, reported so a
+    /// slow weather-driven shift is visible rather than silently skewing every
+    /// stored height.
     func baselineDrift(pressureKPa: Double, in place: FloorPlace) -> Double? {
         heightAboveBaseline(pressureKPa: pressureKPa, in: place)
     }
