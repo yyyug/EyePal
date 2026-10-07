@@ -84,11 +84,11 @@ private func makeAppleSession(instructions: String) -> LanguageModelSession {
 /// with this session: it exists only so the assets are already resident when the
 /// first real request opens its own session.
 @available(iOS 27.0, *)
-private final class WarmSessionHolder {
+private final class PreparedSessionHolder {
     let session: LanguageModelSession
 
     init(instructions: String) {
-        session = makeAppleSession(instructions: instructions)
+        session = LanguageModelSession(instructions: instructions)
     }
 }
 #endif
@@ -110,7 +110,16 @@ final class AppleFoundationModelService {
     #if canImport(FoundationModels)
     /// Held only so `prewarm` has something to load into. It is never used for
     /// a request, because requests each get their own session.
-    private var warmHolder: AnyObject?
+    /// Session created by `prewarm` and consumed by the next request.
+    ///
+    /// It must be the session that actually answers. Prewarming one session and
+    /// then responding on a different one is a misuse of the API and it showed up
+    /// as a reproducible trap: EXC_BREAKPOINT with a byte-identical backtrace
+    /// six frames inside FoundationModels, entered through
+    /// `completeTaskWithClosure` handing the task a CancellationError, always on
+    /// the first recognition after launch. Handing the warmed session to the
+    /// request it was warmed for is the pattern Apple documents.
+    private var pendingWarmSession: AnyObject?
     #endif
 
     private init() {}
@@ -134,9 +143,9 @@ final class AppleFoundationModelService {
     func prewarmIfNeeded() {
         #if canImport(FoundationModels)
         if #available(iOS 27.0, *) {
-            guard warmHolder == nil else { return }
-            let holder = WarmSessionHolder(instructions: Self.sessionInstructions)
-            warmHolder = holder
+            guard pendingWarmSession == nil else { return }
+            let holder = PreparedSessionHolder(instructions: Self.sessionInstructions)
+            pendingWarmSession = holder
             holder.session.prewarm()
         }
         #endif
@@ -253,18 +262,24 @@ final class AppleFoundationModelService {
     }
 
     #if canImport(FoundationModels)
-    /// A new session per capture, on purpose.
+/// A new session per capture, on purpose.
     ///
     /// Every request adds an image to the session's transcript. Sharing one
     /// session across captures therefore left the model looking at several
     /// unlabelled photos at once, and it would answer about whichever one it
     /// latched onto — or confabulate, since the prompt's "this image" was
-    /// ambiguous. One session, one image, no ambiguity. The cost is the prompt
-    /// prefix cache, which `prewarmIfNeeded` more than makes up for: the model
-    /// assets stay resident in the process either way.
+    /// ambiguous. One session, one image, no ambiguity.
+    ///
+    /// If `prewarmIfNeeded` already prepared a session, that is the one used, so
+    /// the warm-up is not thrown away and no second session is created alongside
+    /// it.
     @available(iOS 27.0, *)
     private func freshSession() -> LanguageModelSession {
-        makeAppleSession(instructions: Self.sessionInstructions)
+        if let holder = pendingWarmSession as? PreparedSessionHolder {
+            pendingWarmSession = nil
+            return holder.session
+        }
+        return LanguageModelSession(instructions: Self.sessionInstructions)
     }
 
     /// Referenced in the prompt as well as on the attachment, so the model has
