@@ -21,8 +21,8 @@ class FloorDetectionService(context: Context) : SensorEventListener {
 
     private val _statusText = MutableStateFlow(appContext.getString(R.string.floor_status_detecting))
     val statusText: StateFlow<String> = _statusText
-    private val _currentPressure = MutableStateFlow(1013.25f)
-    val currentPressure: StateFlow<Float> = _currentPressure
+    private val _currentPressure = MutableStateFlow<Float?>(null)
+    val currentPressure: StateFlow<Float?> = _currentPressure
     private val _baselinePressure = MutableStateFlow(1013.25f)
     val baselinePressureFlow: StateFlow<Float> = _baselinePressure
 

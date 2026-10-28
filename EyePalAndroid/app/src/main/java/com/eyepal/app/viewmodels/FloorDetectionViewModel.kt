@@ -6,84 +6,189 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.EyePalApplication
 import com.eyepal.app.R
-import com.eyepal.app.models.FloorRecord
+import com.eyepal.app.models.Floor
+import com.eyepal.app.models.FloorPlace
 import com.eyepal.app.services.FloorRecordStorage
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 class FloorDetectionViewModel(application: Application) : AndroidViewModel(application) {
     private fun str(resId: Int): String = getApplication<Application>().getString(resId)
-    private fun str(resId: Int, vararg args: Any?): String = getApplication<Application>().getString(resId, *args)
+    private fun str(resId: Int, vararg args: Any?): String =
+        getApplication<Application>().getString(resId, *args)
 
-    val currentFloor = mutableStateOf(0)
-    val statusText = mutableStateOf(str(R.string.status_tap_calibrate))
-    val isCalibrated = mutableStateOf(false)
-    val records = mutableStateOf<List<FloorRecord>>(emptyList())
+    val places = mutableStateOf<List<FloorPlace>>(emptyList())
+
+    /** Null until the barometer has produced a real sample. */
+    val currentPressureKPa = mutableStateOf<Double?>(null)
 
     private val container = (application as EyePalApplication).container
     private val floorService = container.floorDetectionService
     private val announcer = container.announcer
 
     init {
-        records.value = FloorRecordStorage.loadRecords(application)
-        viewModelScope.launch { floorService.currentFloor.collectLatest { currentFloor.value = it } }
-        viewModelScope.launch { floorService.statusText.collectLatest { statusText.value = it } }
-        viewModelScope.launch { floorService.currentPressure.collectLatest { currentPressure = it } }
-        viewModelScope.launch { floorService.baselinePressureFlow.collectLatest { baselinePressure = it } }
+        places.value = FloorRecordStorage.loadPlaces(application)
+        viewModelScope.launch {
+            floorService.currentPressure.collectLatest {
+                currentPressureKPa.value = it?.toDouble()
+            }
+        }
     }
 
-    fun start() { floorService.start() }
-    fun stop() { floorService.stop() }
+    fun start() = floorService.start()
 
-    fun calibrate() {
-        floorService.calibrate()
-        isCalibrated.value = true
-    }
+    fun stop() = floorService.stop()
 
-    fun saveCurrentFloor(note: String = "") {
-        val floor = currentFloor.value
-        val record = FloorRecord(id = System.currentTimeMillis().toString(), floor = floor, note = note)
-        records.value = listOf(record) + records.value
-        FloorRecordStorage.addRecord(getApplication(), record)
-        announcer.announce(str(R.string.status_floor_saved, floor))
-    }
+    // MARK: - Places
 
-    fun deleteRecord(id: String) {
-        records.value = records.value.filter { it.id != id }
-        FloorRecordStorage.deleteRecord(getApplication(), id)
-    }
-
-    fun renameRecord(id: String, newName: String) {
-        records.value = records.value.map { if (it.id == id) it.copy(name = newName) else it }
-        FloorRecordStorage.renameRecord(getApplication(), id, newName)
-        announcer.announce(str(R.string.status_record_renamed, newName))
-    }
-
-    fun addRecord(name: String, altitude: Double, floor: Int) {
-        val record = FloorRecord(
-            id = System.currentTimeMillis().toString(),
-            floor = floor,
-            name = name,
-            altitude = altitude
+    fun addPlace(name: String, startFloorLabel: String, pressureKPa: Double?): String? {
+        val trimmedName = name.trim()
+        val trimmedFloor = startFloorLabel.trim()
+        if (trimmedName.isEmpty() || trimmedFloor.isEmpty() || pressureKPa == null) return null
+        if (!pressureKPa.isFinite()) return null
+        val place = FloorPlace(
+            name = trimmedName,
+            startFloorLabel = trimmedFloor,
+            baselinePressureKPa = pressureKPa
         )
-        records.value = listOf(record) + records.value
-        FloorRecordStorage.addRecord(getApplication(), record)
-        announcer.announce(str(R.string.status_record_saved, name))
+        places.value = places.value + place
+        persist()
+        return place.id
     }
 
-    fun updateRecord(id: String, name: String, altitude: Double, floor: Int) {
-        records.value = records.value.map { if (it.id == id) it.copy(name = name, altitude = altitude, floor = floor) else it }
-        FloorRecordStorage.updateRecord(getApplication(), id, name, altitude, floor)
-        announcer.announce(str(R.string.status_record_updated))
+    fun renamePlace(placeId: String, name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        updatePlace(placeId) { it.copy(name = trimmed) }
     }
 
-    private var currentPressure = 1013.25f
-    private var baselinePressure = 1013.25f
-
-    fun getCurrentAltitude(): Double {
-        if (currentPressure <= 0) return 0.0
-        return 44330.0 * (1.0 - java.lang.Math.pow((currentPressure / baselinePressure).toDouble(), 1.0 / 5.255))
+    /** Corrects the reference floor's label. The pressure stays as recorded. */
+    fun updateStartFloorLabel(placeId: String, label: String) {
+        val trimmed = label.trim()
+        if (trimmed.isEmpty()) return
+        updatePlace(placeId) { it.copy(startFloorLabel = trimmed) }
     }
 
-    override fun onCleared() { super.onCleared(); floorService.stop() }
+    fun deletePlace(placeId: String) {
+        places.value = places.value.filterNot { it.id == placeId }
+        persist()
+    }
+
+    /**
+     * Re-captures the reference. Deliberately never automatic: a building with
+     * low ceilings or a mezzanine would re-anchor from the wrong floor and every
+     * stored height would go with it.
+     */
+    fun recalibrateBaseline(placeId: String, pressureKPa: Double) {
+        if (!pressureKPa.isFinite()) return
+        updatePlace(placeId) { it.copy(baselinePressureKPa = pressureKPa) }
+        announcer.announce(str(R.string.floor_status_recalibrated), minimumInterval = 0)
+    }
+
+    // MARK: - Floors
+
+    fun addFloor(placeId: String, label: String, pressureKPa: Double?) {
+        val trimmed = label.trim()
+        if (trimmed.isEmpty() || pressureKPa == null || !pressureKPa.isFinite()) return
+        updatePlace(placeId) { it.copy(floors = it.floors + Floor(label = trimmed, pressureKPa = pressureKPa)) }
+        announcer.announce(str(R.string.status_record_saved, trimmed), minimumInterval = 0)
+    }
+
+    /**
+     * Renames a floor and optionally moves it to a corrected height. Height is
+     * converted back into a pressure against the place's baseline so every
+     * height stays derived from one reference.
+     */
+    fun updateFloor(placeId: String, floorId: String, label: String, heightMeters: Double?) {
+        val trimmed = label.trim()
+        if (trimmed.isEmpty()) return
+        updatePlace(placeId) { place ->
+            val floors = place.floors.map { floor ->
+                if (floor.id != floorId) return@map floor
+                val pressure = heightMeters
+                    ?.let { pressureKPaForHeight(it, place.baselinePressureKPa) }
+                    ?: floor.pressureKPa
+                floor.copy(label = trimmed, pressureKPa = pressure)
+            }
+            place.copy(floors = floors)
+        }
+        announcer.announce(str(R.string.status_record_updated), minimumInterval = 0)
+    }
+
+    fun deleteFloor(placeId: String, floorId: String) {
+        updatePlace(placeId) { place ->
+            place.copy(floors = place.floors.filterNot { it.id == floorId })
+        }
+    }
+
+    fun announceArrival(place: FloorPlace, floor: Floor) {
+        val name = "${place.name} ${floor.label}"
+        announcer.announce(str(R.string.floor_arrived, name), minimumInterval = 0)
+    }
+
+    fun announce(text: String) {
+        announcer.announce(text, minimumInterval = 0)
+    }
+
+    // MARK: - Derived values
+
+    /** Height above a reference pressure, in metres, via the standard barometric formula. */
+    fun heightAboveBaseline(pressureKPa: Double, baselineKPa: Double): Double? {
+        if (pressureKPa <= 0 || baselineKPa <= 0) return null
+        if (!pressureKPa.isFinite() || !baselineKPa.isFinite()) return null
+        return 44330.0 * (1.0 - (pressureKPa / baselineKPa).pow(1.0 / 5.255))
+    }
+
+    fun heightOf(floor: Floor, place: FloorPlace): Double? =
+        heightAboveBaseline(floor.pressureKPa, place.baselinePressureKPa)
+
+    fun drift(pressureKPa: Double, place: FloorPlace): Double? =
+        heightAboveBaseline(pressureKPa, place.baselinePressureKPa)
+
+    fun suggestedFloorLabel(pressureKPa: Double, place: FloorPlace): String? {
+        val start = place.startFloorNumber ?: return null
+        val height = heightAboveBaseline(pressureKPa, place.baselinePressureKPa) ?: return null
+        return (start + (height / STOREY_HEIGHT_METERS).roundToInt()).toString()
+    }
+
+    /** Inverse of the barometric formula, used when the user corrects a height. */
+    fun pressureKPaForHeight(heightMeters: Double, baselineKPa: Double): Double? {
+        if (baselineKPa <= 0 || !baselineKPa.isFinite() || !heightMeters.isFinite()) return null
+        if (heightMeters >= 44330.0) return null
+        val pressure = baselineKPa * (1.0 - heightMeters / 44330.0).pow(5.255)
+        return if (pressure.isFinite() && pressure > 0) pressure else null
+    }
+
+    fun hasArrived(place: FloorPlace, floor: Floor, pressureKPa: Double): Boolean {
+        val target = heightOf(floor, place) ?: return false
+        val current = heightAboveBaseline(pressureKPa, place.baselinePressureKPa) ?: return false
+        return kotlin.math.abs(current - target) <= ARRIVAL_LEAD_METERS
+    }
+
+    private fun updatePlace(placeId: String, transform: (FloorPlace) -> FloorPlace) {
+        places.value = places.value.map { if (it.id == placeId) transform(it) else it }
+        persist()
+    }
+
+    private fun persist() {
+        FloorRecordStorage.savePlaces(getApplication(), places.value)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        floorService.stop()
+    }
+
+    companion object {
+        /** Fixed storey height used only to suggest a floor number. */
+        const val STOREY_HEIGHT_METERS = 3.0
+
+        /** How close to the target counts as arrived, so the cue comes early. */
+        const val ARRIVAL_LEAD_METERS = 0.2
+
+        /** Drift worth mentioning at all. */
+        const val DRIFT_NOTICE_METERS = 0.3
+    }
 }

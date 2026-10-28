@@ -1171,7 +1171,10 @@ struct FloorDetectionListView: View {
                         Button {
                             renamingPlace = place
                         } label: {
-                            Label("Edit", systemImage: "pencil")
+                            Label(
+                                NSLocalizedString("floorDetection.renamePlace", comment: ""),
+                                systemImage: "pencil"
+                            )
                         }
 
                         Button(role: .destructive) {
@@ -1180,9 +1183,10 @@ struct FloorDetectionListView: View {
                             Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                         }
                     }
-                    // Rename is also reachable by long press and, for VoiceOver,
-                    // as a named custom action. Swipe actions alone are easy to
-                    // miss and awkward to perform without sight.
+                    // Rename is also reachable by long press. The swipe action is
+                    // already exposed to VoiceOver as a custom action, so adding
+                    // `.accessibilityAction` as well made it read the same action
+                    // twice.
                     .contextMenu {
                         Button {
                             renamingPlace = place
@@ -1201,11 +1205,6 @@ struct FloorDetectionListView: View {
                                 systemImage: "trash"
                             )
                         }
-                    }
-                    .accessibilityAction(
-                        named: Text(NSLocalizedString("floorDetection.renamePlace", comment: ""))
-                    ) {
-                        renamingPlace = place
                     }
                 }
                 .onDelete { offsets in
@@ -1364,7 +1363,11 @@ private struct FloorPlaceDetailView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var isAddingFloor = false
     @State private var editingFloor: Floor?
-    @State private var showWrongFloorAlert = false
+    @State private var editingStartFloor = false
+    @State private var showRecalibrationConfirm = false
+    /// Distance shown in the recalibration confirmation. Captured when the button
+    /// is tapped so the alert text cannot drift while it is on screen.
+    @State private var recalibrationDrift: Double?
 
     private var place: FloorPlace? {
         floorStore.places.first { $0.id == placeID }
@@ -1374,7 +1377,6 @@ private struct FloorPlaceDetailView: View {
         Form {
             if let place {
                 referenceSection(place)
-                driftSection(place)
                 floorsSection(place)
             }
         }
@@ -1386,26 +1388,34 @@ private struct FloorPlaceDetailView: View {
                     .environmentObject(floorStore)
             }
         }
+        .sheet(isPresented: $editingStartFloor) {
+            if let place {
+                StartFloorRenameView(place: place)
+                    .environmentObject(floorStore)
+            }
+        }
         .sheet(item: $editingFloor) { floor in
-            FloorRenameView(floor: floor, placeID: placeID)
+            if let place {
+                FloorEditView(
+                    floor: floor,
+                    placeID: placeID,
+                    baselineKPa: place.baselinePressureKPa
+                )
                 .environmentObject(floorStore)
+            }
         }
         .alert(
-            NSLocalizedString("floorDetection.wrongFloorTitle", comment: ""),
-            isPresented: $showWrongFloorAlert
+            NSLocalizedString("floorDetection.recalibrateConfirmTitle", comment: ""),
+            isPresented: $showRecalibrationConfirm
         ) {
-            Button(NSLocalizedString("common.ok", comment: "")) {
-                showWrongFloorAlert = false
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                recalibrationDrift = nil
+            }
+            Button(NSLocalizedString("floorDetection.recalibrateConfirmAction", comment: "")) {
+                applyRecalibration()
             }
         } message: {
-            Text(
-                place.map {
-                    String(
-                        format: NSLocalizedString("floorDetection.wrongFloorMessage", comment: ""),
-                        $0.startFloorLabel
-                    )
-                } ?? ""
-            )
+            Text(recalibrationMessage)
         }
         .toolbar {
             Button {
@@ -1425,6 +1435,10 @@ private struct FloorPlaceDetailView: View {
         }
     }
 
+    /// One section, on purpose. The reference rows, the live distance from the
+    /// reference and the control that refreshes it all answer the same question
+    /// ("is this reference still right?"), so splitting them into "Reference"
+    /// and "Reference check" made the user read two headers for one idea.
     private func referenceSection(_ place: FloorPlace) -> some View {
         Section(NSLocalizedString("floorDetection.reference", comment: "")) {
             LabeledContent(NSLocalizedString("floorDetection.startFloor", comment: "")) {
@@ -1433,22 +1447,12 @@ private struct FloorPlaceDetailView: View {
             LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
                 Text(String(format: "%.2f kPa", place.baselinePressureKPa))
             }
-            Button(NSLocalizedString("floorDetection.recalibrate", comment: "")) {
-                recalibrate(place)
+            Button(NSLocalizedString("floorDetection.renameStartFloor", comment: "")) {
+                editingStartFloor = true
             }
-            .disabled(altitudeMonitor.currentPressureKPa == nil)
-        }
-    }
-
-    /// Surfaces baseline drift without ever acting on it. Barometric pressure
-    /// moves with the weather, so the reference set days ago no longer matches
-    /// the building's real pressure and every height shifts with it.
-    @ViewBuilder
-    private func driftSection(_ place: FloorPlace) -> some View {
-        if let pressure = altitudeMonitor.currentPressureKPa,
-           let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
-           abs(drift) > FloorRecordStore.baselineDriftNoticeMeters {
-            Section {
+            if let pressure = altitudeMonitor.currentPressureKPa,
+               let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
+               abs(drift) > FloorRecordStore.baselineDriftNoticeMeters {
                 Text(
                     String(
                         format: NSLocalizedString("floorDetection.drift", comment: ""),
@@ -1456,19 +1460,21 @@ private struct FloorPlaceDetailView: View {
                     )
                 )
                 .font(.footnote)
-            } header: {
-                Text(NSLocalizedString("floorDetection.driftHeader", comment: ""))
-            } footer: {
-                Text(
-                    place.startFloorLabel.isEmpty
-                        ? NSLocalizedString("floorDetection.driftFooterPlain", comment: "")
-                        : String(
-                            format: NSLocalizedString("floorDetection.driftFooter", comment: ""),
-                            place.startFloorLabel
-                        )
-                )
             }
+            Button(NSLocalizedString("floorDetection.recalibrate", comment: "")) {
+                beginRecalibration(place)
+            }
+            .disabled(altitudeMonitor.currentPressureKPa == nil)
         }
+    }
+
+    private var recalibrationMessage: String {
+        guard let place, let drift = recalibrationDrift else { return "" }
+        return String(
+            format: NSLocalizedString("floorDetection.recalibrateConfirmMessage", comment: ""),
+            drift,
+            place.startFloorLabel
+        )
     }
 
     private func floorsSection(_ place: FloorPlace) -> some View {
@@ -1496,7 +1502,33 @@ private struct FloorPlaceDetailView: View {
                         Button {
                             editingFloor = floor
                         } label: {
-                            Label("Edit", systemImage: "pencil")
+                            Label(
+                                NSLocalizedString("floorDetection.renameFloor", comment: ""),
+                                systemImage: "pencil"
+                            )
+                        }
+
+                        Button(role: .destructive) {
+                            floorStore.delete(floor, in: place)
+                        } label: {
+                            Label(
+                                NSLocalizedString("common.delete", comment: ""),
+                                systemImage: "trash"
+                            )
+                        }
+                    }
+                    // Same affordances as the place rows: swipe for a quick
+                    // action, long press when swiping is awkward. Only one
+                    // rename action is exposed to VoiceOver, so it is not read
+                    // twice.
+                    .contextMenu {
+                        Button {
+                            editingFloor = floor
+                        } label: {
+                            Label(
+                                NSLocalizedString("floorDetection.renameFloor", comment: ""),
+                                systemImage: "pencil"
+                            )
                         }
 
                         Button(role: .destructive) {
@@ -1513,18 +1545,23 @@ private struct FloorPlaceDetailView: View {
         }
     }
 
-    /// The baseline is only ever moved by the user, and only from the floor it
-    /// was taken on. Recalibrating anywhere else would silently redefine every
-    /// stored height against the wrong place.
-    private func recalibrate(_ place: FloorPlace) {
-        guard let pressure = altitudeMonitor.currentPressureKPa else { return }
-        guard let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
-              abs(drift) <= FloorRecordStore.baselineRecalibrationToleranceMeters
-        else {
-            showWrongFloorAlert = true
-            return
+    /// A large distance no longer blocks recalibration: the user may have walked
+    /// up from the starting floor, or the weather may have moved the reading by
+    /// more than a floor. What matters is that they knowingly confirm, so the
+    /// distance is quoted in a confirmation instead of a refusal.
+    private func beginRecalibration(_ place: FloorPlace) {
+        guard let pressure = altitudeMonitor.currentPressureKPa,
+              let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place)
+        else { return }
+        recalibrationDrift = drift
+        showRecalibrationConfirm = true
+    }
+
+    private func applyRecalibration() {
+        if let pressure = altitudeMonitor.currentPressureKPa {
+            floorStore.recalibrateBaseline(for: placeID, pressureKPa: pressure)
         }
-        floorStore.recalibrateBaseline(for: place.id, pressureKPa: pressure)
+        recalibrationDrift = nil
     }
 }
 
@@ -1646,17 +1683,18 @@ private struct FloorEditorView: View {
     }
 }
 
-private struct FloorRenameView: View {
-    let floor: Floor
-    let placeID: UUID
+/// Edits the reference floor's label. The reference floor is otherwise only
+/// readable, and mistyping it when the place was created would leave the
+/// suggested floor numbers wrong forever.
+private struct StartFloorRenameView: View {
+    let place: FloorPlace
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var floorStore: FloorRecordStore
     @State private var label: String
 
-    init(floor: Floor, placeID: UUID) {
-        self.floor = floor
-        self.placeID = placeID
-        _label = State(initialValue: floor.label)
+    init(place: FloorPlace) {
+        self.place = place
+        _label = State(initialValue: place.startFloorLabel)
     }
 
     var body: some View {
@@ -1665,14 +1703,14 @@ private struct FloorRenameView: View {
                 TextField(NSLocalizedString("floorDetection.floorNumber", comment: ""), text: $label)
                     .keyboardType(.numbersAndPunctuation)
             }
-            .navigationTitle(floor.label)
+            .navigationTitle(NSLocalizedString("floorDetection.renameStartFloor", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(NSLocalizedString("common.save", comment: "")) {
-                        var updated = floor
-                        updated.label = label.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !updated.label.isEmpty else { return }
-                        floorStore.updateFloor(updated, in: placeID)
+                        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        floorStore.updateStartFloorLabel(trimmed, for: place.id)
                         dismiss()
                     }
                     .disabled(label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -1682,6 +1720,83 @@ private struct FloorRenameView: View {
                 }
             }
         }
+    }
+}
+
+/// Renames a floor and corrects its height.
+///
+/// Only the pressure is stored, so the height field is a view onto that stored
+/// value: saving converts the metres the user typed back into a pressure against
+/// the place's baseline. That keeps every height derived from the one reference
+/// instead of introducing a second, independent height that recalibration could
+/// never correct.
+private struct FloorEditView: View {
+    let floor: Floor
+    let placeID: UUID
+    let baselineKPa: Double
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var floorStore: FloorRecordStore
+    @State private var label: String
+    @State private var height: String
+
+    init(floor: Floor, placeID: UUID, baselineKPa: Double) {
+        self.floor = floor
+        self.placeID = placeID
+        self.baselineKPa = baselineKPa
+        _label = State(initialValue: floor.label)
+        let meters = AltitudeMonitor.heightAboveBaseline(
+            pressureKPa: floor.pressureKPa,
+            baselineKPa: baselineKPa
+        )
+        _height = State(initialValue: meters.map { String(format: "%.2f", $0) } ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(NSLocalizedString("floorDetection.floorNumber", comment: ""), text: $label)
+                        .keyboardType(.numbersAndPunctuation)
+                    TextField(NSLocalizedString("floorDetection.floorHeight", comment: ""), text: $height)
+                        .keyboardType(.numbersAndPunctuation)
+                } footer: {
+                    Text(NSLocalizedString("floorDetection.floorHeightFooter", comment: ""))
+                }
+            }
+            .navigationTitle(floor.label)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(NSLocalizedString("common.save", comment: "")) {
+                        save()
+                    }
+                    .disabled(label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(NSLocalizedString("common.cancel", comment: "")) { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func save() {
+        var updated = floor
+        updated.label = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !updated.label.isEmpty else { return }
+        // An unreadable height leaves the stored pressure alone rather than
+        // silently snapping the floor back to the reference.
+        let normalised = height
+            .replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let meters = Double(normalised),
+           let pressure = AltitudeMonitor.pressureKPa(
+               forHeightMeters: meters,
+               baselineKPa: baselineKPa
+           ) {
+            updated.pressureKPa = pressure
+        }
+        floorStore.updateFloor(updated, in: placeID)
+        dismiss()
     }
 }
 
@@ -2103,10 +2218,6 @@ final class FloorRecordStore: ObservableObject {
     /// in kPa. About a quarter of a metre.
     static let pressureToleranceKPa = 0.025
 
-    /// Drift beyond this and the user is probably not standing on the floor the
-    /// baseline was taken on, so the baseline must not be moved from here.
-    static let baselineRecalibrationToleranceMeters = 2.0
-
     /// Drift worth mentioning at all. Below this the reference is good enough
     /// and mentioning it would just be noise.
     static let baselineDriftNoticeMeters = 0.3
@@ -2150,6 +2261,15 @@ final class FloorRecordStore: ObservableObject {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = places.firstIndex(where: { $0.id == place.id }) else { return }
         places[index].name = trimmed
+        save()
+    }
+
+    /// Corrects the reference floor's label. The pressure stays as recorded:
+    /// this only fixes the number the user typed when the place was created.
+    func updateStartFloorLabel(_ label: String, for placeID: UUID) {
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let index = places.firstIndex(where: { $0.id == placeID }) else { return }
+        places[index].startFloorLabel = trimmed
         save()
     }
 
@@ -3885,6 +4005,16 @@ private final class AltitudeMonitor: NSObject, ObservableObject {
     nonisolated static func heightAboveBaseline(pressureKPa pressure: Double, baselineKPa baseline: Double) -> Double? {
         guard pressure > 0, baseline > 0, pressure.isFinite, baseline.isFinite else { return nil }
         return 44330.0 * (1.0 - pow(pressure / baseline, 1.0 / 5.255))
+    }
+
+    /// Inverse of `heightAboveBaseline`: the pressure that sits at a given height
+    /// above the baseline. Used when the user corrects a recorded floor's height,
+    /// so the stored value stays a pressure and every height remains derived.
+    nonisolated static func pressureKPa(forHeightMeters height: Double, baselineKPa baseline: Double) -> Double? {
+        guard baseline > 0, baseline.isFinite, height.isFinite, height < 44330.0 else { return nil }
+        let pressure = baseline * pow(1.0 - height / 44330.0, 5.255)
+        guard pressure > 0, pressure.isFinite else { return nil }
+        return pressure
     }
 
     /// Recomputes the displayed height whenever either the baseline or a new
