@@ -210,3 +210,4 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         const val DRIFT_NOTICE_METERS = 0.3
     }
 }
+

@@ -1461,12 +1461,19 @@ private struct FloorPlaceDetailView: View {
 
     private func floorsSection(_ place: FloorPlace) -> some View {
         Section(NSLocalizedString("floorDetection.floors", comment: "")) {
-            if place.floors.isEmpty {
+            // Always include the start floor in the list so the user can
+            // re-anchor to it even if it was never added as a target floor.
+            let startFloorIsListed = place.floors.contains { $0.label == place.startFloorLabel }
+            let displayFloors: [Floor] = place.floors + (startFloorIsListed ? [] : [
+                Floor(id: UUID(), label: place.startFloorLabel, pressureKPa: place.baselinePressureKPa)
+            ])
+
+            if displayFloors.isEmpty {
                 Text(NSLocalizedString("floorDetection.noFloors", comment: ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(place.floors) { floor in
+                ForEach(displayFloors) { floor in
                     let isStartFloor = floor.label == place.startFloorLabel
                     NavigationLink {
                         FloorMonitorView(floor: floor, placeID: place.id)
@@ -1490,12 +1497,32 @@ private struct FloorPlaceDetailView: View {
                             }
                         }
                     }
+                    // VoiceOver explicit actions: each action declared once so it
+                    // appears exactly once in the Actions rotor.
+                    .accessibilityAction(
+                        named: Text(NSLocalizedString("floorDetection.setAsStart", comment: ""))
+                    ) {
+                        floorStore.setStartFloor(
+                            label: floor.label,
+                            pressureKPa: floor.pressureKPa,
+                            for: place.id
+                        )
+                    }
+                    .accessibilityAction(
+                        named: Text(NSLocalizedString("floorDetection.renameFloor", comment: ""))
+                    ) {
+                        editingFloor = floor
+                    }
+                    .accessibilityAction(
+                        named: Text(NSLocalizedString("common.delete", comment: ""))
+                    ) {
+                        floorStore.delete(floor, in: place)
+                    }
                     .swipeActions {
                         Button {
                             floorStore.setStartFloor(
-                                floorId: floor.id,
-                                pressureKPa: floor.pressureKPa,
                                 label: floor.label,
+                                pressureKPa: floor.pressureKPa,
                                 for: place.id
                             )
                         } label: {
@@ -1505,6 +1532,7 @@ private struct FloorPlaceDetailView: View {
                             )
                             .tint(.blue)
                         }
+                        .accessibilityHidden(true)
 
                         Button {
                             editingFloor = floor
@@ -1514,6 +1542,7 @@ private struct FloorPlaceDetailView: View {
                                 systemImage: "pencil"
                             )
                         }
+                        .accessibilityHidden(true)
 
                         Button(role: .destructive) {
                             floorStore.delete(floor, in: place)
@@ -1523,6 +1552,7 @@ private struct FloorPlaceDetailView: View {
                                 systemImage: "trash"
                             )
                         }
+                        .accessibilityHidden(true)
                     }
 
                 }
@@ -2285,6 +2315,17 @@ final class FloorRecordStore: ObservableObject {
     func setStartFloor(floorId: UUID, pressureKPa: Double, label: String, for placeID: UUID) {
         guard let placeIndex = places.firstIndex(where: { $0.id == placeID }),
               let floorIndex = places[placeIndex].floors.firstIndex(where: { $0.id == floorId }),
+              pressureKPa.isFinite else { return }
+        places[placeIndex].baselinePressureKPa = pressureKPa
+        places[placeIndex].startFloorLabel = label
+        save()
+    }
+
+    /// Sets the reference (start) floor by label. Used when the start floor is
+    /// not present in ``floors`` (e.g. it was never added as a target floor) but
+    /// the user still wants to re-anchor to it.
+    func setStartFloor(label: String, pressureKPa: Double, for placeID: UUID) {
+        guard let placeIndex = places.firstIndex(where: { $0.id == placeID }),
               pressureKPa.isFinite else { return }
         places[placeIndex].baselinePressureKPa = pressureKPa
         places[placeIndex].startFloorLabel = label

@@ -312,7 +312,11 @@ private fun FloorPlaceDetailContent(
                     )
                 }
             } else {
-                items(place.floors, key = { it.id }) { floor ->
+                'val startFloorIsListed = place.floors.any { it.label == place.startFloorLabel }
+val displayFloors = place.floors + (if (startFloorIsListed) emptyList() else listOf(
+    Floor(id = place.id.toString(), label = place.startFloorLabel, pressureKPa = place.baselinePressureKPa)
+))
+items(displayFloors, key = { it.id }) { floor ->'
                     val isStartFloor = floor.label == place.startFloorLabel
                     ListItem(
                         headlineContent = {
@@ -337,7 +341,7 @@ private fun FloorPlaceDetailContent(
                         },
                         trailingContent = {
                             Row {
-                                IconButton(onClick = { viewModel.setStartFloor(place.id, floor.id) }) {
+                                IconButton(onClick = { viewModel.setStartFloor(place.id, floor.label, floor.pressureKPa) }) {
                                     Icon(
                                         Icons.Default.Home,
                                         stringResource(R.string.floor_set_as_start),
@@ -751,3 +755,5 @@ private fun RenameDialog(
 }
 
 
+
+
