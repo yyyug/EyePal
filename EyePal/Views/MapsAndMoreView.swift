@@ -1141,6 +1141,7 @@ struct FloorDetectionListView: View {
     @EnvironmentObject private var floorStore: FloorRecordStore
     @State private var isAddingPlace = false
     @State private var renamingPlace: FloorPlace?
+    @State private var startFloorPlaceToRename: FloorPlace?
 
     var body: some View {
         List {
@@ -1177,22 +1178,11 @@ struct FloorDetectionListView: View {
                             )
                         }
 
-                        Button(role: .destructive) {
-                            floorStore.delete(place)
-                        } label: {
-                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
-                        }
-                    }
-                    // Rename is also reachable by long press. The swipe action is
-                    // already exposed to VoiceOver as a custom action, so adding
-                    // `.accessibilityAction` as well made it read the same action
-                    // twice.
-                    .contextMenu {
                         Button {
-                            renamingPlace = place
+                            startFloorPlaceToRename = place
                         } label: {
                             Label(
-                                NSLocalizedString("floorDetection.renamePlace", comment: ""),
+                                NSLocalizedString("floorDetection.renameStartFloor", comment: ""),
                                 systemImage: "pencil"
                             )
                         }
@@ -1200,12 +1190,10 @@ struct FloorDetectionListView: View {
                         Button(role: .destructive) {
                             floorStore.delete(place)
                         } label: {
-                            Label(
-                                NSLocalizedString("common.delete", comment: ""),
-                                systemImage: "trash"
-                            )
+                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
                         }
                     }
+
                 }
                 .onDelete { offsets in
                     floorStore.delete(at: offsets)
@@ -1220,6 +1208,10 @@ struct FloorDetectionListView: View {
         }
         .sheet(item: $renamingPlace) { place in
             FloorPlaceRenameView(place: place)
+                .environmentObject(floorStore)
+        }
+        .sheet(item: $startFloorPlaceToRename) { place in
+            StartFloorRenameView(place: place)
                 .environmentObject(floorStore)
         }
         .toolbar {
@@ -1363,7 +1355,6 @@ private struct FloorPlaceDetailView: View {
     @StateObject private var altitudeMonitor = AltitudeMonitor()
     @State private var isAddingFloor = false
     @State private var editingFloor: Floor?
-    @State private var editingStartFloor = false
     @State private var showRecalibrationConfirm = false
     /// Distance shown in the recalibration confirmation. Captured when the button
     /// is tapped so the alert text cannot drift while it is on screen.
@@ -1385,12 +1376,6 @@ private struct FloorPlaceDetailView: View {
         .sheet(isPresented: $isAddingFloor) {
             NavigationStack {
                 FloorEditorView(placeID: placeID)
-                    .environmentObject(floorStore)
-            }
-        }
-        .sheet(isPresented: $editingStartFloor) {
-            if let place {
-                StartFloorRenameView(place: place)
                     .environmentObject(floorStore)
             }
         }
@@ -1440,15 +1425,12 @@ private struct FloorPlaceDetailView: View {
     /// ("is this reference still right?"), so splitting them into "Reference"
     /// and "Reference check" made the user read two headers for one idea.
     private func referenceSection(_ place: FloorPlace) -> some View {
-        Section(NSLocalizedString("floorDetection.reference", comment: "")) {
+        Section {
             LabeledContent(NSLocalizedString("floorDetection.startFloor", comment: "")) {
                 Text(place.startFloorLabel)
             }
             LabeledContent(NSLocalizedString("floorDetection.pressure", comment: "")) {
                 Text(String(format: "%.2f kPa", place.baselinePressureKPa))
-            }
-            Button(NSLocalizedString("floorDetection.renameStartFloor", comment: "")) {
-                editingStartFloor = true
             }
             if let pressure = altitudeMonitor.currentPressureKPa,
                let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
@@ -1517,29 +1499,7 @@ private struct FloorPlaceDetailView: View {
                             )
                         }
                     }
-                    // Same affordances as the place rows: swipe for a quick
-                    // action, long press when swiping is awkward. Only one
-                    // rename action is exposed to VoiceOver, so it is not read
-                    // twice.
-                    .contextMenu {
-                        Button {
-                            editingFloor = floor
-                        } label: {
-                            Label(
-                                NSLocalizedString("floorDetection.renameFloor", comment: ""),
-                                systemImage: "pencil"
-                            )
-                        }
 
-                        Button(role: .destructive) {
-                            floorStore.delete(floor, in: place)
-                        } label: {
-                            Label(
-                                NSLocalizedString("common.delete", comment: ""),
-                                systemImage: "trash"
-                            )
-                        }
-                    }
                 }
             }
         }

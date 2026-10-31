@@ -346,12 +346,11 @@
 "floorDetection.setAsStart" = "Set as starting floor";
 "floorDetection.startFloor" = "Starting floor";
 "floorDetection.pressure" = "Pressure";
-"floorDetection.reference" = "Reference";
 "floorDetection.drift" = "Standing here is %+.2f m from the recorded starting floor.";
 "floorDetection.recalibrateConfirmTitle" = "Refresh the reference?";
 "floorDetection.recalibrateConfirmMessage" = "You are %+.1f m from the recorded starting floor. Confirm only if you are standing on floor %@; refreshing changes every recorded height.";
 "floorDetection.recalibrateConfirmAction" = "Refresh";
-"floorDetection.recalibrate" = "I am on the starting floor, refresh reference";
+"floorDetection.recalibrate" = "Recalibrate";
 "floorDetection.renamePlace" = "Rename place";
 "floorDetection.renameStartFloor" = "Rename starting floor";
 "floorDetection.renameFloor" = "Rename floor";

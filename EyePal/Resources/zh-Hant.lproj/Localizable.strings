@@ -347,12 +347,11 @@
 "floorDetection.setAsStart" = "設為起始樓層";
 "floorDetection.startFloor" = "起始樓層";
 "floorDetection.pressure" = "氣壓";
-"floorDetection.reference" = "參考點";
 "floorDetection.drift" = "目前所在位置與記錄的起始樓層相差 %+.2f 公尺。";
 "floorDetection.recalibrateConfirmTitle" = "要重新校正參考點嗎？";
 "floorDetection.recalibrateConfirmMessage" = "你目前與記錄的起始樓層相差 %+.1f 公尺。只有站在 %@ 樓時才請確認；校正會同時改變所有已記錄樓層的高度。";
 "floorDetection.recalibrateConfirmAction" = "確認校正";
-"floorDetection.recalibrate" = "我在起始樓層，重新校正參考點";
+"floorDetection.recalibrate" = "重新校正";
 "floorDetection.renamePlace" = "重新命名場所";
 "floorDetection.renameStartFloor" = "重新命名起始樓層";
 "floorDetection.renameFloor" = "重新命名樓層";
