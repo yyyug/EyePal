@@ -1467,12 +1467,22 @@ private struct FloorPlaceDetailView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(place.floors) { floor in
+                    let isStartFloor = floor.label == place.startFloorLabel
                     NavigationLink {
                         FloorMonitorView(floor: floor, placeID: place.id)
                             .environmentObject(floorStore)
                     } label: {
                         HStack {
                             Text(floor.label)
+                            if isStartFloor {
+                                Text(NSLocalizedString("floorDetection.setAsStart", comment: ""))
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.blue.opacity(0.15), in: Capsule())
+                                    .foregroundStyle(.blue)
+                                    .accessibilityLabel(NSLocalizedString("floorDetection.setAsStart", comment: ""))
+                            }
                             Spacer()
                             if let height = floorStore.height(of: floor, in: place) {
                                 Text(String(format: "%+.2f m", height))
@@ -1481,6 +1491,21 @@ private struct FloorPlaceDetailView: View {
                         }
                     }
                     .swipeActions {
+                        Button {
+                            floorStore.setStartFloor(
+                                floorId: floor.id,
+                                pressureKPa: floor.pressureKPa,
+                                label: floor.label,
+                                for: place.id
+                            )
+                        } label: {
+                            Label(
+                                NSLocalizedString("floorDetection.setAsStart", comment: ""),
+                                systemImage: "house.fill"
+                            )
+                            .tint(.blue)
+                        }
+
                         Button {
                             editingFloor = floor
                         } label: {
@@ -2250,6 +2275,19 @@ final class FloorRecordStore: ObservableObject {
     func recalibrateBaseline(for placeID: UUID, pressureKPa: Double) {
         guard let index = places.firstIndex(where: { $0.id == placeID }), pressureKPa.isFinite else { return }
         places[index].baselinePressureKPa = pressureKPa
+        save()
+    }
+
+    /// Sets an existing recorded floor as the new reference (start) floor.
+    /// The chosen floor's pressure becomes the baseline, and its label becomes
+    /// the start floor label. All stored heights are recomputed from this new
+    /// reference.
+    func setStartFloor(floorId: UUID, pressureKPa: Double, label: String, for placeID: UUID) {
+        guard let placeIndex = places.firstIndex(where: { $0.id == placeID }),
+              let floorIndex = places[placeIndex].floors.firstIndex(where: { $0.id == floorId }),
+              pressureKPa.isFinite else { return }
+        places[placeIndex].baselinePressureKPa = pressureKPa
+        places[placeIndex].startFloorLabel = label
         save()
     }
 

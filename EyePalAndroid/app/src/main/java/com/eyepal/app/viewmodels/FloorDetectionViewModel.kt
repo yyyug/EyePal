@@ -87,6 +87,24 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         announcer.announce(str(R.string.floor_status_recalibrated), minimumInterval = 0)
     }
 
+    /** Sets an existing recorded floor as the new reference (start) floor.
+     * The chosen floor's pressure becomes the baseline, and its label becomes
+     * the start floor label. All stored heights are recomputed from this new
+     * reference.
+     */
+    fun setStartFloor(placeId: String, floorId: String) {
+        val floorLabel = places.value.first { it.id == placeId }
+            ?.floors?.firstOrNull { it.id == floorId }?.label
+        updatePlace(placeId) { place ->
+            val floor = place.floors.firstOrNull { it.id == floorId } ?: return@updatePlace place
+            place.copy(
+                baselinePressureKPa = floor.pressureKPa,
+                startFloorLabel = floor.label
+            )
+        }
+        announcer.announce(str(R.string.floor_status_start_floor_set, floorLabel ?: floorId), minimumInterval = 0)
+    }
+
     // MARK: - Floors
 
     fun addFloor(placeId: String, label: String, pressureKPa: Double?) {

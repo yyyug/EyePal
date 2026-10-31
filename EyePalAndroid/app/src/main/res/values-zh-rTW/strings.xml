@@ -154,6 +154,7 @@
     <string name="floor_arrived">已到達 %1$s</string>
     <string name="floor_unavailable">無法取得</string>
     <string name="floor_status_recalibrated">參考點已重新校正。</string>
+    <string name="floor_status_start_floor_set">起點已設為 %1$s</string>
 
     <!-- Chat -->
     <string name="chat_mode">模式</string>

@@ -144,6 +144,7 @@
     <string name="floor_arrived">Arrived at %1$s</string>
     <string name="floor_unavailable">Unavailable</string>
     <string name="floor_status_recalibrated">Reference refreshed.</string>
+    <string name="floor_status_start_floor_set">Start floor set to %1$s</string>
 
     <!-- Chat -->
     <string name="chat_mode">Mode</string>

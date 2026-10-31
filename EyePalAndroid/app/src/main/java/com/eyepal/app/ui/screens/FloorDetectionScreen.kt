@@ -313,8 +313,23 @@ private fun FloorPlaceDetailContent(
                 }
             } else {
                 items(place.floors, key = { it.id }) { floor ->
+                    val isStartFloor = floor.label == place.startFloorLabel
                     ListItem(
-                        headlineContent = { Text(floor.label) },
+                        headlineContent = {
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Text(floor.label)
+                                if (isStartFloor) {
+                                    Icon(
+                                        imageVector = Icons.Default.Home,
+                                        contentDescription = stringResource(R.string.floor_set_as_start),
+                                        modifier = androidx.compose.ui.Modifier
+                                            .size(16.dp)
+                                            .padding(start = 4.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        },
                         supportingContent = {
                             viewModel.heightOf(floor, place)?.let { height ->
                                 Text(String.format(Locale.US, "%+.2f m", height))
@@ -322,6 +337,13 @@ private fun FloorPlaceDetailContent(
                         },
                         trailingContent = {
                             Row {
+                                IconButton(onClick = { viewModel.setStartFloor(place.id, floor.id) }) {
+                                    Icon(
+                                        Icons.Default.Home,
+                                        stringResource(R.string.floor_set_as_start),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                                 IconButton(onClick = { editingFloor = floor }) {
                                     Icon(
                                         Icons.Default.Edit,
@@ -727,4 +749,5 @@ private fun RenameDialog(
         }
     )
 }
-
+
+
