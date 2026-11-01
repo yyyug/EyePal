@@ -2304,7 +2304,18 @@ final class FloorRecordStore: ObservableObject {
     /// it. Only an explicit tap, and only from the floor in question.
     func recalibrateBaseline(for placeID: UUID, pressureKPa: Double) {
         guard let index = places.firstIndex(where: { $0.id == placeID }), pressureKPa.isFinite else { return }
+        
         places[index].baselinePressureKPa = pressureKPa
+        
+        // Re-anchor start floor label to the floor that best matches current
+        // pressure, so recalibrating from a different floor correctly re-anchors
+        // the reference instead of keeping a stale label.
+        if let bestFloor = places[index].floors.min(by: {
+            abs($0.pressureKPa - pressureKPa) < abs($1.pressureKPa - pressureKPa)
+        }) {
+            places[index].startFloorLabel = bestFloor.label
+        }
+        
         save()
     }
 

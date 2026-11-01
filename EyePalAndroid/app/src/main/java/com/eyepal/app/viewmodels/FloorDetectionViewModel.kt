@@ -11,6 +11,7 @@ import com.eyepal.app.models.FloorPlace
 import com.eyepal.app.services.FloorRecordStorage
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -83,7 +84,13 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
      */
     fun recalibrateBaseline(placeId: String, pressureKPa: Double) {
         if (!pressureKPa.isFinite()) return
-        updatePlace(placeId) { it.copy(baselinePressureKPa = pressureKPa) }
+        updatePlace(placeId) { place ->
+            val bestFloor = place.floors.minByOrNull { floor: Floor -> abs(floor.pressureKPa - pressureKPa) }
+            place.copy(
+                baselinePressureKPa = pressureKPa,
+                startFloorLabel = bestFloor?.label ?: place.startFloorLabel
+            )
+        }
         announcer.announce(str(R.string.floor_status_recalibrated), minimumInterval = 0)
     }
 
