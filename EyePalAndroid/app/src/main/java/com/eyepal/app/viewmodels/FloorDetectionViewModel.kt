@@ -105,6 +105,22 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         announcer.announce(str(R.string.floor_status_start_floor_set, floorLabel ?: floorId), minimumInterval = 0)
     }
 
+    /** Sets the reference (start) floor by label and pressure.
+     * Used when the start floor is not present in the place's floor list but the
+     * user still wants to re-anchor to it (e.g. restore the original start floor).
+     */
+    fun setStartFloor(placeId: String, label: String, pressureKPa: Double) {
+        if (!pressureKPa.isFinite()) return
+        updatePlace(placeId) { place ->
+            place.copy(
+                baselinePressureKPa = pressureKPa,
+                startFloorLabel = label
+            )
+        }
+        announcer.announce(str(R.string.floor_status_start_floor_set, label), minimumInterval = 0)
+    }
+
+
     // MARK: - Floors
 
     fun addFloor(placeId: String, label: String, pressureKPa: Double?) {

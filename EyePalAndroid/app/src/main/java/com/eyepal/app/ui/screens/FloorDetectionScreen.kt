@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -312,11 +313,11 @@ private fun FloorPlaceDetailContent(
                     )
                 }
             } else {
-                'val startFloorIsListed = place.floors.any { it.label == place.startFloorLabel }
-val displayFloors = place.floors + (if (startFloorIsListed) emptyList() else listOf(
-    Floor(id = place.id.toString(), label = place.startFloorLabel, pressureKPa = place.baselinePressureKPa)
-))
-items(displayFloors, key = { it.id }) { floor ->'
+                val startFloorIsListed = place.floors.any { it.label == place.startFloorLabel }
+                val displayFloors = place.floors + (if (startFloorIsListed) emptyList() else listOf(
+                    Floor(id = place.id.toString(), label = place.startFloorLabel, pressureKPa = place.baselinePressureKPa)
+                ))
+                items(displayFloors, key = { it.id }) { floor ->
                     val isStartFloor = floor.label == place.startFloorLabel
                     ListItem(
                         headlineContent = {
@@ -324,11 +325,9 @@ items(displayFloors, key = { it.id }) { floor ->'
                                 Text(floor.label)
                                 if (isStartFloor) {
                                     Icon(
-                                        imageVector = Icons.Default.Home,
+                                        imageVector = Icons.Filled.Home,
                                         contentDescription = stringResource(R.string.floor_set_as_start),
-                                        modifier = androidx.compose.ui.Modifier
-                                            .size(16.dp)
-                                            .padding(start = 4.dp),
+                                        modifier = androidx.compose.ui.Modifier.padding(start = 4.dp),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -343,8 +342,8 @@ items(displayFloors, key = { it.id }) { floor ->'
                             Row {
                                 IconButton(onClick = { viewModel.setStartFloor(place.id, floor.label, floor.pressureKPa) }) {
                                     Icon(
-                                        Icons.Default.Home,
-                                        stringResource(R.string.floor_set_as_start),
+                                        imageVector = Icons.Filled.Home,
+                                        contentDescription = stringResource(R.string.floor_set_as_start),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
