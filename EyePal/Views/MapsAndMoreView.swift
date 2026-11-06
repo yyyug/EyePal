@@ -1747,7 +1747,6 @@ private struct StartFloorRenameView: View {
 private struct FloorEditView: View {
     let floor: Floor
     let placeID: UUID
-    let baselineKPa: Double
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var floorStore: FloorRecordStore
     @State private var label: String
