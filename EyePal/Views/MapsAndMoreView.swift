@@ -1383,8 +1383,7 @@ private struct FloorPlaceDetailView: View {
             if let place {
                 FloorEditView(
                     floor: floor,
-                    placeID: placeID,
-                    baselineKPa: place.baselinePressureKPa
+                    placeID: placeID
                 )
                 .environmentObject(floorStore)
             }
@@ -1754,16 +1753,11 @@ private struct FloorEditView: View {
     @State private var label: String
     @State private var height: String
 
-    init(floor: Floor, placeID: UUID, baselineKPa: Double) {
+    init(floor: Floor, placeID: UUID) {
         self.floor = floor
         self.placeID = placeID
-        self.baselineKPa = baselineKPa
         _label = State(initialValue: floor.label)
-        let meters = AltitudeMonitor.heightAboveBaseline(
-            pressureKPa: floor.pressureKPa,
-            baselineKPa: baselineKPa
-        )
-        _height = State(initialValue: meters.map { String(format: "%.2f", $0) } ?? "")
+        _height = State(initialValue: String(format: "%.2f", floor.heightOffsetMeters))
     }
 
     var body: some View {
@@ -1798,17 +1792,14 @@ private struct FloorEditView: View {
         var updated = floor
         updated.label = label.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !updated.label.isEmpty else { return }
-        // An unreadable height leaves the stored pressure alone rather than
-        // silently snapping the floor back to the reference.
+        // Store the height offset directly; the baseline is only used to convert
+        // live pressure readings to a current height, never to rewrite stored
+        // offsets. Recalibration therefore never disturbs this floor's height.
         let normalised = height
             .replacingOccurrences(of: ",", with: ".")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let meters = Double(normalised),
-           let pressure = AltitudeMonitor.pressureKPa(
-               forHeightMeters: meters,
-               baselineKPa: baselineKPa
-           ) {
-            updated.pressureKPa = pressure
+        if let meters = Double(normalised) {
+            updated.heightOffsetMeters = meters
         }
         floorStore.updateFloor(updated, in: placeID)
         dismiss()
@@ -1884,15 +1875,14 @@ private struct FloorMonitorView: View {
     /// before they have stopped. A single symmetric window covers both
     /// directions: travelling up the reading passes `target - 0.2` first, and
     /// travelling down it passes `target + 0.2` first. Heights are used rather
-    /// than raw pressure so the lead is a real distance; where no baseline
-    /// exists (no barometer yet) it falls back to comparing pressures.
+    /// than raw pressure so the lead is a real distance; since every stored
+    /// floor now carries its height offset, the baseline only converts the live
+    /// reading to a current height for comparison.
     private func hasArrived(pressureKPa pressure: Double) -> Bool {
         guard let place,
               let target = floorStore.height(of: floor, in: place),
               let current = floorStore.heightAboveBaseline(pressureKPa: pressure, in: place)
-        else {
-            return floorStore.matches(floor, pressureKPa: pressure)
-        }
+        else { return false }
         return abs(current - target) <= FloorRecordStore.arrivalLeadMeters
     }
 }
@@ -2208,18 +2198,28 @@ struct FloorPlace: Identifiable, Codable, Equatable, Hashable {
 
 /// One floor inside a place.
 ///
-/// Only the pressure is stored. The height is always recomputed from the place's
-/// baseline, so recalibrating the baseline corrects every floor's displayed height
-/// at once instead of leaving heights captured under a stale reference.
+/// One floor inside a place.
+///
+/// The reference (start) floor keeps its absolute pressure in ``pressureKPa``.
+/// Every other floor stores ``heightOffsetMeters`` — its height relative to the
+/// start floor. That way a weather-driven pressure shift only requires updating
+/// ``FloorPlace.baselinePressureKPa``; every stored height offset stays valid
+/// and all displayed heights are recomputed from the new baseline.
 struct Floor: Identifiable, Codable, Equatable, Hashable {
     let id: UUID
     var label: String
+    /// Absolute pressure at this floor. Meaningful for the reference floor;
+    /// retained for other floors only for backward compatibility.
     var pressureKPa: Double
+    /// Height relative to the place's start floor, in metres. Positive = above
+    /// the start floor. This is the authoritative relative height.
+    var heightOffsetMeters: Double = 0
 
-    init(id: UUID = UUID(), label: String, pressureKPa: Double) {
+    init(id: UUID = UUID(), label: String, pressureKPa: Double, heightOffsetMeters: Double = 0) {
         self.id = id
         self.label = label
         self.pressureKPa = pressureKPa
+        self.heightOffsetMeters = heightOffsetMeters
     }
 }
 
@@ -2329,6 +2329,8 @@ final class FloorRecordStore: ObservableObject {
               pressureKPa.isFinite else { return }
         places[placeIndex].baselinePressureKPa = pressureKPa
         places[placeIndex].startFloorLabel = label
+        // The new start floor is the reference: its relative height is zero.
+        places[placeIndex].floors[floorIndex].heightOffsetMeters = 0
         save()
     }
 
@@ -2349,7 +2351,19 @@ final class FloorRecordStore: ObservableObject {
         let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, pressureKPa.isFinite,
               let index = places.firstIndex(where: { $0.id == placeID }) else { return }
-        places[index].floors.append(Floor(label: trimmed, pressureKPa: pressureKPa))
+        let baseline = places[index].baselinePressureKPa
+        // Store the height relative to the start floor, not the raw pressure.
+        // That way a later baseline change (recalibration) does not invalidate
+        // this floor's recorded height.
+        let heightOffset = AltitudeMonitor.heightAboveBaseline(
+            pressureKPa: pressureKPa,
+            baselineKPa: baseline
+        ) ?? 0
+        places[index].floors.append(Floor(
+            label: trimmed,
+            pressureKPa: pressureKPa,
+            heightOffsetMeters: heightOffset
+        ))
         save()
     }
 
@@ -2377,7 +2391,9 @@ final class FloorRecordStore: ObservableObject {
     }
 
     func height(of floor: Floor, in place: FloorPlace) -> Double? {
-        heightAboveBaseline(pressureKPa: floor.pressureKPa, in: place)
+        // The stored relative height offset is authoritative; the baseline only
+        // matters for converting live pressure readings to a current height.
+        floor.heightOffsetMeters
     }
 
     /// Floor number implied by a reading, or nil when the starting floor was not
@@ -2442,7 +2458,17 @@ final class FloorRecordStore: ObservableObject {
             guard let start, let startPressure = start.pressureKPa else { return nil }
             let floors = records
                 .filter { $0.id != start.id }
-                .map { Floor(label: $0.floorLabel, pressureKPa: $0.pressureKPa ?? startPressure) }
+                .map { record in
+                    let heightOffset = AltitudeMonitor.heightAboveBaseline(
+                        pressureKPa: record.pressureKPa ?? startPressure,
+                        baselineKPa: startPressure
+                    ) ?? 0
+                    return Floor(
+                        label: record.floorLabel,
+                        pressureKPa: record.pressureKPa ?? startPressure,
+                        heightOffsetMeters: heightOffset
+                    )
+                }
             return FloorPlace(
                 id: UUID(),
                 name: name,
