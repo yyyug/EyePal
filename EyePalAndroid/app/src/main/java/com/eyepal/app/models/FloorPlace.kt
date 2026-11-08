@@ -27,14 +27,17 @@ data class FloorPlace(
 /**
  * One floor inside a place.
  *
- * Only the pressure is stored. The height is always recomputed from the place's
- * baseline, so recalibrating the baseline corrects every floor's displayed height
- * at once instead of leaving heights captured under a stale reference.
+ * The reference (start) floor keeps its absolute pressure in ``pressureKPa``.
+ * Every other floor stores ``heightOffsetMeters`` — its height relative to the
+ * start floor. That way a weather-driven pressure shift only requires updating
+ * ``FloorPlace.baselinePressureKPa``; every stored height offset stays valid
+ * and all displayed heights are recomputed from the new baseline.
  */
 @Stable
 @Serializable
 data class Floor(
     val id: String = UUID.randomUUID().toString(),
     val label: String,
-    val pressureKPa: Double
+    val pressureKPa: Double,
+    val heightOffsetMeters: Double = 0
 )

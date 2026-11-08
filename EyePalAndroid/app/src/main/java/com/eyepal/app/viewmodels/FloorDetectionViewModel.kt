@@ -86,9 +86,13 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         if (!pressureKPa.isFinite()) return
         updatePlace(placeId) { place ->
             val bestFloor = place.floors.minByOrNull { floor: Floor -> abs(floor.pressureKPa - pressureKPa) }
+            val floors = place.floors.map { f ->
+                if (bestFloor != null && f.id == bestFloor.id) f.copy(heightOffsetMeters = 0) else f
+            }
             place.copy(
                 baselinePressureKPa = pressureKPa,
-                startFloorLabel = bestFloor?.label ?: place.startFloorLabel
+                startFloorLabel = bestFloor?.label ?: place.startFloorLabel,
+                floors = floors
             )
         }
         announcer.announce(str(R.string.floor_status_recalibrated), minimumInterval = 0)
@@ -104,9 +108,13 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
             ?.floors?.firstOrNull { it.id == floorId }?.label
         updatePlace(placeId) { place ->
             val floor = place.floors.firstOrNull { it.id == floorId } ?: return@updatePlace place
+            val floors = place.floors.map { f ->
+                if (f.id == floorId) f.copy(heightOffsetMeters = 0) else f
+            }
             place.copy(
                 baselinePressureKPa = floor.pressureKPa,
-                startFloorLabel = floor.label
+                startFloorLabel = floor.label,
+                floors = floors
             )
         }
         announcer.announce(str(R.string.floor_status_start_floor_set, floorLabel ?: floorId), minimumInterval = 0)
@@ -119,9 +127,13 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
     fun setStartFloor(placeId: String, label: String, pressureKPa: Double) {
         if (!pressureKPa.isFinite()) return
         updatePlace(placeId) { place ->
+            val floors = place.floors.map { f ->
+                if (f.label == label) f.copy(heightOffsetMeters = 0) else f
+            }
             place.copy(
                 baselinePressureKPa = pressureKPa,
-                startFloorLabel = label
+                startFloorLabel = label,
+                floors = floors
             )
         }
         announcer.announce(str(R.string.floor_status_start_floor_set, label), minimumInterval = 0)
@@ -133,14 +145,22 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
     fun addFloor(placeId: String, label: String, pressureKPa: Double?) {
         val trimmed = label.trim()
         if (trimmed.isEmpty() || pressureKPa == null || !pressureKPa.isFinite()) return
-        updatePlace(placeId) { it.copy(floors = it.floors + Floor(label = trimmed, pressureKPa = pressureKPa)) }
+        updatePlace(placeId) { place ->
+            val baseline = place.baselinePressureKPa
+            val heightOffset = heightAboveBaseline(pressureKPa, baseline) ?: 0.0
+            it.copy(floors = it.floors + Floor(
+                label = trimmed,
+                pressureKPa = pressureKPa,
+                heightOffsetMeters = heightOffset
+            ))
+        }
         announcer.announce(str(R.string.status_record_saved, trimmed), minimumInterval = 0)
     }
 
     /**
-     * Renames a floor and optionally moves it to a corrected height. Height is
-     * converted back into a pressure against the place's baseline so every
-     * height stays derived from one reference.
+     * Renames a floor and optionally corrects its height. The height offset is
+     * stored directly; the baseline is only used to convert live pressure
+     * readings to a current height, never to rewrite stored offsets.
      */
     fun updateFloor(placeId: String, floorId: String, label: String, heightMeters: Double?) {
         val trimmed = label.trim()
@@ -148,10 +168,8 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         updatePlace(placeId) { place ->
             val floors = place.floors.map { floor ->
                 if (floor.id != floorId) return@map floor
-                val pressure = heightMeters
-                    ?.let { pressureKPaForHeight(it, place.baselinePressureKPa) }
-                    ?: floor.pressureKPa
-                floor.copy(label = trimmed, pressureKPa = pressure)
+                val offset = heightMeters ?: floor.heightOffsetMeters
+                floor.copy(label = trimmed, heightOffsetMeters = offset)
             }
             place.copy(floors = floors)
         }
@@ -183,7 +201,7 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun heightOf(floor: Floor, place: FloorPlace): Double? =
-        heightAboveBaseline(floor.pressureKPa, place.baselinePressureKPa)
+        floor.heightOffsetMeters
 
     fun drift(pressureKPa: Double, place: FloorPlace): Double? =
         heightAboveBaseline(pressureKPa, place.baselinePressureKPa)

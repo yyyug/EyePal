@@ -78,12 +78,15 @@ object FloorRecordStorage {
             val floors = records
                 .filter { it.id != start.id }
                 .map { record ->
+                    val relativeAltitude = record.altitude - start.altitude
+                    val pressure = pressureForHeight(
+                        relativeAltitude,
+                        ASSUMED_BASELINE_KPA
+                    ) ?: ASSUMED_BASELINE_KPA
                     Floor(
                         label = record.floor.toString(),
-                        pressureKPa = pressureForHeight(
-                            record.altitude - start.altitude,
-                            ASSUMED_BASELINE_KPA
-                        ) ?: ASSUMED_BASELINE_KPA
+                        pressureKPa = pressure,
+                        heightOffsetMeters = relativeAltitude
                     )
                 }
             FloorPlace(

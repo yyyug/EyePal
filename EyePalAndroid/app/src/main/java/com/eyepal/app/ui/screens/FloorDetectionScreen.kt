@@ -273,7 +273,7 @@ private fun FloorPlaceDetailContent(
                                 place.baselinePressureKPa
                             )
                         )
-                        if (drift != null && abs(drift) > FloorDetectionViewModel.DRIFT_NOTICE_METERS) {
+                        if (drift != null) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 stringResource(R.string.floor_drift, drift),

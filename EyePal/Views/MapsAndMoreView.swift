@@ -1432,8 +1432,7 @@ private struct FloorPlaceDetailView: View {
                 Text(String(format: "%.2f kPa", place.baselinePressureKPa))
             }
             if let pressure = altitudeMonitor.currentPressureKPa,
-               let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place),
-               abs(drift) > FloorRecordStore.baselineDriftNoticeMeters {
+               let drift = floorStore.baselineDrift(pressureKPa: pressure, in: place) {
                 Text(
                     String(
                         format: NSLocalizedString("floorDetection.drift", comment: ""),
@@ -2309,10 +2308,12 @@ final class FloorRecordStore: ObservableObject {
         // Re-anchor start floor label to the floor that best matches current
         // pressure, so recalibrating from a different floor correctly re-anchors
         // the reference instead of keeping a stale label.
-        if let bestFloor = places[index].floors.min(by: {
-            abs($0.pressureKPa - pressureKPa) < abs($1.pressureKPa - pressureKPa)
+        if let bestFloorIndex = places[index].floors.indices.min(by: {
+            abs(places[index].floors[$0].pressureKPa - pressureKPa) <
+                abs(places[index].floors[$1].pressureKPa - pressureKPa)
         }) {
-            places[index].startFloorLabel = bestFloor.label
+            places[index].floors[bestFloorIndex].heightOffsetMeters = 0
+            places[index].startFloorLabel = places[index].floors[bestFloorIndex].label
         }
         
         save()
