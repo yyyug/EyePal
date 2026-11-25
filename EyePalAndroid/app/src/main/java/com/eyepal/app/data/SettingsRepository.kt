@@ -16,6 +16,9 @@ class SettingsRepository(private val context: Context) {
         val QUICK_MOONDREAM_API_KEY = stringPreferencesKey("quick_moondream_api_key")
         val QUICK_CAPTION_LENGTH = stringPreferencesKey("quick_caption_length")
         val QUICK_CUSTOM_PROMPT = stringPreferencesKey("quick_custom_prompt")
+        val QUICK_USE_CUSTOM_PROMPT = booleanPreferencesKey("quick_use_custom_prompt")
+        val DETAILS_CUSTOM_PROMPT = stringPreferencesKey("details_custom_prompt")
+        val DETAILS_USE_CUSTOM_PROMPT = booleanPreferencesKey("details_use_custom_prompt")
         val QUICK_CONTINUOUS_INTERVAL = intPreferencesKey("quick_continuous_interval")
         val QUICK_TRIGGER_MODE = stringPreferencesKey("quick_trigger_mode")
         val QUICK_TRANSLATION_ENABLED = booleanPreferencesKey("quick_translation_enabled")
@@ -50,6 +53,9 @@ class SettingsRepository(private val context: Context) {
     val quickMoondreamAPIKey: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_MOONDREAM_API_KEY] ?: "" }
     val quickCaptionLength: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_CAPTION_LENGTH] ?: Defaults.CAPTION_LENGTH }
     val quickCustomPrompt: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_CUSTOM_PROMPT] ?: "" }
+    val quickUseCustomPrompt: Flow<Boolean> = context.dataStore.data.map { it[Keys.QUICK_USE_CUSTOM_PROMPT] ?: false }
+    val detailsCustomPrompt: Flow<String> = context.dataStore.data.map { it[Keys.DETAILS_CUSTOM_PROMPT] ?: "" }
+    val detailsUseCustomPrompt: Flow<Boolean> = context.dataStore.data.map { it[Keys.DETAILS_USE_CUSTOM_PROMPT] ?: false }
     val quickContinuousInterval: Flow<Int> = context.dataStore.data.map { it[Keys.QUICK_CONTINUOUS_INTERVAL] ?: Defaults.CONTINUOUS_INTERVAL_MS }
     val quickTriggerMode: Flow<String> = context.dataStore.data.map { it[Keys.QUICK_TRIGGER_MODE] ?: Defaults.QUICK_TRIGGER_MODE }
     val quickTranslationEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.QUICK_TRANSLATION_ENABLED] ?: false }
@@ -79,6 +85,9 @@ class SettingsRepository(private val context: Context) {
     suspend fun setQuickMoondreamAPIKey(key: String) { context.dataStore.edit { it[Keys.QUICK_MOONDREAM_API_KEY] = key } }
     suspend fun setQuickCaptionLength(value: String) { context.dataStore.edit { it[Keys.QUICK_CAPTION_LENGTH] = value } }
     suspend fun setQuickCustomPrompt(value: String) { context.dataStore.edit { it[Keys.QUICK_CUSTOM_PROMPT] = value } }
+    suspend fun setQuickUseCustomPrompt(value: Boolean) { context.dataStore.edit { it[Keys.QUICK_USE_CUSTOM_PROMPT] = value } }
+    suspend fun setDetailsCustomPrompt(value: String) { context.dataStore.edit { it[Keys.DETAILS_CUSTOM_PROMPT] = value } }
+    suspend fun setDetailsUseCustomPrompt(value: Boolean) { context.dataStore.edit { it[Keys.DETAILS_USE_CUSTOM_PROMPT] = value } }
     suspend fun setQuickContinuousInterval(value: Int) { context.dataStore.edit { it[Keys.QUICK_CONTINUOUS_INTERVAL] = value } }
     suspend fun setQuickTriggerMode(value: String) { context.dataStore.edit { it[Keys.QUICK_TRIGGER_MODE] = value } }
     suspend fun setQuickTranslationEnabled(value: Boolean) { context.dataStore.edit { it[Keys.QUICK_TRANSLATION_ENABLED] = value } }

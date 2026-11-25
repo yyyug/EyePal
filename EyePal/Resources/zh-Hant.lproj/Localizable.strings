@@ -217,6 +217,10 @@
 "settings.triggerMode" = "觸發方式";
 "settings.captureFrequency" = "拍攝頻率";
 "settings.quickButtons" = "快速按鈕";
+"settings.quickCustomPrompt" = "自定义預設提示詞";
+"settings.detailsCustomPrompt" = "自定义預設提示詞";
+"settings.useCustomPrompt" = "使用自訂提示";
+
 "settings.enableTranslation" = "啟用翻譯";
 "settings.targetLanguage" = "目標語言";
 "settings.loadingLanguages" = "正在載入可用語言...";

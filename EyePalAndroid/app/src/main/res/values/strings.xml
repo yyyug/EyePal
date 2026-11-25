@@ -46,6 +46,9 @@
     <string name="settings_features">Features</string>
     <string name="settings_details_recognition">Details Recognition</string>
     <string name="settings_quick_recognition">Quick Recognition</string>
+    <string name="settings_quick_custom_prompt">Custom Default Prompt</string>
+    <string name="settings_details_custom_prompt">Custom Default Prompt</string>
+    <string name="settings_use_custom_prompt">Use Custom Prompt</string>
     <string name="settings_text_recognition">Text Recognition</string>
     <string name="settings_lyric_prompter">Lyric Prompter</string>
     <string name="settings_match_sensitivity">Match sensitivity: %s%%</string>

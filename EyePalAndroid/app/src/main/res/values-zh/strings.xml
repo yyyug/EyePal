@@ -46,6 +46,9 @@
     <string name="settings_features">功能</string>
     <string name="settings_details_recognition">詳細辨識</string>
     <string name="settings_quick_recognition">快速辨識</string>
+    <string name="settings_quick_custom_prompt">自定义預設提示詞</string>
+    <string name="settings_details_custom_prompt">自定义預設提示詞</string>
+    <string name="settings_use_custom_prompt">使用自定义提示</string>
     <string name="settings_text_recognition">文字辨識</string>
     <string name="settings_lyric_prompter">歌詞提示</string>
     <string name="settings_match_sensitivity">匹配靈敏度：%s%%</string>

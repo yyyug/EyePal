@@ -28,9 +28,25 @@ final class DetailsDescriptionViewModel: ObservableObject {
     private var latestCapturedImage: UIImage?
     private var latestPrompt = defaultDescriptionPrompt
     private var openAIStore: OpenAISubscriptionStore?
+    private weak var settingsStore: SettingsStore?
 
     func bind(openAIStore: OpenAISubscriptionStore) {
         self.openAIStore = openAIStore
+    }
+
+    func bind(settings: SettingsStore) {
+        settingsStore = settings
+    }
+
+    /// Returns the prompt to use for a new photo capture. When a user custom
+    /// prompt is enabled in settings, it replaces the default description prompt.
+    private var effectiveDescriptionPrompt: String {
+        guard let settingsStore,
+              settingsStore.detailsUseCustomPrompt else {
+            return Self.defaultDescriptionPrompt
+        }
+        let trimmed = settingsStore.detailsTakePhotoCustomPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? Self.defaultDescriptionPrompt : trimmed
     }
 
     func start() {
@@ -43,7 +59,7 @@ final class DetailsDescriptionViewModel: ObservableObject {
     }
 
     func capturePhoto() {
-        capturePhotoWithPrompt(Self.defaultDescriptionPrompt)
+        capturePhotoWithPrompt(effectiveDescriptionPrompt)
     }
 
     func capturePresetPhoto(_ preset: QuickQueryPreset) {

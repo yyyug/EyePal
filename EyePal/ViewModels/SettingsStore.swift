@@ -71,6 +71,7 @@ final class SettingsStore: ObservableObject {
     @AppStorage("quickGemmaModelKind") var quickGemmaModelKind = GemmaModelKind.e2b.rawValue
     @AppStorage("quickCaptionLength") var quickCaptionLength = QuickCaptionLength.short.rawValue
     @AppStorage("quickTakePhotoCustomPrompt") var quickTakePhotoCustomPrompt = ""
+    @AppStorage("quickUseCustomPrompt") var quickUseCustomPrompt = false
     @AppStorage("quickContinuousCaptureInterval") var quickContinuousCaptureInterval = QuickContinuousCaptureInterval.defaultInterval.rawValue
     @AppStorage("quickContinuousTriggerMode") var quickContinuousTriggerMode = QuickRecognitionTriggerMode.defaultMode.rawValue
     @AppStorage("quickActionControlStyle") var quickActionControlStyle = RecognitionActionControlStyle.onScreenButtons.rawValue
@@ -133,6 +134,8 @@ final class SettingsStore: ObservableObject {
     @AppStorage("detailsButton4PresetKind") var detailsButton4PresetKind = RecognitionButtonSlot.fourth.defaultPresetKind.rawValue
     @AppStorage("detailsButton4CustomTitle") var detailsButton4CustomTitle = DetailsCustomQueryPreset.defaultTitle
     @AppStorage("detailsButton4CustomPrompt") var detailsButton4CustomPrompt = DetailsCustomQueryPreset.defaultPrompt
+    @AppStorage("detailsTakePhotoCustomPrompt") var detailsTakePhotoCustomPrompt = ""
+    @AppStorage("detailsUseCustomPrompt") var detailsUseCustomPrompt = false
     @AppStorage("detailsActionControlStyle") var detailsActionControlStyle = RecognitionActionControlStyle.singleAdjustableControl.rawValue
 
     init() {

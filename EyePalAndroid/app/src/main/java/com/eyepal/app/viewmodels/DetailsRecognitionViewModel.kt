@@ -9,6 +9,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.eyepal.app.EyePalApplication
 import com.eyepal.app.R
+import com.eyepal.app.data.SettingsRepository
 import com.eyepal.app.services.GoogleGlassState
 import com.eyepal.app.services.LanguageDetector
 import com.eyepal.app.services.OAuthService
@@ -34,6 +35,7 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
     private val openAI = container.openAIService
     private val glassService = container.glassService
     private val announcer = container.announcer
+    private val settings: SettingsRepository = container.settingsRepository
     private var lastImage: Bitmap? = null
     private var fullResImage: Bitmap? = null
     private val baseSystemPrompt = buildString {
@@ -44,6 +46,8 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
         append("Do not use markdown or double asterisks.")
     }
     private var lastPrompt = buildPromptWithLocale(baseSystemPrompt)
+    val detailsCustomPrompt = mutableStateOf("")
+    val detailsUseCustomPrompt = mutableStateOf(false)
     private var storedLifecycleOwner: LifecycleOwner? = null
     private var storedPreview: PreviewView? = null
     private var cameraStarted = false
@@ -51,6 +55,10 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
 
     init {
         isSignedIn.value = OAuthService.isSignedIn(application)
+        viewModelScope.launch {
+            detailsCustomPrompt.value = settings.detailsCustomPrompt.first()
+            detailsUseCustomPrompt.value = settings.detailsUseCustomPrompt.first()
+        }
     }
 
     fun startCamera(previewView: android.view.View) {
@@ -88,7 +96,15 @@ class DetailsRecognitionViewModel(application: Application) : AndroidViewModel(a
         showOAuthLogin.value = false
     }
 
-    fun capturePhoto() { lastPrompt = buildPromptWithLocale(baseSystemPrompt); doCapture() }
+    fun capturePhoto() {
+        if (detailsUseCustomPrompt.value) {
+            val trimmed = detailsCustomPrompt.value.trim()
+            lastPrompt = if (trimmed.isNotEmpty()) buildPromptWithLocale(trimmed) else buildPromptWithLocale(baseSystemPrompt)
+        } else {
+            lastPrompt = buildPromptWithLocale(baseSystemPrompt)
+        }
+        doCapture()
+    }
 
     fun capturePresetPhoto(prompt: String) { lastPrompt = buildPromptWithLocale("$baseSystemPrompt $prompt"); doCapture() }
 

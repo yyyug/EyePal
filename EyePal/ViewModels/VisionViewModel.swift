@@ -304,7 +304,16 @@ final class VisionViewModel: ObservableObject {
 
         isDetailsProcessing = true
         statusText = NSLocalizedString("vision.detailsAnalyzing", comment: "")
-        let prompt = "For a blind user, if visible text is present, read it exactly. If no text is visible, do not mention text detection. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks."
+        let prompt: String = {
+            guard let settingsStore,
+                  settingsStore.detailsUseCustomPrompt else {
+                return "For a blind user, if visible text is present, read it exactly. If no text is visible, do not mention text detection. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks."
+            }
+            let trimmed = settingsStore.detailsTakePhotoCustomPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty
+                ? "For a blind user, if visible text is present, read it exactly. If no text is visible, do not mention text detection. Then describe people, objects, layout, and orientation cues. Be concise and specific. Do not use markdown or double asterisks."
+                : trimmed
+        }()
         Task {
             do {
                 let preparedImageData = try detailsDescriptionService.prepareImageData(

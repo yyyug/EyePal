@@ -217,6 +217,10 @@
 "settings.triggerMode" = "Trigger";
 "settings.captureFrequency" = "Capture Frequency";
 "settings.quickButtons" = "Quick Buttons";
+"settings.quickCustomPrompt" = "Custom Default Prompt";
+"settings.detailsCustomPrompt" = "Custom Default Prompt";
+"settings.useCustomPrompt" = "Use Custom Prompt";
+
 "settings.enableTranslation" = "Enable Translation";
 "settings.targetLanguage" = "Target Language";
 "settings.loadingLanguages" = "Loading available languages...";

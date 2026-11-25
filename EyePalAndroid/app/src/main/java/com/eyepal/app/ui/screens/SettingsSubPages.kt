@@ -194,6 +194,26 @@ fun DetailsRecognitionSettingsScreen(onBack: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        val detailsUseCustomPrompt by settings.detailsUseCustomPrompt.collectAsState(initial = false)
+        val detailsCustomPrompt by settings.detailsCustomPrompt.collectAsState(initial = "")
+
+        Text(stringResource(R.string.settings_details_custom_prompt), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(stringResource(R.string.settings_use_custom_prompt), modifier = Modifier.weight(1f))
+            Switch(checked = detailsUseCustomPrompt, onCheckedChange = { scope.launch { settings.setDetailsUseCustomPrompt(it) } })
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = detailsCustomPrompt,
+            onValueChange = { scope.launch { settings.setDetailsCustomPrompt(it) } },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.label_prompt)) },
+            maxLines = 3
+        )
     }
 }
 
@@ -452,6 +472,27 @@ fun QuickRecognitionSettingsScreen(onBack: () -> Unit) {
             if (index < quickButtons.size - 1) {
                 Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+
+        item {
+            val quickUseCustomPrompt by settings.quickUseCustomPrompt.collectAsState(initial = false)
+            val quickCustomPrompt by settings.quickCustomPrompt.collectAsState(initial = "")
+
+            Text(stringResource(R.string.settings_quick_custom_prompt), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(stringResource(R.string.settings_use_custom_prompt), modifier = Modifier.weight(1f))
+                Switch(checked = quickUseCustomPrompt, onCheckedChange = { scope.launch { settings.setQuickUseCustomPrompt(it) } })
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = quickCustomPrompt,
+                onValueChange = { scope.launch { settings.setQuickCustomPrompt(it) } },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.label_prompt)) },
+                maxLines = 3
+            )
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
         item {

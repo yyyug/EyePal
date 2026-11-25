@@ -514,6 +514,19 @@ struct DetailsDescriptionSettingsView: View {
                 }
             }
 
+            Section(NSLocalizedString("settings.detailsCustomPrompt", comment: "")) {
+                Toggle(NSLocalizedString("settings.useCustomPrompt", comment: ""), isOn: $settingsStore.detailsUseCustomPrompt)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(NSLocalizedString("settings.prompt", comment: ""))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    TextEditor(text: $settingsStore.detailsTakePhotoCustomPrompt)
+                        .frame(minHeight: 100)
+                }
+            }
+
             if openAIStore.isSignedIn {
                 Section {
                     Button(NSLocalizedString("common.signOut", comment: ""), role: .destructive) {
@@ -725,6 +738,19 @@ struct QuickRecognitionSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                }
+            }
+
+            Section(NSLocalizedString("settings.quickCustomPrompt", comment: "")) {
+                Toggle(NSLocalizedString("settings.useCustomPrompt", comment: ""), isOn: $settingsStore.quickUseCustomPrompt)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(NSLocalizedString("settings.prompt", comment: ""))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    TextEditor(text: $settingsStore.quickTakePhotoCustomPrompt)
+                        .frame(minHeight: 100)
                 }
             }
 

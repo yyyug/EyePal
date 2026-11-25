@@ -57,6 +57,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
     val quickGemmaModelKind = mutableStateOf(Defaults.QUICK_GEMMA_MODEL_KIND)
 
     val quickCustomPrompt = mutableStateOf("")
+    val quickUseCustomPrompt = mutableStateOf(false)
     val promptDraft = mutableStateOf("")
     val isDictating = mutableStateOf(false)
     private var speechRecognizer: SpeechRecognizer? = null
@@ -112,6 +113,7 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
         } ?: QuickCaptionLength.SHORT
 
         quickCustomPrompt.value = settings.quickCustomPrompt.first()
+        quickUseCustomPrompt.value = settings.quickUseCustomPrompt.first()
 
         captureInterval.value = QuickContinuousInterval.fromValue(
             settings.quickContinuousInterval.first()
@@ -285,8 +287,9 @@ class QuickRecognitionViewModel(application: Application) : AndroidViewModel(app
                 capturedImage.value = bitmap
                 val selectedKind = selectedGemmaKind()
                 val useGemmaOffline = settings.quickModelProvider.first() == "gemma" && gemmaService.canRun(selectedKind)
-                // A user-supplied prompt replaces the default description prompt.
-                val customPrompt = quickCustomPrompt.value.trim()
+                // A user-supplied prompt replaces the default description prompt
+                // only when the "Use Custom Prompt" toggle is enabled.
+                val customPrompt = if (quickUseCustomPrompt.value) quickCustomPrompt.value.trim() else ""
                 val result: String
                 if (useGemmaOffline) {
                     result = if (customPrompt.isNotEmpty()) {

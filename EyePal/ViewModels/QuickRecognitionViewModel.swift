@@ -255,8 +255,11 @@ final class QuickRecognitionViewModel: ObservableObject {
             return
         }
 
-        // A user-supplied prompt replaces the default description prompt.
-        let customPrompt = settingsStore.quickTakePhotoCustomPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A user-supplied prompt replaces the default description prompt when
+        // the "Use Custom Prompt" toggle is enabled in settings.
+        let customPrompt = settingsStore.quickUseCustomPrompt
+            ? settingsStore.quickTakePhotoCustomPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            : ""
 
         guard let image = sourceImage ?? camera.currentFrameImage() else {
             statusText = "No camera frame is ready yet."

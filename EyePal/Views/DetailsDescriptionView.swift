@@ -129,6 +129,7 @@ struct DetailsDescriptionView: View {
             }
         .onAppear {
             viewModel.bind(openAIStore: openAIStore)
+            viewModel.bind(settings: settingsStore)
             viewModel.start()
             selectedActionIndex = min(selectedActionIndex, max(actionChoices.count - 1, 0))
         }
