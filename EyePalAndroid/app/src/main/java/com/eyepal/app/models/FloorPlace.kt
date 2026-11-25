@@ -39,5 +39,5 @@ data class Floor(
     val id: String = UUID.randomUUID().toString(),
     val label: String,
     val pressureKPa: Double,
-    val heightOffsetMeters: Double = 0
+    val heightOffsetMeters: Double = 0.0
 )

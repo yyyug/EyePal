@@ -87,7 +87,7 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         updatePlace(placeId) { place ->
             val bestFloor = place.floors.minByOrNull { floor: Floor -> abs(floor.pressureKPa - pressureKPa) }
             val floors = place.floors.map { f ->
-                if (bestFloor != null && f.id == bestFloor.id) f.copy(heightOffsetMeters = 0) else f
+                if (bestFloor != null && f.id == bestFloor.id) f.copy(heightOffsetMeters = 0.0) else f
             }
             place.copy(
                 baselinePressureKPa = pressureKPa,
@@ -109,7 +109,7 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         updatePlace(placeId) { place ->
             val floor = place.floors.firstOrNull { it.id == floorId } ?: return@updatePlace place
             val floors = place.floors.map { f ->
-                if (f.id == floorId) f.copy(heightOffsetMeters = 0) else f
+                if (f.id == floorId) f.copy(heightOffsetMeters = 0.0) else f
             }
             place.copy(
                 baselinePressureKPa = floor.pressureKPa,
@@ -128,7 +128,7 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         if (!pressureKPa.isFinite()) return
         updatePlace(placeId) { place ->
             val floors = place.floors.map { f ->
-                if (f.label == label) f.copy(heightOffsetMeters = 0) else f
+                if (f.label == label) f.copy(heightOffsetMeters = 0.0) else f
             }
             place.copy(
                 baselinePressureKPa = pressureKPa,
@@ -148,7 +148,7 @@ class FloorDetectionViewModel(application: Application) : AndroidViewModel(appli
         updatePlace(placeId) { place ->
             val baseline = place.baselinePressureKPa
             val heightOffset = heightAboveBaseline(pressureKPa, baseline) ?: 0.0
-            it.copy(floors = it.floors + Floor(
+            place.copy(floors = place.floors + Floor(
                 label = trimmed,
                 pressureKPa = pressureKPa,
                 heightOffsetMeters = heightOffset
