@@ -14,6 +14,7 @@ import com.eyepal.app.services.GoogleGlassState
 import com.eyepal.app.services.LanguageDetector
 import com.eyepal.app.services.OAuthService
 import com.eyepal.app.services.UnauthorizedException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Locale
 
