@@ -25,11 +25,9 @@ jobs:
       - name: Install CocoaPods
         run: gem install cocoapods
 
-      - name: Disable SSL verification for downloads
+      - name: Disable SSL verification for curl
         run: |
-          git config --global http.sslVerify false
-          export SSL_CERT_FILE=""
-          export CURL_CA_BUNDLE=""
+          printf -- '-k\n' > ~/.curlrc
 
       - name: Install Pods
         run: pod install
