@@ -25,10 +25,6 @@ jobs:
       - name: Install CocoaPods
         run: gem install cocoapods
 
-      - name: Disable SSL verification for curl
-        run: |
-          printf -- '-k\n' > ~/.curlrc
-
       - name: Install Pods
         run: pod install
 
