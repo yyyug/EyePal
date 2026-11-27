@@ -10,8 +10,8 @@ target 'EyePal' do
   pod 'GoogleMLKit/TextRecognitionJapanese', '8.0.0'
   pod 'GoogleMLKit/TextRecognitionKorean', '8.0.0'
   pod 'GoogleMLKit/LanguageID', '8.0.0'
-  pod 'onnxruntime-c', :path => 'onnxruntime-c.podspec.json'
-  pod 'onnxruntime-objc', :path => 'onnxruntime-objc.podspec.json'
+  pod 'onnxruntime-c', :podspec => 'onnxruntime-c.podspec.json'
+  pod 'onnxruntime-objc', :podspec => 'onnxruntime-objc.podspec.json'
   pod 'Yams', '~> 5.0'
   pod 'OpenCV', '~> 4.3.0'
 
